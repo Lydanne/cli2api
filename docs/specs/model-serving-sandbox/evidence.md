@@ -1,5 +1,25 @@
 # Model Serving Sandbox Evidence
 
+## 2026-06-10 CLI2API Home Update
+
+- `pnpm build`: passed for shared, agents-sdk, core, and dash after deriving
+  local state paths from `CLI2API_HOME`.
+- `pnpm test`: passed with 11 test files and 48 tests. Config tests cover
+  `CLI2API_HOME`, `${CLI2API_HOME}/.env`, process environment precedence, and
+  tmp/runtime/auth path derivation.
+- `pnpm test:coverage`: passed; global coverage is 85.15% statements, 67.35%
+  branches, 91.04% functions, and 85.62% lines.
+- `pnpm lint`: passed with zero warnings.
+- `pnpm check:file-size`: passed; all checked source files are <= 1300 lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests. The API E2E verifies that a
+  submitted profile `cwd` is replaced by a runtime workspace and model-serving
+  policies use `workspace-write` with `approvalPolicy=never`.
+- `./deploy.sh deploy && ./deploy.sh status`: passed; API and dashboard
+  containers were rebuilt. A follow-up `./deploy.sh status` reported both
+  containers healthy, with API health returning `{"ok":true,"service":"cli2api-core"}`.
+
+## Initial Sandbox Update
+
 - `pnpm build`: passed for shared, agents-sdk, core, and dash after adding the
   runtime workspace service and removing dashboard cwd controls.
 - `pnpm test`: passed with 11 test files and 46 tests.

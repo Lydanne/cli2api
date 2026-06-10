@@ -49,7 +49,7 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(run.output).toContain("hello from native");
     const storedProfile = harness.services.profiles.require(profile.id);
     expect(storedProfile).toMatchObject({
-      sandbox: "read-only",
+      sandbox: "workspace-write",
       approvalPolicy: "never"
     });
     expect(storedProfile.cwd.startsWith(join(harness.runtimeWorkspaceBase, "profiles"))).toBe(true);
@@ -69,7 +69,7 @@ describe("@cli2api/core HTTP contracts", () => {
     const dir = await mkdtemp(join(tmpdir(), "cli2api-first-admin-"));
     const database = openCoreDatabase(join(dir, "test.sqlite"));
     migrateDatabase(database);
-    const services = createServices(database, { runtimeWorkspaceBase: join(dir, "runtime-workspaces") });
+    const services = createServices(database, { homeDir: dir, runtimeWorkspaceBase: join(dir, "runtime-workspaces") });
     const app = createApp({ database, services });
 
     try {

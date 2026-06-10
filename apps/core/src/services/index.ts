@@ -1,3 +1,6 @@
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import {
   AdapterRegistry,
   CodexAdapter,
@@ -17,12 +20,16 @@ import { UserService } from "./users.js";
 
 /** Options accepted when creating the runtime service graph. */
 export interface CreateServicesOptions {
+  /** Root directory for local cli2api state, config, auth homes, and scratch data. */
+  homeDir?: string;
   /** Auth providers available for upstream account login flows. */
   authProviders?: AgentAuthProvider[];
   /** Base directory for per-account auth homes. */
   authHomeBase?: string;
   /** Base directory for service-owned model-serving runtime workspaces. */
   runtimeWorkspaceBase?: string;
+  /** Base directory for service-owned temporary files. */
+  tempDir?: string;
 }
 
 /** Runtime service graph used by HTTP routes and CLI commands. */
@@ -47,6 +54,10 @@ export interface Services {
 
 /** Creates the default service graph. */
 export function createServices(database: CoreDatabase, options: CreateServicesOptions = {}): Services {
+  const homeDir = resolveServicePath(options.homeDir ?? join(homedir(), ".cli2api"), process.cwd());
+  const authHomeBase = resolveServicePath(options.authHomeBase ?? "codex-homes", homeDir);
+  const runtimeWorkspaceBase = resolveServicePath(options.runtimeWorkspaceBase ?? "runtime-workspaces", homeDir);
+  const tempDir = resolveServicePath(options.tempDir ?? "tmp", homeDir);
   const adapters = new AdapterRegistry();
   adapters.register(new MockAgentAdapter());
   adapters.register(new CodexAdapter());
@@ -55,16 +66,18 @@ export function createServices(database: CoreDatabase, options: CreateServicesOp
   const users = new UserService(database);
   const sessions = new SessionService(database);
   const apiKeys = new ApiKeyService(database);
-  const runtimeWorkspaces = new RuntimeWorkspaceService(options.runtimeWorkspaceBase);
+  mkdirSync(homeDir, { recursive: true });
+  mkdirSync(tempDir, { recursive: true });
+  const runtimeWorkspaces = new RuntimeWorkspaceService(runtimeWorkspaceBase);
   const profiles = new ProfileService(database, runtimeWorkspaces);
   const quotas = new QuotaService(database);
-  const upstream = new UpstreamService(
-    database,
-    authProviders,
-    options.authHomeBase ?? "/data/codex-homes",
-    runtimeWorkspaces
-  );
+  const upstream = new UpstreamService(database, authProviders, authHomeBase, runtimeWorkspaces);
   const runs = new RunService(database, profiles, quotas, adapters, upstream);
 
   return { users, sessions, apiKeys, profiles, quotas, runs, adapters, upstream };
+}
+
+function resolveServicePath(path: string, baseDir: string): string {
+  const expanded = path.replace(/^~(?=$|\/)/u, homedir());
+  return resolve(isAbsolute(expanded) ? expanded : join(baseDir, expanded));
 }

@@ -10,8 +10,10 @@ const config = loadConfig();
 const database = openCoreDatabase(config.databasePath);
 migrateDatabase(database);
 const services = createServices(database, {
+  homeDir: config.homeDir,
   authHomeBase: config.authHomeBase,
-  runtimeWorkspaceBase: config.runtimeWorkspaceBase
+  runtimeWorkspaceBase: config.runtimeWorkspaceBase,
+  tempDir: config.tempDir
 });
 
 const app = new Elysia({ adapter: node() }).use(createApp({ database, services })).listen({

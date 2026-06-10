@@ -19,7 +19,7 @@ test("admin can create profile and key, then downstream key can run and read eve
   const profileBody = (await profile.json()) as { cwd: string; sandbox: string; approvalPolicy: string };
   expect(profileBody.cwd).toContain("runtime-workspaces");
   expect(profileBody.cwd).not.toBe(process.cwd());
-  expect(profileBody.sandbox).toBe("read-only");
+  expect(profileBody.sandbox).toBe("workspace-write");
   expect(profileBody.approvalPolicy).toBe("never");
 
   const key = await request.post("/api/admin/api-keys", {

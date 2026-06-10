@@ -9,6 +9,8 @@
   expose local project files, host paths, or operator workspaces to callers.
 - The current admin flows still accept `cwd` when creating profiles and upstream
   instances, which makes the product look and behave like an agent workspace.
+- The service needs a single home directory for local config, `.env`, auth
+  homes, temporary files, and scratch runtime workspaces.
 
 ## Goal
 
@@ -17,11 +19,13 @@
   workspaces.
 - Remove dashboard controls that invite operators to bind real local folders.
 - Keep OpenAI-compatible APIs as the intended downstream surface.
+- Use `~/.cli2api` as the default local service home.
 
 ## Scope
 
 - In scope:
   - Service-owned runtime workspace base configuration.
+  - `CLI2API_HOME` and `~/.cli2api/.env` loading.
   - Backend normalization of profile and upstream instance `cwd`.
   - Safe default sandbox and approval policies for model-serving instances.
   - Dashboard form/table changes that hide `cwd` from normal operations.
@@ -46,6 +50,10 @@
   sandbox, and interactive approval policy values.
 - [x] Runtime execution uses empty service-owned workspace paths under a
   configured base directory.
+- [x] Local defaults derive database, auth homes, runtime workspaces, and tmp
+  paths from `~/.cli2api`.
+- [x] `loadConfig()` reads `~/.cli2api/.env` when present, with real
+  environment variables taking precedence.
 - [x] Dashboard profile and instance pages no longer let operators type or edit
   `cwd`.
 - [x] Tests cover `cwd` override attempts for profiles, upstream instances, and

@@ -90,11 +90,12 @@ New operator surfaces:
 
 ## Deployment
 
-Compose stores account auth homes in the existing data volume, by default under
-`/data/codex-homes/<accountId>`. The dashboard service remains stateless. The
-API service owns auth jobs and Codex CLI invocation. The Docker build context
-excludes root and workspace `node_modules` directories so local pnpm shims do
-not overwrite the container's fresh frozen-lockfile install.
+Compose sets `CLI2API_HOME=/data`, so account auth homes live under
+`/data/codex-homes/<accountId>` inside the existing data volume. The dashboard
+service remains stateless. The API service owns auth jobs and Codex CLI
+invocation. The Docker build context excludes root and workspace `node_modules`
+directories so local pnpm shims do not overwrite the container's fresh
+frozen-lockfile install.
 
 ## Rejected Options
 

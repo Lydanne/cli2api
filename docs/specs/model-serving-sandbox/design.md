@@ -7,13 +7,35 @@ OpenAI-compatible endpoints and select a public model id. The caller cannot
 select or infer local working directories. Upstream accounts and execution
 instances are internal scheduling resources.
 
+## CLI2API Home
+
+The core service owns one local home directory:
+
+- Environment variable: `CLI2API_HOME`.
+- Local default: `~/.cli2api`.
+- Docker Compose override: `/data`, through `CLI2API_HOME=/data`.
+
+The service reads `${CLI2API_HOME}/.env` when present. Values from the real
+process environment override values from this file, so deployment-level secrets
+or port overrides still win.
+
+Default paths are derived from `CLI2API_HOME`:
+
+- SQLite: `${CLI2API_HOME}/cli2api.sqlite`.
+- Upstream account auth homes: `${CLI2API_HOME}/codex-homes`.
+- Runtime workspaces: `${CLI2API_HOME}/runtime-workspaces`.
+- Temporary/scratch root: `${CLI2API_HOME}/tmp`.
+
+Every path can still be overridden with its existing specific environment
+variable, such as `CLI2API_DB`, `CLI2API_AUTH_HOME_BASE`, or
+`CLI2API_RUNTIME_WORKSPACE_BASE`.
+
 ## Runtime Workspace Policy
 
 The core service owns one runtime workspace base directory:
 
 - Environment variable: `CLI2API_RUNTIME_WORKSPACE_BASE`.
-- Docker default: `/data/runtime-workspaces`.
-- Local default: `data/runtime-workspaces`.
+- Local default: `${CLI2API_HOME}/runtime-workspaces`.
 
 Profiles receive deterministic service-owned workspaces under
 `<base>/profiles/<profileId>`. Upstream instances receive deterministic
@@ -28,12 +50,14 @@ directory, but the stored value is internal runtime state.
 
 Model-serving instances normalize runtime policies:
 
-- `sandbox`: always `read-only`.
+- `sandbox`: always `workspace-write`.
 - `approvalPolicy`: always `never`.
 
 This keeps the external product from becoming an interactive agent environment.
-Adapter-specific config can still select model/runtime options, but filesystem
-and approval policy are not part of the operator workflow.
+The writable area is still the service-owned empty runtime workspace, not a host
+project directory. Adapter-specific config can still select model/runtime
+options, but filesystem and approval policy are not part of the operator
+workflow.
 
 ## Dashboard
 

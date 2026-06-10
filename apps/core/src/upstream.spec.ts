@@ -84,6 +84,7 @@ async function createUpstreamHarness(): Promise<{
   const provider = new FakeCodexAuthProvider();
   const runtimeWorkspaceBase = join(dir, "runtime-workspaces");
   const services = createServices(database, {
+    homeDir: dir,
     authProviders: [provider],
     authHomeBase: "/data/codex-homes",
     runtimeWorkspaceBase
@@ -327,7 +328,7 @@ describe("@cli2api/core upstream account pool", () => {
       enabled: true,
       currentRuns: 0,
       maxConcurrentRuns: 3,
-      sandbox: "read-only",
+      sandbox: "workspace-write",
       approvalPolicy: "never",
       config: { model: "gpt-5" }
     });
@@ -395,7 +396,7 @@ describe("@cli2api/core upstream account pool", () => {
     const body = (await updateResponse.json()) as { cwd: string };
     expect(body).toMatchObject({
       id: instance.id,
-      sandbox: "read-only",
+      sandbox: "workspace-write",
       approvalPolicy: "never",
       maxConcurrentRuns: 2
     });

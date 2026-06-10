@@ -21,6 +21,9 @@ pnpm --filter @cli2api/core cli serve --host 127.0.0.1 --port 3000
 Then open `http://127.0.0.1:3000`. The first login creates the administrator
 account when the database has no users.
 
+Local service state defaults to `~/.cli2api`: SQLite, Codex auth homes, runtime
+workspaces, temporary files, and an optional `.env` file are read from there.
+
 ## Docker Compose
 
 ```bash
@@ -28,9 +31,10 @@ account when the database has no users.
 ./deploy.sh status
 ```
 
-The Compose deployment builds separate API and dashboard services. SQLite data
-is stored in the `cli2api-data` volume. Set `CLI2API_PUBLISHED_PORT` for the API
-port and `CLI2API_DASH_PUBLISHED_PORT` for the dashboard port.
+The Compose deployment builds separate API and dashboard services. API state is
+stored in the `cli2api-data` volume with `CLI2API_HOME=/data`. Set
+`CLI2API_PUBLISHED_PORT` for the API port and `CLI2API_DASH_PUBLISHED_PORT` for
+the dashboard port.
 
 By default, the API is available at `http://127.0.0.1:3000` and the dashboard is
 available at `http://127.0.0.1:5173`.

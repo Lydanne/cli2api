@@ -35,7 +35,7 @@ export class ProfileService {
         name: input.name,
         cwd: this.runtimeWorkspaces.profileWorkspace(id),
         enabled: input.enabled === false ? 0 : 1,
-        sandbox: "read-only",
+        sandbox: "workspace-write",
         approvalPolicy: "never",
         envJson: stringifyJson(input.env ?? {}),
         configJson: stringifyJson(input.config ?? {}),
@@ -105,7 +105,7 @@ export class ProfileService {
     return {
       ...toProfile(row),
       cwd: this.runtimeWorkspaces.profileWorkspace(row.id),
-      sandbox: "read-only",
+      sandbox: "workspace-write",
       approvalPolicy: "never"
     };
   }

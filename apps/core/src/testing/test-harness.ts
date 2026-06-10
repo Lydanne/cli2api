@@ -33,7 +33,7 @@ export async function createTestHarness(): Promise<TestHarness> {
   const database = openCoreDatabase(join(dir, "test.sqlite"));
   migrateDatabase(database);
   const runtimeWorkspaceBase = join(dir, "runtime-workspaces");
-  const services = createServices(database, { runtimeWorkspaceBase });
+  const services = createServices(database, { homeDir: dir, runtimeWorkspaceBase });
   services.users.createAdmin("admin@example.com", "password");
   const app = createApp({ database, services });
 

@@ -7,9 +7,10 @@ cli2api includes a root Docker Compose package for local private deployments.
 `compose.yaml` defines two services:
 
 - `api`: builds the root `Dockerfile` `runtime` target, runs
-  `apps/core/dist/server.js`, stores SQLite data in the `cli2api-data` volume,
-  stores Codex account auth homes under `/data/codex-homes`, exposes
-  `http://127.0.0.1:3000`, and checks `/api/health`.
+  `apps/core/dist/server.js`, uses `CLI2API_HOME=/data`, stores SQLite data,
+  Codex account auth homes, runtime workspaces, and temporary files in the
+  `cli2api-data` volume, exposes `http://127.0.0.1:3000`, and checks
+  `/api/health`.
 - `dash`: builds the `dash-runtime` target, serves `apps/dash/dist` through
   Nginx, exposes `http://127.0.0.1:5173`, and proxies `/api/` and `/v1/` to the
   API service for same-origin browser calls.
@@ -21,9 +22,19 @@ ports:
 CLI2API_PUBLISHED_PORT=8080 CLI2API_DASH_PUBLISHED_PORT=8081 ./deploy.sh deploy
 ```
 
-Set `CLI2API_AUTH_HOME_BASE` if the API container should use a different
-per-account Codex auth directory. The default is `/data/codex-homes`, which is
-inside the persistent `cli2api-data` Compose volume.
+The core service reads `${CLI2API_HOME}/.env` when present. Local development
+defaults `CLI2API_HOME` to `~/.cli2api`; Compose sets it to `/data` so the
+service-owned directories all live in the persistent volume:
+
+- SQLite: `${CLI2API_HOME}/cli2api.sqlite`
+- Upstream account auth homes: `${CLI2API_HOME}/codex-homes`
+- Runtime workspaces: `${CLI2API_HOME}/runtime-workspaces`
+- Temporary files: `${CLI2API_HOME}/tmp`
+
+Specific environment variables still override individual paths:
+`CLI2API_DB`, `CLI2API_AUTH_HOME_BASE`, `CLI2API_RUNTIME_WORKSPACE_BASE`, and
+`CLI2API_TEMP_DIR`. Process environment values override values from
+`${CLI2API_HOME}/.env`.
 
 ## Operations
 
@@ -60,8 +71,9 @@ docker compose -f compose.yaml exec api \
   --password change-me
 ```
 
-The CLI uses the same `CLI2API_DB=/data/cli2api.sqlite` environment as the
-running server, so the admin is stored in the Compose volume.
+The CLI uses the same `CLI2API_HOME=/data` and `CLI2API_DB=/data/cli2api.sqlite`
+environment as the running server, so the admin is stored in the Compose
+volume.
 
 ## Codex Account Pool
 
@@ -70,7 +82,9 @@ Use the dashboard `上游账号` page to create a Codex upstream account. Click
 click `刷新认证` until the account becomes `authenticated`.
 
 After authentication, open `实例池`, bind the account, set the concurrency limit,
-and create an instance. The API service assigns a service-owned empty runtime
-workspace automatically. Runs that target a matching model profile are scheduled
-onto enabled, authenticated instances and record the selected
+and create an instance. The API service assigns a service-owned runtime
+workspace automatically and runs Codex with `workspace-write` plus
+`approvalPolicy=never`, so SDK-based tools can write scratch files without
+touching host project directories. Runs that target a matching model profile are
+scheduled onto enabled, authenticated instances and record the selected
 `upstreamInstanceId`.

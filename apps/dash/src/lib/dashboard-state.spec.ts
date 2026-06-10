@@ -102,7 +102,7 @@ describe("dashboard state", () => {
     expect(resources.instances[0]).toMatchObject({
       id: "inst-1",
       cwd: "/runtime/instances/inst-1",
-      sandbox: "read-only",
+      sandbox: "workspace-write",
       approvalPolicy: "never"
     });
 
@@ -432,7 +432,7 @@ function createInstance(input: CreateUpstreamInstanceInput): UpstreamInstanceVie
     healthState: "unknown",
     currentRuns: 0,
     maxConcurrentRuns: input.maxConcurrentRuns ?? 1,
-    sandbox: "read-only",
+    sandbox: "workspace-write",
     approvalPolicy: "never",
     config: input.config ?? {},
     lastError: null,

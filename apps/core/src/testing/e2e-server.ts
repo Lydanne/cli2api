@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Elysia } from "elysia";
 import { node } from "@elysiajs/node";
 import type {
@@ -60,7 +62,10 @@ class E2eCodexAuthProvider implements AgentAuthProvider {
 
 const database = openCoreDatabase(process.env.CLI2API_E2E_DB ?? ":memory:");
 migrateDatabase(database);
-const services = createServices(database, { authProviders: [new E2eCodexAuthProvider()] });
+const services = createServices(database, {
+  authProviders: [new E2eCodexAuthProvider()],
+  homeDir: process.env.CLI2API_E2E_HOME ?? join(tmpdir(), "cli2api-e2e")
+});
 
 new Elysia({ adapter: node() }).use(createApp({ database, services })).listen({
   hostname: "127.0.0.1",

@@ -37,10 +37,12 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV="production"
 ENV CLI2API_HOST="0.0.0.0"
 ENV CLI2API_PORT="3000"
+ENV CLI2API_HOME="/data"
 ENV CLI2API_DB="/data/cli2api.sqlite"
 ENV CLI2API_DASH_DIST="/app/apps/dash/dist"
 ENV CLI2API_AUTH_HOME_BASE="/data/codex-homes"
 ENV CLI2API_RUNTIME_WORKSPACE_BASE="/data/runtime-workspaces"
+ENV CLI2API_TEMP_DIR="/data/tmp"
 
 WORKDIR /app
 
@@ -58,7 +60,7 @@ COPY --from=build /app/packages/agents-sdk/dist ./packages/agents-sdk/dist
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 
-RUN mkdir -p /data/codex-homes /data/runtime-workspaces
+RUN mkdir -p /data/codex-homes /data/runtime-workspaces /data/tmp
 
 EXPOSE 3000
 

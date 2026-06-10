@@ -14,6 +14,9 @@ pnpm --filter @cli2api/core cli serve --host 127.0.0.1 --port 3000
 Open `http://127.0.0.1:3000` for the dashboard after `apps/dash` is built. The
 first login creates the administrator account when the database has no users.
 
+Local service state defaults to `~/.cli2api`. The core service also reads an
+optional `~/.cli2api/.env` before applying process environment overrides.
+
 ## Documentation Map
 
 - `docs/specs/`: specifications, architecture decisions, tasks, and evidence.

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
 /** Service-owned runtime workspace allocator for model-serving execution. */
@@ -7,7 +8,7 @@ export class RuntimeWorkspaceService {
   private readonly baseDir: string;
 
   /** Creates a runtime workspace service rooted at the provided base directory. */
-  public constructor(baseDir = "data/runtime-workspaces") {
+  public constructor(baseDir = join(homedir(), ".cli2api", "runtime-workspaces")) {
     this.baseDir = resolve(baseDir);
     mkdirSync(this.baseDir, { recursive: true });
   }
