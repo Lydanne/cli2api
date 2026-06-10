@@ -83,3 +83,14 @@ changing backend contracts:
   components.
 - Keep existing E2E `data-testid` hooks while improving page hierarchy.
 - Keep Compose deployment behavior and verify the dashboard build.
+
+## Usability Follow-Up
+
+Operator feedback showed that object-oriented labels still made the dashboard
+hard to understand. The dashboard should lead with the serving chain instead:
+Codex account, executor, client model, dispatch rule, client key, and test call.
+
+The overview page now acts as the default setup surface. It shows whether the
+HTTP entrypoint is callable, which setup steps are complete, and routes the
+operator to the next incomplete step. The calls page also accepts a pasted
+client key so test calls still work after a browser refresh.

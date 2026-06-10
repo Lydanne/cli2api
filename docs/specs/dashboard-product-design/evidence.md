@@ -18,3 +18,13 @@
 - `./deploy.sh status`: passed; API and dashboard containers are both healthy,
   API health returned `{"ok":true,"service":"cli2api-core"}`, and dashboard is
   available at `http://127.0.0.1:5173/`.
+- Usability follow-up after operator feedback:
+  - Renamed Chinese navigation from internal object names to serving-chain
+    terms: client keys, models, dispatch rules, Codex accounts, executors, and
+    calls.
+  - Added an overview setup-progress panel that marks completed steps and links
+    to the next incomplete configuration area.
+  - Added a client-key input to the calls page so test calls do not depend on a
+    token being created in the same browser session.
+  - Re-ran `pnpm build`, `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`,
+    `pnpm lint`, `pnpm check:file-size`, and `./deploy.sh deploy`.

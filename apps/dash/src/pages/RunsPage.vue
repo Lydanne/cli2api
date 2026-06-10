@@ -15,6 +15,7 @@ const {
   loadRunEvents,
   profileOptions,
   prompt,
+  runToken,
   runs,
   selectedProfile,
   selectedRunId,
@@ -29,7 +30,7 @@ const {
     <Card class="border border-slate-200 shadow-sm">
       <template #title>{{ text("runs") }}</template>
       <template #content>
-        <form class="mb-4 grid grid-cols-1 gap-2 lg:grid-cols-[240px_1fr_auto]" @submit.prevent="createRun">
+        <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[240px_280px_1fr_auto]" @submit.prevent="createRun">
           <Select
             v-model="selectedProfile"
             data-testid="run-profile"
@@ -37,6 +38,7 @@ const {
             optionValue="value"
             :options="profileOptions"
           />
+          <InputText v-model="runToken" :placeholder="text('clientToken')" type="password" />
           <InputText v-model="prompt" data-testid="run-prompt" :placeholder="text('prompt')" />
           <Button data-testid="run-submit" :label="text('createRun')" type="submit" />
         </form>

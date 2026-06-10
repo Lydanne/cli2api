@@ -94,7 +94,7 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("create-route").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).filter({ hasText: "mock-ui-inst" })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "路由绑定" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "调度规则" })).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).filter({ hasText: "mock-ui-inst" })).toBeVisible();
 
   await page.getByTestId("nav-keys").click();

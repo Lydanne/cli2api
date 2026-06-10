@@ -115,6 +115,7 @@ describe("dashboard state", () => {
     state.newKeyName.value = "dev";
     await expect(state.createKey()).resolves.toBe(true);
     expect(state.createdToken.value).toMatch(/^c2a_/u);
+    expect(state.runToken.value).toBe(state.createdToken.value);
 
     state.selectedProfile.value = "mock-main";
     state.prompt.value = "hello";
@@ -158,8 +159,9 @@ describe("dashboard state", () => {
     expect(state.statusLabel("custom-state")).toBe("custom-state");
 
     state.createdToken.value = "";
+    state.runToken.value = "";
     await expect(state.createRun()).resolves.toBe(false);
-    expect(state.error.value).toBe("Create an API key first.");
+    expect(state.error.value).toBe("Create or enter a client key first.");
   });
 });
 

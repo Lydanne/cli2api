@@ -79,6 +79,7 @@ export interface DashboardState {
   prompt: Ref<string>;
   selectedProfile: Ref<string>;
   createdToken: Ref<string>;
+  runToken: Ref<string>;
   selectedRunId: Ref<string>;
   runEvents: Ref<AgentEvent[]>;
   newUserEmail: Ref<string>;
@@ -162,6 +163,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
   const prompt = ref("hello from dashboard");
   const selectedProfile = ref("");
   const createdToken = ref("");
+  const runToken = ref("");
   const selectedRunId = ref("");
   const runEvents = ref<AgentEvent[]>([]);
   const newUserEmail = ref("ops@example.com");
@@ -324,6 +326,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
         monthlyTokenLimit: Number(newKeyMonthlyTokenLimit.value)
       });
       createdToken.value = created.token ?? "";
+      runToken.value = created.token ?? "";
       await refresh();
     });
   }
@@ -337,10 +340,11 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
 
   async function createRun(): Promise<boolean> {
     return action(async () => {
-      if (!createdToken.value) {
+      const token = runToken.value || createdToken.value;
+      if (!token) {
         throw new Error(text("createKeyFirst"));
       }
-      await client.createRun(createdToken.value, { prompt: prompt.value, profileId: selectedProfile.value });
+      await client.createRun(token, { prompt: prompt.value, profileId: selectedProfile.value });
       await refresh();
     });
   }
@@ -520,6 +524,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     prompt,
     selectedProfile,
     createdToken,
+    runToken,
     selectedRunId,
     runEvents,
     newUserEmail,
