@@ -20,7 +20,7 @@
   available at `http://127.0.0.1:5173/`.
 - Usability follow-up after operator feedback:
   - Renamed Chinese navigation from internal object names to serving-chain
-    terms: client keys, models, dispatch rules, Codex accounts, executors, and
+    terms: client keys, models, dispatch rules, upstream accounts, executors, and
     calls.
   - Added an overview setup-progress panel that marks completed steps and links
     to the next incomplete configuration area.
@@ -29,7 +29,7 @@
   - Re-ran `pnpm build`, `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`,
     `pnpm lint`, `pnpm check:file-size`, and `./deploy.sh deploy`.
 - Data cleanup follow-up after operator feedback:
-  - Added admin delete APIs for unused client keys, models, Codex accounts,
+  - Added admin delete APIs for unused client keys, models, upstream accounts,
     executors, and extra dashboard users.
   - Preserved audit history by returning 409 when a key/model/executor has run
     or usage history; those records stay revocable or disableable instead.

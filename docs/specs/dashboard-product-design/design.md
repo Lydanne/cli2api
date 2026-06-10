@@ -24,7 +24,7 @@ profiles, route bindings, upstream accounts, instances, users.
 - API keys: downstream access, quotas, usage, and revocation.
 - Profiles: public model ids and adapter/runtime defaults.
 - Route bindings: profile-to-instance routing and coverage gaps.
-- Upstream accounts: Codex account creation, browser/device auth, polling, and
+- Upstream accounts: upstream account creation, browser/device auth, polling, and
   logout.
 - Instances: execution slots, account binding, cwd, sandbox/approval policy,
   health, and concurrency.
@@ -88,7 +88,7 @@ changing backend contracts:
 
 Operator feedback showed that object-oriented labels still made the dashboard
 hard to understand. The dashboard should lead with the serving chain instead:
-Codex account, executor, client model, dispatch rule, client key, and test call.
+upstream account, executor, client model, dispatch rule, client key, and test call.
 
 The overview page now acts as the default setup surface. It shows whether the
 HTTP entrypoint is callable, which setup steps are complete, and routes the
@@ -106,7 +106,7 @@ delete rules are:
   are removed with them.
 - Executors can be deleted only when idle and before they have run history;
   otherwise they must be disabled.
-- Codex accounts can be deleted after their executors are removed; auth sessions
+- Upstream accounts can be deleted after their executors are removed; auth sessions
   are internal cleanup data and are removed with the account.
 - Extra dashboard users can be deleted when they are not the current user, not
   the last active admin, and do not own client keys.
