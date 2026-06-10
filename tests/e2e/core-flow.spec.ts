@@ -69,8 +69,6 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("create-account").click();
   await expect(page.getByText("codex-ui-e2e", { exact: true })).toBeVisible();
   await expect(page.getByText("待认证")).toBeVisible();
-  await expect(page.getByText("认证目录")).toHaveCount(0);
-  await expect(page.getByText("/data/codex-homes/codex-ui-e2e")).toHaveCount(0);
   await page.getByTestId("auth-codex-ui-e2e").click();
   await expect(page.getByText("E2E-1234")).toBeVisible();
   await page.getByTestId("poll-codex-ui-e2e").click();

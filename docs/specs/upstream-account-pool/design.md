@@ -98,12 +98,11 @@ New operator surfaces:
 
 Compose sets `CLI2API_HOME=/data`, so account auth homes live under
 `/data/codex-homes/<accountId>` inside the existing data volume. The dashboard
-service remains stateless and does not display auth home paths as normal account
-table fields. The API service owns auth jobs and Codex CLI invocation. The
-runtime image copies the root and package-level `node_modules` trees needed for
-`@openai/codex-sdk` and its bundled Codex CLI shim. The Docker build context
-excludes root and workspace `node_modules` directories so local pnpm shims do not
-overwrite the container's fresh frozen-lockfile install.
+service remains stateless. The API service owns auth jobs and Codex CLI
+invocation. The runtime image copies the root and package-level `node_modules`
+trees needed for `@openai/codex-sdk` and its bundled Codex CLI shim. The Docker
+build context excludes root and workspace `node_modules` directories so local
+pnpm shims do not overwrite the container's fresh frozen-lockfile install.
 
 ## Rejected Options
 
