@@ -33,6 +33,13 @@ variable, such as `CLI2API_DB`, `CLI2API_AUTH_HOME_BASE`, or
 `CLI2API_RUNTIME_WORKSPACE_BASE`. Compose intentionally does not set those
 specific overrides, so container paths stay derived from `CLI2API_HOME`.
 
+Upstream account rows created by earlier Compose deployments may still store
+`auth_home` values under `/data/codex-homes`. When the configured auth home base
+is no longer that legacy base, the upstream service aligns those rows to the
+current base while preserving the relative account path. Operators still need to
+copy the corresponding Codex auth files into the new home before expecting the
+old login state to work.
+
 ## Runtime Workspace Policy
 
 The core service owns one runtime workspace base directory:

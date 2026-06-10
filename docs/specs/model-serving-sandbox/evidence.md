@@ -11,9 +11,9 @@
   `CLI2API_HOME=~/.cli2api`, does not set `CLI2API_DB`,
   `CLI2API_AUTH_HOME_BASE`, `CLI2API_RUNTIME_WORKSPACE_BASE`, or
   `CLI2API_TEMP_DIR`, and mounts `cli2api-home` to `/root/.cli2api`.
-- `pnpm test`: passed with 11 test files and 51 tests.
-- `pnpm test:coverage`: passed; global coverage is 85.15% statements, 67.21%
-  branches, 91.07% functions, and 85.62% lines.
+- `pnpm test`: passed with 11 test files and 52 tests.
+- `pnpm test:coverage`: passed; global coverage is 85.19% statements, 67.27%
+  branches, 91.13% functions, and 85.65% lines.
 - `pnpm test:e2e`: passed with 2 Playwright tests.
 - `pnpm check:file-size`: passed; all checked source files are <= 1300 lines.
 - `pnpm build`: passed for shared, agents-sdk, core, and dash.
@@ -25,6 +25,11 @@
   `/root/.cli2api/codex-homes`, runtime workspaces at
   `/root/.cli2api/runtime-workspaces`, and temp files at
   `/root/.cli2api/tmp`.
+- `pnpm test apps/core/src/upstream.spec.ts`: failed first because imported
+  upstream account rows still returned `/data/codex-homes/codex-main`.
+- `pnpm test apps/core/src/upstream.spec.ts`: passed after aligning legacy
+  `/data/codex-homes` account rows to the configured auth home base at service
+  startup.
 
 ## 2026-06-10 Read-only Text Serving Update
 

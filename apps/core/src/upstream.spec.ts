@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { openCoreDatabase, type CoreDatabase } from "./db/client.js";
 import { migrateDatabase } from "./db/migrate.js";
+import { upstreamAccounts } from "./db/schema.js";
 import { createServices, type Services } from "./services/index.js";
 
 class FakeCodexAuthProvider implements AgentAuthProvider {
@@ -69,7 +70,12 @@ class FakeCodexAuthProvider implements AgentAuthProvider {
   }
 }
 
-async function createUpstreamHarness(): Promise<{
+interface UpstreamHarnessOptions {
+  authHomeBase?: string;
+  seedLegacyContainerAccount?: boolean;
+}
+
+async function createUpstreamHarness(options: UpstreamHarnessOptions = {}): Promise<{
   app: ReturnType<typeof createApp>;
   database: CoreDatabase;
   services: Services;
@@ -81,12 +87,29 @@ async function createUpstreamHarness(): Promise<{
   const dir = await mkdtemp(join(tmpdir(), "cli2api-upstream-"));
   const database = openCoreDatabase(join(dir, "test.sqlite"));
   migrateDatabase(database);
+  if (options?.seedLegacyContainerAccount) {
+    const now = Date.now();
+    database.db
+      .insert(upstreamAccounts)
+      .values({
+        id: "codex-main",
+        providerType: "codex",
+        name: "主账号",
+        authState: "pending",
+        authHome: "/data/codex-homes/codex-main",
+        disabledAt: null,
+        lastAuthError: null,
+        createdAt: now,
+        updatedAt: now
+      })
+      .run();
+  }
   const provider = new FakeCodexAuthProvider();
   const runtimeWorkspaceBase = join(dir, "runtime-workspaces");
   const services = createServices(database, {
     homeDir: dir,
     authProviders: [provider],
-    authHomeBase: "/data/codex-homes",
+    authHomeBase: options?.authHomeBase ?? "/data/codex-homes",
     runtimeWorkspaceBase
   });
   services.users.createAdmin("admin@example.com", "password");
@@ -203,6 +226,27 @@ describe("@cli2api/core upstream account pool", () => {
     expect(await accountResponse.json()).toMatchObject({
       error: { code: "INVALID_REQUEST" }
     });
+  });
+
+  it("aligns legacy container auth homes to the configured auth base", async () => {
+    const legacyHarness = await createUpstreamHarness({
+      authHomeBase: "/root/.cli2api/codex-homes",
+      seedLegacyContainerAccount: true
+    });
+    try {
+      expect(legacyHarness.services.upstream.listAccounts()).toMatchObject([
+        {
+          id: "codex-main",
+          authHome: "/root/.cli2api/codex-homes/codex-main"
+        }
+      ]);
+      const stored = legacyHarness.database.sqlite
+        .prepare("SELECT auth_home AS authHome FROM upstream_accounts WHERE id = ?")
+        .get("codex-main") as { authHome: string } | undefined;
+      expect(stored?.authHome).toBe("/root/.cli2api/codex-homes/codex-main");
+    } finally {
+      await legacyHarness.close();
+    }
   });
 
   it("cancels a pending upstream auth session without calling the provider", async () => {

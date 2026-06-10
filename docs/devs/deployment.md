@@ -41,7 +41,10 @@ Specific environment variables still override individual paths:
 Deployments created before the Compose home alignment may still have data in the
 old `cli2api-data` volume mounted at `/data`. That volume is not automatically
 migrated into `cli2api-home`; copy or export the SQLite database and Codex auth
-homes before switching an existing deployment.
+homes before switching an existing deployment. If an imported SQLite database
+contains upstream account rows under `/data/codex-homes`, the service rewrites
+those rows to the current `CLI2API_AUTH_HOME_BASE` on startup, but it does not
+copy token files for you.
 
 ## Operations
 

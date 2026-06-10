@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { AgentAuthProvider, AuthSession } from "@cli2api/agents-sdk";
 import {
   type AdapterProfile,
@@ -25,6 +25,8 @@ import {
   runs
 } from "../db/schema.js";
 import type { RuntimeWorkspaceService } from "./runtime-workspaces.js";
+
+const legacyContainerAuthHomeBase = "/data/codex-homes";
 
 /** Upstream account creation payload accepted by admin APIs. */
 export interface CreateUpstreamAccountInput {
@@ -118,6 +120,7 @@ export class UpstreamService {
     private readonly runtimeWorkspaces: RuntimeWorkspaceService
   ) {
     this.providers = new Map(authProviders.map((provider) => [provider.type, provider]));
+    this.alignLegacyContainerAuthHomes();
   }
 
   /** Creates an upstream account. */
@@ -543,11 +546,43 @@ export class UpstreamService {
       ? resolve(isAbsolute(authHome) ? authHome : resolve(base, authHome))
       : resolve(base, accountId);
     const pathFromBase = relative(base, candidate);
-    if (pathFromBase.startsWith("..") || isAbsolute(pathFromBase)) {
+    if (isPathOutsideBase(pathFromBase)) {
       throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "authHome must be inside the configured auth home base", 400);
     }
     return candidate;
   }
+
+  private alignLegacyContainerAuthHomes(): void {
+    const currentBase = resolve(this.authHomeBase);
+    const legacyBase = resolve(legacyContainerAuthHomeBase);
+    if (currentBase === legacyBase) {
+      return;
+    }
+
+    const accounts = this.database.db
+      .select({ id: upstreamAccounts.id, authHome: upstreamAccounts.authHome })
+      .from(upstreamAccounts)
+      .all();
+    for (const account of accounts) {
+      const legacyRelativePath = relative(legacyBase, resolve(account.authHome));
+      if (isPathOutsideBase(legacyRelativePath)) {
+        continue;
+      }
+      const nextAuthHome = resolve(currentBase, legacyRelativePath);
+      if (nextAuthHome === account.authHome) {
+        continue;
+      }
+      this.database.db
+        .update(upstreamAccounts)
+        .set({ authHome: nextAuthHome, updatedAt: Date.now() })
+        .where(eq(upstreamAccounts.id, account.id))
+        .run();
+    }
+  }
+}
+
+function isPathOutsideBase(pathFromBase: string): boolean {
+  return pathFromBase === ".." || pathFromBase.startsWith(`..${sep}`) || isAbsolute(pathFromBase);
 }
 
 function assertSafeId(id: string): void {
