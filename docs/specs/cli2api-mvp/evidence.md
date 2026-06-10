@@ -12,12 +12,24 @@ This file records verification evidence for the MVP.
 
 ## Evidence Log
 
-- `pnpm build`: passed after TypeScript package export fixes.
-- `pnpm test`: passed with 6 test files and 23 tests.
-- `pnpm test:coverage`: passed with statements 78.71%, branches 63.18%,
-  functions 82.17%, and lines 79.09%.
+- `pnpm build`: passed.
+- `pnpm test`: passed with 6 test files and 24 tests.
+- `pnpm test:coverage`: passed with statements 80.48%, branches 64.25%,
+  functions 84.61%, and lines 80.64%.
 - `pnpm test:e2e`: 2 Playwright E2E tests passed, covering API and dashboard flows.
 - `pnpm check:file-size`: all checked source files are <= 1300 lines.
+
+## First-login Admin Evidence
+
+- `pnpm vitest run apps/core/src/core.spec.ts --testNamePattern "bootstraps"`:
+  failed first because empty-database login returned 401 instead of creating the
+  first admin.
+- `pnpm vitest run apps/core/src/core.spec.ts --testNamePattern "bootstraps"`:
+  passed after adding empty-user-table bootstrap to `UserService.verifyLogin`.
+- `pnpm vitest run apps/core/src/core.spec.ts`: passed with 9 tests, including
+  first-login bootstrap and post-bootstrap rejection for a second email.
+- `pnpm test:e2e`: passed with no pre-seeded E2E admin user, covering API and
+  dashboard login through the bootstrap path.
 
 ## MVP Hardening Evidence
 

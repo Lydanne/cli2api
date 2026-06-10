@@ -39,9 +39,17 @@ export class UserService {
       .run();
   }
 
-  /** Verifies login credentials and returns the matching user. */
+  /** Verifies login credentials, bootstrapping the first admin when no users exist. */
   public verifyLogin(email: string, password: string): UserRow {
-    const user = this.database.db.select().from(users).where(eq(users.email, email)).get();
+    const normalizedEmail = email.trim();
+    if (!this.hasAnyUser()) {
+      if (!normalizedEmail || !password) {
+        throw createCli2ApiError(ErrorCode.AUTH_FAILED, "Invalid email or password", 401);
+      }
+      return this.createAdmin(normalizedEmail, password);
+    }
+
+    const user = this.database.db.select().from(users).where(eq(users.email, normalizedEmail)).get();
     if (!user || user.disabledAt || !verifyPassword(password, user.passwordHash)) {
       throw createCli2ApiError(ErrorCode.AUTH_FAILED, "Invalid email or password", 401);
     }
@@ -51,5 +59,9 @@ export class UserService {
   /** Lists users for the management dashboard. */
   public list(): UserRow[] {
     return this.database.db.select().from(users).all();
+  }
+
+  private hasAnyUser(): boolean {
+    return Boolean(this.database.db.select({ id: users.id }).from(users).limit(1).get());
   }
 }

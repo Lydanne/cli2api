@@ -24,6 +24,9 @@ run ids are not exposed across tenants.
 
 Admin API:
 
+- `POST /api/admin/login`: verifies an existing admin user. If the user table is
+  empty, the same endpoint creates the first admin from the submitted email and
+  password, then returns the session cookie.
 - `GET /api/admin/runs`: list stored run state for operators.
 - `GET /api/admin/runs/:id/events`: fetch stored run events through the admin session.
 - `GET /api/admin/usage`: list usage buckets for operator quota inspection.
@@ -38,6 +41,11 @@ Compatibility API:
 ## Persistence
 
 SQLite stores users, sessions, API keys, adapter profiles, runs, run events, and usage buckets. Drizzle schema definitions are the TypeScript source of truth; migrations are applied by the core CLI.
+
+The first administrator is bootstrapped through the normal login route only when
+the `users` table has no rows. After that point, login is strictly credential
+verification and additional users must be created through authenticated admin
+flows or CLI commands.
 
 Quota failures are recorded as failed runs when the request has a valid API key,
 prompt, and adapter profile. The failed run stores the stable error code and a

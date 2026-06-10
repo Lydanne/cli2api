@@ -2,6 +2,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createApp } from "./app.js";
+import { openCoreDatabase } from "./db/client.js";
+import { migrateDatabase } from "./db/migrate.js";
+import { createServices } from "./services/index.js";
 import { createTestHarness, type TestHarness } from "./testing/test-harness.js";
 
 async function json(response: Response): Promise<Record<string, unknown>> {
@@ -52,6 +56,55 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(eventsResponse.status).toBe(200);
     const events = (await eventsResponse.json()) as Array<Record<string, unknown>>;
     expect(events.some((event) => event.type === "run.completed")).toBe(true);
+  });
+
+  it("bootstraps the first admin account from the first login only", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cli2api-first-admin-"));
+    const database = openCoreDatabase(join(dir, "test.sqlite"));
+    migrateDatabase(database);
+    const services = createServices(database);
+    const app = createApp({ database, services });
+
+    try {
+      const firstLogin = await app.handle(
+        new Request("http://localhost/api/admin/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: "owner@example.com", password: "change-me" })
+        })
+      );
+      const cookie = firstLogin.headers.get("set-cookie");
+
+      expect(firstLogin.status).toBe(200);
+      expect(cookie).toContain("cli2api_session=");
+      expect(await json(firstLogin)).toMatchObject({
+        user: { email: "owner@example.com", role: "admin" }
+      });
+
+      const usersResponse = await app.handle(
+        new Request("http://localhost/api/admin/users", {
+          headers: { cookie: String(cookie) }
+        })
+      );
+      expect(usersResponse.status).toBe(200);
+      expect(await usersResponse.json()).toMatchObject([
+        { email: "owner@example.com", role: "admin", disabledAt: null }
+      ]);
+
+      const secondEmailLogin = await app.handle(
+        new Request("http://localhost/api/admin/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: "second@example.com", password: "change-me" })
+        })
+      );
+
+      expect(secondEmailLogin.status).toBe(401);
+      expect(services.users.list()).toHaveLength(1);
+    } finally {
+      database.sqlite.close();
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("exposes enabled profiles through /v1/models and maps responses requests to runs", async () => {

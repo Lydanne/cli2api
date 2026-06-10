@@ -19,6 +19,7 @@
   - Codex SDK-backed adapter plus a mock adapter for tests and local smoke flows.
   - Elysia server on Node using SQLite through Drizzle.
   - Cookie-session admin API and bearer-token downstream API.
+  - First-login admin bootstrap when the user table is empty.
   - Quota checks for concurrent runs, requests per minute, daily runs, and monthly tokens.
   - Vite/Vue dashboard for overview, runs, API keys, users, and adapter profiles.
   - Docker Compose packaging and a root `deploy.sh` helper for local operations.
@@ -47,6 +48,7 @@
 - [x] No request payload can override adapter profile `cwd`.
 - [x] Downstream API keys can only read runs and events created by the same key.
 - [x] Admin dashboard users can inspect stored run events without needing the downstream key token.
+- [x] The first login against an empty user table creates an admin account and starts an admin session.
 - [x] Operators can revoke API keys and inspect usage buckets from the dashboard.
 - [x] `docker compose` can build and run API plus dashboard services with persistent SQLite storage.
 - [x] `./deploy.sh` supports `deploy`, `build`, `up`, `down`, `restart`, `status`, `logs`, `test`, and `help`.

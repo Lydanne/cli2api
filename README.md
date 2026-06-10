@@ -15,11 +15,11 @@ cli2api turns coding-agent CLIs into managed HTTP APIs with a local operations d
 pnpm install
 pnpm build
 pnpm --filter @cli2api/core cli migrate
-pnpm --filter @cli2api/core cli admin create --email admin@example.com --password change-me
 pnpm --filter @cli2api/core cli serve --host 127.0.0.1 --port 3000
 ```
 
-Then open `http://127.0.0.1:3000`.
+Then open `http://127.0.0.1:3000`. The first login creates the administrator
+account when the database has no users.
 
 ## Docker Compose
 

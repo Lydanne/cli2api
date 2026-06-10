@@ -41,7 +41,11 @@ suite.
 
 ## First Admin
 
-After the API service is healthy, create the first admin user inside the API
+After the services are healthy, open `http://127.0.0.1:5173`. If the database
+has no users, the first login email and password create the administrator
+account and start the admin session.
+
+For scripted deployments, you can still pre-create an admin user inside the API
 container:
 
 ```bash

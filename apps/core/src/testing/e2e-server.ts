@@ -8,7 +8,6 @@ import { createServices } from "../services/index.js";
 const database = openCoreDatabase(process.env.CLI2API_E2E_DB ?? ":memory:");
 migrateDatabase(database);
 const services = createServices(database);
-services.users.createAdmin("admin@example.com", "password");
 
 new Elysia({ adapter: node() }).use(createApp({ database, services })).listen({
   hostname: "127.0.0.1",

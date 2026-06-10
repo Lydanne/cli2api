@@ -8,11 +8,11 @@ cli2api turns coding-agent CLIs into managed HTTP APIs with a local operations d
 pnpm install
 pnpm build
 pnpm --filter @cli2api/core cli migrate
-pnpm --filter @cli2api/core cli admin create --email admin@example.com --password change-me
 pnpm --filter @cli2api/core cli serve --host 127.0.0.1 --port 3000
 ```
 
-Open `http://127.0.0.1:3000` for the dashboard after `apps/dash` is built.
+Open `http://127.0.0.1:3000` for the dashboard after `apps/dash` is built. The
+first login creates the administrator account when the database has no users.
 
 ## Documentation Map
 

@@ -28,6 +28,13 @@
 - [x] Add a separate dashboard Compose service with same-origin API proxying.
 - [x] Verify `./deploy.sh deploy` reaches API and dashboard health.
 
+## First-login Admin Slice
+
+- [x] Specify empty-database admin bootstrap through the login route.
+- [x] Add failing tests for first-login admin bootstrap and post-bootstrap login rejection.
+- [x] Implement first-login admin creation without changing existing login behavior.
+- [x] Update quick-start/deployment docs and verification evidence.
+
 ## Allowed Write Areas
 
 - `.agents/**`

@@ -18,7 +18,7 @@ Coverage thresholds are 60% for lines, functions, statements, and branches. The 
 
 Playwright covers the operator-critical backend flow:
 
-- login
+- first-login admin bootstrap and login
 - create API key
 - create adapter profile
 - trigger a run
