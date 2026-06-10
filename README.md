@@ -40,6 +40,9 @@ Use Commitizen for Conventional Commit prompts:
 pnpm commit
 ```
 
+Commit descriptions and bodies should use Chinese while keeping the conventional
+prefix, for example `feat(core): 增加运行队列`.
+
 The repository also installs Husky hooks. `commit-msg` runs commitlint, and
 `pre-commit` runs lint plus source file-size checks.
 

@@ -22,6 +22,7 @@ description: Use before planning, implementing, reviewing, or verifying cli2api 
 - API keys and upstream secrets must not be stored in plaintext.
 - Adapter profiles define `cwd`, sandbox, approval policy, and environment. Request payloads cannot expand filesystem access.
 - Commit each completed logical slice with a Conventional Commit message. Use `pnpm commit` when creating commits interactively.
+- Commit descriptions and bodies must be written in Chinese. Keep the Conventional Commit type/scope prefix, for example `feat(core): 增加运行队列`.
 - Do not bypass commitlint or pre-commit lint/file-size hooks unless the final response records the exact reason.
 
 ## Verification

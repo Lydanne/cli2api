@@ -9,6 +9,7 @@
 - Add TSDoc comments to every exported interface, type, function, class, and constant that is part of a public module contract.
 - Prefer E2E-backed acceptance for product flows. Keep total coverage gates at or above 60%.
 - Use Conventional Commits for every logical slice. Prefer `pnpm commit` for interactive Commitizen prompts.
+- Write commit subjects and bodies in Chinese while keeping the Conventional Commit `type(scope):` prefix.
 - Commit hooks must pass: `commit-msg` runs commitlint, and `pre-commit` runs lint plus source file-size checks.
 - Run `pnpm test`, `pnpm test:coverage`, and `pnpm test:e2e` before claiming the MVP is ready.
 
