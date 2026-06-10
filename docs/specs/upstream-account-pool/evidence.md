@@ -14,6 +14,27 @@ Chinese-first dashboard work.
 
 ## Evidence Log
 
+- `pnpm --filter @cli2api/agents-sdk test`: failed first because the default
+  Codex auth executable was the bare `codex` command, which is not present on the
+  Compose API image `PATH`.
+- `pnpm --filter @cli2api/agents-sdk test`: passed after resolving the bundled
+  `@openai/codex-sdk` CLI shim before falling back to `codex`.
+- `pnpm build`: passed after the bundled Codex CLI resolver change.
+- `docker compose -f compose.yaml build api`: passed and rebuilt
+  `cli2api-api:local`.
+- `docker run --rm --entrypoint node cli2api-api:local ...`: passed; the runtime
+  `CodexAuthProvider` resolved
+  `/app/node_modules/.pnpm/@openai+codex-sdk@0.139.0/node_modules/@openai/codex-sdk/node_modules/.bin/codex`
+  and that executable had execute permissions.
+- `docker run --rm --entrypoint node cli2api-api:local ...`: passed when invoking
+  the resolved executable with `--version`, returning `codex-cli 0.139.0`.
+- `pnpm test`: passed with 11 test files and 50 tests.
+- `pnpm test:coverage`: passed; global coverage is 85.15% statements, 67.21%
+  branches, 91.07% functions, and 85.62% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests.
+- `pnpm check:file-size`: passed; all checked source files are <= 1300 lines.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm lint`: passed with zero warnings.
 - `pnpm vitest run packages/agents-sdk/src/auth.spec.ts`: failed first because
   `CodexAuthProvider` was not implemented or exported.
 - `pnpm vitest run packages/agents-sdk/src/auth.spec.ts`: passed after adding

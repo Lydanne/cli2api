@@ -72,6 +72,25 @@ describe("CodexAuthProvider", () => {
     expect(status.state).toBe("authenticated");
   });
 
+  it("uses the bundled Codex CLI shim by default", async () => {
+    const runner = new RecordingRunner({
+      exitCode: 0,
+      stdout: "Logged in with ChatGPT",
+      stderr: ""
+    });
+    const provider = new CodexAuthProvider({ runner });
+
+    await provider.checkRuntime({
+      accountId: "account-bundled",
+      authHome: "/data/codex-homes/account-bundled"
+    });
+
+    const executable = runner.commands[0]?.executable ?? "";
+    expect(executable).not.toBe("codex");
+    expect(executable).toContain("@openai/codex-sdk");
+    expect(executable).toMatch(/node_modules[/\\]\.bin[/\\]codex(?:\.cmd)?$/u);
+  });
+
   it("checks Codex auth status for one account home", async () => {
     const runner = new RecordingRunner({
       exitCode: 0,

@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ChildProcessAuthCommandRunner,
   type AgentAuthCommand,
@@ -35,7 +38,7 @@ export class CodexAuthProvider implements AgentAuthProvider {
   /** Creates a Codex auth provider. */
   public constructor(options: CodexAuthProviderOptions = {}) {
     this.runner = options.runner ?? new ChildProcessAuthCommandRunner();
-    this.codexPath = options.codexPath ?? "codex";
+    this.codexPath = options.codexPath ?? resolveBundledCodexPath();
     this.timeoutMs = options.timeoutMs ?? 120_000;
   }
 
@@ -127,6 +130,20 @@ export class CodexAuthProvider implements AgentAuthProvider {
 
 function extractAuthUrl(output: string): string | undefined {
   return output.match(/https?:\/\/[^\s)]+/u)?.[0]?.replace(/[.,;:]+$/u, "");
+}
+
+function resolveBundledCodexPath(): string {
+  try {
+    const sdkEntry = fileURLToPath(import.meta.resolve("@openai/codex-sdk"));
+    const sdkRoot = dirname(dirname(sdkEntry));
+    const executable = join(sdkRoot, "node_modules", ".bin", process.platform === "win32" ? "codex.cmd" : "codex");
+    if (existsSync(executable)) {
+      return executable;
+    }
+  } catch {
+    // Fall through to PATH lookup for custom installs.
+  }
+  return "codex";
 }
 
 function extractUserCode(output: string): string | undefined {

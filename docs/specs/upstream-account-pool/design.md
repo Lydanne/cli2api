@@ -29,6 +29,12 @@ The Codex auth provider runs `codex login --device-auth`,
 Every account receives an isolated `CODEX_HOME`, so multiple Codex accounts can
 coexist in the same deployment.
 
+By default, the provider resolves the Codex CLI shim bundled under
+`@openai/codex-sdk` before falling back to a `codex` executable on `PATH`.
+Container deployments therefore use the locked workspace dependency instead of
+requiring a separate global Codex CLI install. Tests and custom deployments may
+still pass an explicit executable path through provider construction.
+
 ## Backend APIs
 
 Core will persist:
@@ -93,9 +99,10 @@ New operator surfaces:
 Compose sets `CLI2API_HOME=/data`, so account auth homes live under
 `/data/codex-homes/<accountId>` inside the existing data volume. The dashboard
 service remains stateless. The API service owns auth jobs and Codex CLI
-invocation. The Docker build context excludes root and workspace `node_modules`
-directories so local pnpm shims do not overwrite the container's fresh
-frozen-lockfile install.
+invocation. The runtime image copies the root and package-level `node_modules`
+trees needed for `@openai/codex-sdk` and its bundled Codex CLI shim. The Docker
+build context excludes root and workspace `node_modules` directories so local
+pnpm shims do not overwrite the container's fresh frozen-lockfile install.
 
 ## Rejected Options
 

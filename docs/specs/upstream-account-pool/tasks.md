@@ -36,6 +36,8 @@
 ## Phase 4: Deployment And Evidence
 
 - [x] Persist `/data/codex-homes` in Compose deployment.
+- [x] Resolve the bundled Codex CLI shim for container auth flows before
+  falling back to a global `codex` executable.
 - [x] Document Codex browser/device auth from the dashboard.
 - [x] Run build, unit, coverage, E2E, lint, and file-size checks.
 - [x] Verify dashboard language switching and auth flow with mocked Codex auth.
