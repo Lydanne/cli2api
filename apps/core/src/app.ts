@@ -62,6 +62,15 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .delete("/api/admin/users/:id", ({ params, request }) => {
+      try {
+        const currentUser = requireAdmin(services, request);
+        const user = services.users.delete(params.id, currentUser.id);
+        return jsonResponse({ id: user.id, email: user.email, role: user.role, disabledAt: user.disabledAt });
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .get("/api/admin/profiles", ({ request }) => {
       try {
         requireAdmin(services, request);
@@ -79,6 +88,14 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .delete("/api/admin/profiles/:id", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.profiles.delete(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .get("/api/admin/upstream/accounts", ({ request }) => {
       try {
         requireAdmin(services, request);
@@ -92,6 +109,14 @@ export function createApp(context: AppContext) {
         requireAdmin(services, request);
         const body = (await request.json()) as Parameters<typeof services.upstream.createAccount>[0];
         return jsonResponse(services.upstream.createAccount(body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .delete("/api/admin/upstream/accounts/:id", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.upstream.deleteAccount(params.id));
       } catch (error) {
         return errorResponse(error);
       }
@@ -163,6 +188,14 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .delete("/api/admin/upstream/instances/:id", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.upstream.deleteInstance(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .get("/api/admin/upstream/routes", ({ request }) => {
       try {
         requireAdmin(services, request);
@@ -224,6 +257,15 @@ export function createApp(context: AppContext) {
       try {
         requireAdmin(services, request);
         services.apiKeys.revoke(params.id);
+        return { ok: true };
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .delete("/api/admin/api-keys/:id", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        services.apiKeys.delete(params.id);
         return { ok: true };
       } catch (error) {
         return errorResponse(error);

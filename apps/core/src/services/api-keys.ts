@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { ErrorCode, createCli2ApiError } from "@cli2api/shared";
 import type { CoreDatabase } from "../db/client.js";
-import { apiKeys } from "../db/schema.js";
+import { apiKeys, runs, usageBuckets } from "../db/schema.js";
 import { generateToken, hashToken, tokenPrefix, verifyToken } from "../security/tokens.js";
 
 /** API key quota options accepted by admin APIs and CLI. */
@@ -88,6 +88,30 @@ export class ApiKeyService {
       .set({ enabled: 0, revokedAt: Date.now() })
       .where(eq(apiKeys.id, id))
       .run();
+  }
+
+  /** Deletes an unused API key. Keys with runs or usage must be revoked instead. */
+  public delete(id: string): void {
+    const key = this.database.db.select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+    if (!key) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, `API key not found: ${id}`, 404);
+    }
+    const hasRunHistory = this.database.db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(eq(runs.apiKeyId, id))
+      .limit(1)
+      .get();
+    const hasUsage = this.database.db
+      .select({ id: usageBuckets.id })
+      .from(usageBuckets)
+      .where(eq(usageBuckets.apiKeyId, id))
+      .limit(1)
+      .get();
+    if (hasRunHistory || hasUsage) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "API key has usage history; revoke it instead", 409);
+    }
+    this.database.db.delete(apiKeys).where(eq(apiKeys.id, id)).run();
   }
 
   /** Lists API key records without plaintext tokens. */

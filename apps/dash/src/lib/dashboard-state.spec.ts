@@ -130,12 +130,22 @@ describe("dashboard state", () => {
     expect(resources.instances[0]?.enabled).toBe(false);
     await expect(state.deleteRoute(resources.routes[0] as UpstreamRouteBindingView)).resolves.toBe(true);
     expect(resources.routes).toHaveLength(0);
+    await expect(state.deleteInstance(resources.instances[0] as UpstreamInstanceView)).resolves.toBe(true);
+    expect(resources.instances).toHaveLength(0);
     await expect(state.logoutAccount(resources.accounts[0] as UpstreamAccountView)).resolves.toBe(true);
     expect(resources.accounts[0]?.authState).toBe("pending");
+    await expect(state.deleteAccount(resources.accounts[0] as UpstreamAccountView)).resolves.toBe(true);
+    expect(resources.accounts).toHaveLength(0);
+    await expect(state.deleteProfile(resources.profiles[0] as AdapterProfileView)).resolves.toBe(true);
+    expect(resources.profiles).toHaveLength(0);
+    await expect(state.deleteKey(resources.keys[0] as ApiKeyView)).resolves.toBe(true);
+    expect(resources.keys).toHaveLength(0);
 
     state.newUserEmail.value = "ops@example.com";
     await expect(state.createUser()).resolves.toBe(true);
     expect(resources.users.some((user) => user.email === "ops@example.com")).toBe(true);
+    await expect(state.deleteUser(resources.users[0] as AdminUser)).resolves.toBe(true);
+    expect(resources.users).toHaveLength(0);
   });
 
   it("handles locale persistence and action errors", async () => {
@@ -188,6 +198,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
       resources.users.push(user);
       return user;
     }),
+    deleteUser: vi.fn(async (id: string) => removeById(resources.users, id)),
     profiles: vi.fn(async () => resources.profiles),
     createProfile: vi.fn(async (input: CreateProfileInput) => {
       const profile: AdapterProfileView = {
@@ -200,6 +211,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
       resources.profiles.push(profile);
       return profile;
     }),
+    deleteProfile: vi.fn(async (id: string) => removeById(resources.profiles, id)),
     apiKeys: vi.fn(async () => resources.keys),
     createApiKey: vi.fn(async (input: CreateApiKeyInput) => {
       const key = {
@@ -219,6 +231,10 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
     revokeApiKey: vi.fn(async (id: string) => {
       const key = resources.keys.find((entry) => entry.id === id);
       if (key) key.enabled = 0;
+      return { ok: true };
+    }),
+    deleteApiKey: vi.fn(async (id: string) => {
+      removeById(resources.keys, id);
       return { ok: true };
     }),
     usage: vi.fn(async () => resources.usage),
@@ -243,6 +259,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
       resources.accounts.push(account);
       return account;
     }),
+    deleteUpstreamAccount: vi.fn(async (accountId: string) => removeById(resources.accounts, accountId)),
     startUpstreamAuth: vi.fn(async (accountId: string, _input: StartUpstreamAuthInput) =>
       createAuthSession(accountId, "waiting_for_browser")
     ),
@@ -285,6 +302,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
       instance.healthState = "disabled";
       return instance;
     }),
+    deleteUpstreamInstance: vi.fn(async (instanceId: string) => removeById(resources.instances, instanceId)),
     upstreamRoutes: vi.fn(async () => resources.routes),
     createUpstreamRoute: vi.fn(async (input: CreateUpstreamRouteInput) => {
       const route = {
@@ -430,4 +448,13 @@ function setAccountState(resources: FakeResources, accountId: string, state: Ups
   if (account) {
     account.authState = state;
   }
+}
+
+function removeById<T extends { id: string }>(items: T[], id: string): T {
+  const index = items.findIndex((item) => item.id === id);
+  if (index < 0) {
+    throw new Error(`not found: ${id}`);
+  }
+  const [removed] = items.splice(index, 1);
+  return removed as T;
 }

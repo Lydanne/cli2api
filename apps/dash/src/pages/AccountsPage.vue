@@ -11,6 +11,7 @@ import { useDashboardState } from "../lib/dashboard-state";
 const {
   accounts,
   createAccount,
+  deleteAccount,
   lastAuthSession,
   logoutAccount,
   newAccountId,
@@ -58,7 +59,7 @@ const {
           </template>
         </Column>
         <Column field="authHome" :header="text('authHome')" />
-        <Column :header="text('actions')" headerStyle="width: 330px">
+        <Column :header="text('actions')" headerStyle="width: 390px">
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">
               <Button :data-testid="`auth-${data.id}`" :label="text('startAuth')" outlined size="small" @click="startAuth(data)" />
@@ -70,6 +71,14 @@ const {
                 severity="secondary"
                 size="small"
                 @click="logoutAccount(data)"
+              />
+              <Button
+                :data-testid="`delete-account-${data.id}`"
+                :label="text('delete')"
+                outlined
+                severity="danger"
+                size="small"
+                @click="deleteAccount(data)"
               />
             </div>
           </template>

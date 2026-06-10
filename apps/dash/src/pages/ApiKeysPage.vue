@@ -11,6 +11,7 @@ import { useDashboardState } from "../lib/dashboard-state";
 const {
   createKey,
   createdToken,
+  deleteKey,
   keys,
   monthlyUsageByKey,
   newKeyConcurrentLimit,
@@ -56,17 +57,27 @@ const {
             {{ monthlyUsageByKey.get(data.id)?.totalTokens ?? 0 }} {{ text("totalTokens") }}
           </template>
         </Column>
-        <Column :header="text('actions')" headerStyle="width: 120px">
+        <Column :header="text('actions')" headerStyle="width: 190px">
           <template #body="{ data }">
-            <Button
-              :data-testid="`revoke-key-${data.name}`"
-              :disabled="data.enabled !== 1"
-              :label="text('revoke')"
-              outlined
-              severity="danger"
-              size="small"
-              @click="revokeKey(data)"
-            />
+            <div class="flex flex-wrap gap-2">
+              <Button
+                :data-testid="`revoke-key-${data.name}`"
+                :disabled="data.enabled !== 1"
+                :label="text('revoke')"
+                outlined
+                severity="danger"
+                size="small"
+                @click="revokeKey(data)"
+              />
+              <Button
+                :data-testid="`delete-key-${data.name}`"
+                :label="text('delete')"
+                outlined
+                severity="danger"
+                size="small"
+                @click="deleteKey(data)"
+              />
+            </div>
           </template>
         </Column>
         <template #empty>{{ text("noRows") }}</template>

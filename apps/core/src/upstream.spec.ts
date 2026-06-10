@@ -441,6 +441,59 @@ describe("@cli2api/core upstream account pool", () => {
     expect(deleteResponse.status).toBe(200);
   });
 
+  it("deletes unused upstream instances and accounts but protects run history", async () => {
+    await createAuthenticatedAccount("acct-delete-unused");
+    const unusedInstance = await createInstance("inst-delete-unused", "acct-delete-unused", { maxConcurrentRuns: 1 });
+    const profile = await createProfile("mock-delete-used");
+    const key = await createApiKey("delete-history-key");
+
+    const blockedAccountDelete = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/accounts/acct-delete-unused", {
+        method: "DELETE",
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(blockedAccountDelete.status).toBe(409);
+
+    const deleteInstance = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/instances/${unusedInstance.id}`, {
+        method: "DELETE",
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(deleteInstance.status).toBe(200);
+
+    const deleteAccount = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/accounts/acct-delete-unused", {
+        method: "DELETE",
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(deleteAccount.status).toBe(200);
+
+    await createAuthenticatedAccount("acct-delete-used");
+    const usedInstance = await createInstance("inst-delete-used", "acct-delete-used", { maxConcurrentRuns: 1 });
+    const runResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "keep instance history", profileId: profile.id })
+      })
+    );
+    expect(runResponse.status).toBe(200);
+
+    const deleteUsedInstance = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/instances/${usedInstance.id}`, {
+        method: "DELETE",
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(deleteUsedInstance.status).toBe(409);
+  });
+
   async function createAuthenticatedAccount(id: string): Promise<void> {
     await harness.app.handle(
       new Request("http://localhost/api/admin/upstream/accounts", {

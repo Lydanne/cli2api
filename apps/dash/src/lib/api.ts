@@ -102,6 +102,12 @@ export interface RevokeApiKeyResult {
   ok: boolean;
 }
 
+/** Generic delete result. */
+export interface DeleteResult {
+  /** Whether the delete completed. */
+  ok: boolean;
+}
+
 /** Run creation payload used by the dashboard. */
 export interface CreateRunInput {
   /** Prompt sent to the selected adapter profile. */
@@ -184,16 +190,22 @@ export interface DashboardApi {
   users(): Promise<AdminUser[]>;
   /** Creates a dashboard admin user. */
   createUser(input: CreateUserInput): Promise<AdminUser>;
+  /** Deletes an unused dashboard admin user. */
+  deleteUser(id: string): Promise<AdminUser>;
   /** Lists adapter profiles. */
   profiles(): Promise<AdapterProfileView[]>;
   /** Creates an adapter profile. */
   createProfile(input: CreateProfileInput): Promise<AdapterProfileView>;
+  /** Deletes an unused adapter profile. */
+  deleteProfile(id: string): Promise<AdapterProfileView>;
   /** Lists API keys. */
   apiKeys(): Promise<ApiKeyView[]>;
   /** Creates an API key and returns its one-time plaintext token. */
   createApiKey(input: CreateApiKeyInput): Promise<CreatedApiKey>;
   /** Revokes an API key. */
   revokeApiKey(id: string): Promise<RevokeApiKeyResult>;
+  /** Deletes an unused API key. */
+  deleteApiKey(id: string): Promise<DeleteResult>;
   /** Lists usage buckets for API keys. */
   usage(): Promise<UsageBucketView[]>;
   /** Lists runs visible to admins. */
@@ -206,6 +218,8 @@ export interface DashboardApi {
   upstreamAccounts(): Promise<UpstreamAccountView[]>;
   /** Creates an upstream account. */
   createUpstreamAccount(input: CreateUpstreamAccountInput): Promise<UpstreamAccountView>;
+  /** Deletes an upstream account that has no executors. */
+  deleteUpstreamAccount(accountId: string): Promise<UpstreamAccountView>;
   /** Starts an upstream account auth flow. */
   startUpstreamAuth(accountId: string, input: StartUpstreamAuthInput): Promise<UpstreamAuthSessionView>;
   /** Polls upstream account auth status. */
@@ -222,6 +236,8 @@ export interface DashboardApi {
   updateUpstreamInstance(instanceId: string, input: UpdateUpstreamInstanceInput): Promise<UpstreamInstanceView>;
   /** Disables an upstream runnable instance. */
   disableUpstreamInstance(instanceId: string): Promise<UpstreamInstanceView>;
+  /** Deletes an unused upstream runnable instance. */
+  deleteUpstreamInstance(instanceId: string): Promise<UpstreamInstanceView>;
   /** Lists explicit upstream route bindings. */
   upstreamRoutes(): Promise<UpstreamRouteBindingView[]>;
   /** Creates an explicit upstream route binding. */
@@ -240,6 +256,7 @@ interface AdminApiKeysClient {
   get(): Promise<TreatyResult<ApiKeyView[]>>;
   post(input: CreateApiKeyInput): Promise<TreatyResult<CreatedApiKey>>;
   (params: { id: string }): {
+    delete(): Promise<TreatyResult<DeleteResult>>;
     revoke: {
       post(): Promise<TreatyResult<RevokeApiKeyResult>>;
     };
@@ -249,6 +266,17 @@ interface AdminApiKeysClient {
 interface AdminUsersClient {
   get(): Promise<TreatyResult<AdminUser[]>>;
   post(input: CreateUserInput): Promise<TreatyResult<AdminUser>>;
+  (params: { id: string }): {
+    delete(): Promise<TreatyResult<AdminUser>>;
+  };
+}
+
+interface AdminProfilesClient {
+  get(): Promise<TreatyResult<AdapterProfileView[]>>;
+  post(input: CreateProfileInput): Promise<TreatyResult<AdapterProfileView>>;
+  (params: { id: string }): {
+    delete(): Promise<TreatyResult<AdapterProfileView>>;
+  };
 }
 
 interface AdminRunsClient {
@@ -264,6 +292,7 @@ interface AdminUpstreamAccountsClient {
   get(): Promise<TreatyResult<UpstreamAccountView[]>>;
   post(input: CreateUpstreamAccountInput): Promise<TreatyResult<UpstreamAccountView>>;
   (params: { id: string }): {
+    delete(): Promise<TreatyResult<UpstreamAccountView>>;
     auth: {
       start: {
         post(input: StartUpstreamAuthInput): Promise<TreatyResult<UpstreamAuthSessionView>>;
@@ -290,6 +319,7 @@ interface AdminUpstreamInstancesClient {
   get(): Promise<TreatyResult<UpstreamInstanceView[]>>;
   post(input: CreateUpstreamInstanceInput): Promise<TreatyResult<UpstreamInstanceView>>;
   (params: { id: string }): {
+    delete(): Promise<TreatyResult<UpstreamInstanceView>>;
     patch(input: UpdateUpstreamInstanceInput): Promise<TreatyResult<UpstreamInstanceView>>;
     disable: {
       post(): Promise<TreatyResult<UpstreamInstanceView>>;
@@ -313,20 +343,20 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
   const adminUsers = client.api.admin.users as unknown as AdminUsersClient;
   const adminApiKeys = client.api.admin["api-keys"] as unknown as AdminApiKeysClient;
   const adminRuns = client.api.admin.runs as unknown as AdminRunsClient;
+  const adminProfiles = client.api.admin.profiles as unknown as AdminProfilesClient;
   return {
     login: (input) => unwrap<LoginResult>(client.api.admin.login.post(input) as Promise<TreatyResult<LoginResult>>),
     users: () => unwrap<AdminUser[]>(adminUsers.get()),
     createUser: (input) => unwrap<AdminUser>(adminUsers.post(input)),
-    profiles: () =>
-      unwrap<AdapterProfileView[]>(client.api.admin.profiles.get() as Promise<TreatyResult<AdapterProfileView[]>>),
-    createProfile: (input) =>
-      unwrap<AdapterProfileView>(
-        client.api.admin.profiles.post(input) as Promise<TreatyResult<AdapterProfileView>>
-      ),
+    deleteUser: (id) => unwrap<AdminUser>(adminUsers({ id }).delete()),
+    profiles: () => unwrap<AdapterProfileView[]>(adminProfiles.get()),
+    createProfile: (input) => unwrap<AdapterProfileView>(adminProfiles.post(input)),
+    deleteProfile: (id) => unwrap<AdapterProfileView>(adminProfiles({ id }).delete()),
     apiKeys: () => unwrap<ApiKeyView[]>(adminApiKeys.get()),
     createApiKey: (input) =>
       unwrap<CreatedApiKey>(adminApiKeys.post(input)),
     revokeApiKey: (id) => unwrap<RevokeApiKeyResult>(adminApiKeys({ id }).revoke.post()),
+    deleteApiKey: (id) => unwrap<DeleteResult>(adminApiKeys({ id }).delete()),
     usage: () => unwrap<UsageBucketView[]>(client.api.admin.usage.get() as Promise<TreatyResult<UsageBucketView[]>>),
     runs: () => unwrap<RunView[]>(adminRuns.get()),
     createRun: (token, input) =>
@@ -338,6 +368,8 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
     runEvents: (runId) => unwrap<AgentEvent[]>(adminRuns({ id: runId }).events.get()),
     upstreamAccounts: () => unwrap<UpstreamAccountView[]>(upstreamAccountsClient(client).get()),
     createUpstreamAccount: (input) => unwrap<UpstreamAccountView>(upstreamAccountsClient(client).post(input)),
+    deleteUpstreamAccount: (accountId) =>
+      unwrap<UpstreamAccountView>(upstreamAccountsClient(client)({ id: accountId }).delete()),
     startUpstreamAuth: (accountId, input) =>
       unwrap<UpstreamAuthSessionView>(upstreamAccountsClient(client)({ id: accountId }).auth.start.post(input)),
     pollUpstreamAuth: (accountId) =>
@@ -352,6 +384,8 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
       unwrap<UpstreamInstanceView>(upstreamInstancesClient(client)({ id: instanceId }).patch(input)),
     disableUpstreamInstance: (instanceId) =>
       unwrap<UpstreamInstanceView>(upstreamInstancesClient(client)({ id: instanceId }).disable.post()),
+    deleteUpstreamInstance: (instanceId) =>
+      unwrap<UpstreamInstanceView>(upstreamInstancesClient(client)({ id: instanceId }).delete()),
     upstreamRoutes: () => unwrap<UpstreamRouteBindingView[]>(upstreamRoutesClient(client).get()),
     createUpstreamRoute: (input) => unwrap<UpstreamRouteBindingView>(upstreamRoutesClient(client).post(input)),
     deleteUpstreamRoute: (routeId) =>

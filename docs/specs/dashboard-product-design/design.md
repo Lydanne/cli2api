@@ -94,3 +94,19 @@ The overview page now acts as the default setup surface. It shows whether the
 HTTP entrypoint is callable, which setup steps are complete, and routes the
 operator to the next incomplete step. The calls page also accepts a pasted
 client key so test calls still work after a browser refresh.
+
+## Data Cleanup
+
+Dashboard-created setup data must be removable while operators are testing. The
+delete rules are:
+
+- Client keys can be deleted only before they have usage or run history; used
+  keys must be revoked.
+- Models can be deleted only before they have run history; their dispatch rules
+  are removed with them.
+- Executors can be deleted only when idle and before they have run history;
+  otherwise they must be disabled.
+- Codex accounts can be deleted after their executors are removed; auth sessions
+  are internal cleanup data and are removed with the account.
+- Extra dashboard users can be deleted when they are not the current user, not
+  the last active admin, and do not own client keys.

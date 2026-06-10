@@ -8,7 +8,7 @@ import {
   type AdapterProfile
 } from "@cli2api/shared";
 import type { CoreDatabase } from "../db/client.js";
-import { adapterProfiles } from "../db/schema.js";
+import { adapterProfiles, runs, upstreamRouteBindings } from "../db/schema.js";
 
 /** Adapter profile creation input accepted by admin APIs and CLI. */
 export type CreateProfileInput = Omit<AdapterProfile, "enabled"> & { enabled?: boolean };
@@ -70,6 +70,30 @@ export class ProfileService {
       throw createCli2ApiError(ErrorCode.PROFILE_NOT_FOUND, "No enabled adapter profiles", 404);
     }
     return first;
+  }
+
+  /** Deletes an unused adapter profile and its route bindings. */
+  public delete(id: string): AdapterProfile {
+    const row = this.database.db
+      .select()
+      .from(adapterProfiles)
+      .where(eq(adapterProfiles.id, id))
+      .get();
+    if (!row) {
+      throw createCli2ApiError(ErrorCode.PROFILE_NOT_FOUND, `Profile not found: ${id}`, 404);
+    }
+    const hasRunHistory = this.database.db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(eq(runs.profileId, id))
+      .limit(1)
+      .get();
+    if (hasRunHistory) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "Profile has run history; disable it instead", 409);
+    }
+    this.database.db.delete(upstreamRouteBindings).where(eq(upstreamRouteBindings.profileId, id)).run();
+    this.database.db.delete(adapterProfiles).where(eq(adapterProfiles.id, id)).run();
+    return toProfile(row);
   }
 }
 

@@ -84,6 +84,7 @@ describe("dashboard Eden API facade", () => {
             get: vi.fn(async () => treatyResponse([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]))
           },
           "api-keys": vi.fn(() => ({
+            delete: vi.fn(async () => treatyResponse({ ok: true })),
             revoke: {
               post: vi.fn(async () => treatyResponse({ ok: true }))
             }
@@ -96,11 +97,13 @@ describe("dashboard Eden API facade", () => {
     await expect(api.runEvents("run-1")).resolves.toEqual([{ type: "run.completed", runId: "run-1" }]);
     await expect(api.usage()).resolves.toEqual([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]);
     await expect(api.revokeApiKey("key-1")).resolves.toEqual({ ok: true });
+    await expect(api.deleteApiKey("key-1")).resolves.toEqual({ ok: true });
   });
 
   it("exposes upstream account auth and instance APIs", async () => {
     const accountClient = Object.assign(
       vi.fn(() => ({
+        delete: vi.fn(async () => treatyResponse({ id: "account-1", deleted: true })),
         auth: {
           start: {
             post: vi.fn(async () => treatyResponse({ id: "session-1", state: "waiting_for_browser" }))
@@ -125,6 +128,7 @@ describe("dashboard Eden API facade", () => {
     }));
     const instancesClient = Object.assign(
       vi.fn(() => ({
+        delete: vi.fn(async () => treatyResponse({ id: "instance-1", deleted: true })),
         patch: vi.fn(async () => treatyResponse({ id: "instance-1", name: "更新实例" })),
         disable: {
           post: vi.fn(async () => treatyResponse({ id: "instance-1", enabled: false }))
@@ -182,8 +186,10 @@ describe("dashboard Eden API facade", () => {
     ).resolves.toMatchObject({ id: "instance-1" });
     await expect(api.upstreamInstances()).resolves.toEqual([{ id: "instance-1", accountId: "account-1" }]);
     await expect(api.logoutUpstreamAccount("account-1")).resolves.toMatchObject({ state: "pending" });
+    await expect(api.deleteUpstreamAccount("account-1")).resolves.toMatchObject({ id: "account-1" });
     await expect(api.updateUpstreamInstance("instance-1", { name: "更新实例" })).resolves.toMatchObject({ name: "更新实例" });
     await expect(api.disableUpstreamInstance("instance-1")).resolves.toMatchObject({ enabled: false });
+    await expect(api.deleteUpstreamInstance("instance-1")).resolves.toMatchObject({ id: "instance-1" });
     await expect(api.upstreamRoutes()).resolves.toEqual([{ id: "route-1", profileId: "profile-1", instanceId: "instance-1" }]);
     await expect(api.createUpstreamRoute({ profileId: "profile-1", instanceId: "instance-1" })).resolves.toMatchObject({
       id: "route-1"
@@ -191,14 +197,30 @@ describe("dashboard Eden API facade", () => {
     await expect(api.deleteUpstreamRoute("route-1")).resolves.toMatchObject({ id: "route-1" });
   });
 
-  it("creates admin users through the facade", async () => {
+  it("creates and deletes admin users and profiles through the facade", async () => {
+    const profilesClient = Object.assign(
+      vi.fn(() => ({
+        delete: vi.fn(async () => treatyResponse({ id: "profile-1", type: "mock" }))
+      })),
+      {
+        get: vi.fn(async () => treatyResponse([])),
+        post: vi.fn(async () => treatyResponse({ id: "profile-1", type: "mock" }))
+      }
+    );
+    const usersClient = Object.assign(
+      vi.fn(() => ({
+        delete: vi.fn(async () => treatyResponse({ id: "user-2", email: "ops@example.com", role: "admin" }))
+      })),
+      {
+        get: vi.fn(async () => treatyResponse([])),
+        post: vi.fn(async () => treatyResponse({ id: "user-2", email: "ops@example.com", role: "admin" }))
+      }
+    );
     const fakeClient = {
       api: {
         admin: {
-          users: {
-            get: vi.fn(async () => treatyResponse([])),
-            post: vi.fn(async () => treatyResponse({ id: "user-2", email: "ops@example.com", role: "admin" }))
-          }
+          profiles: profilesClient,
+          users: usersClient
         }
       }
     } as unknown as DashboardTreaty;
@@ -207,5 +229,10 @@ describe("dashboard Eden API facade", () => {
     await expect(api.createUser({ email: "ops@example.com", password: "change-me" })).resolves.toMatchObject({
       email: "ops@example.com"
     });
+    await expect(api.deleteUser("user-2")).resolves.toMatchObject({ id: "user-2" });
+    await expect(
+      api.createProfile({ id: "profile-1", type: "mock", name: "profile", cwd: "/repo", enabled: true })
+    ).resolves.toMatchObject({ id: "profile-1" });
+    await expect(api.deleteProfile("profile-1")).resolves.toMatchObject({ id: "profile-1" });
   });
 });

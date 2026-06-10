@@ -10,6 +10,7 @@ import { useDashboardState } from "../lib/dashboard-state";
 
 const {
   createProfile,
+  deleteProfile,
   newProfileCwd,
   newProfileId,
   newProfileName,
@@ -42,6 +43,18 @@ const {
         <Column :header="text('status')">
           <template #body="{ data }">
             <Tag :severity="statusSeverity(data.enabled)" :value="statusLabel(data.enabled)" />
+          </template>
+        </Column>
+        <Column :header="text('actions')" headerStyle="width: 120px">
+          <template #body="{ data }">
+            <Button
+              :data-testid="`delete-profile-${data.id}`"
+              :label="text('delete')"
+              outlined
+              severity="danger"
+              size="small"
+              @click="deleteProfile(data)"
+            />
           </template>
         </Column>
         <template #empty>{{ text("noRows") }}</template>

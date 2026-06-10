@@ -127,6 +127,11 @@ export interface DashboardState {
   disableInstance: (instance: UpstreamInstanceView) => Promise<boolean>;
   createRoute: () => Promise<boolean>;
   deleteRoute: (route: UpstreamRouteBindingView) => Promise<boolean>;
+  deleteProfile: (profile: AdapterProfileView) => Promise<boolean>;
+  deleteKey: (key: ApiKeyView) => Promise<boolean>;
+  deleteAccount: (account: UpstreamAccountView) => Promise<boolean>;
+  deleteInstance: (instance: UpstreamInstanceView) => Promise<boolean>;
+  deleteUser: (user: AdminUser) => Promise<boolean>;
   enabledText: (value: boolean | number) => string;
   statusSeverity: (value: boolean | number | string | null | undefined) => StatusSeverity;
   accountName: (accountId: string) => string;
@@ -452,6 +457,41 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     });
   }
 
+  async function deleteProfile(profile: AdapterProfileView): Promise<boolean> {
+    return action(async () => {
+      await client.deleteProfile(profile.id);
+      await refresh();
+    });
+  }
+
+  async function deleteKey(key: ApiKeyView): Promise<boolean> {
+    return action(async () => {
+      await client.deleteApiKey(key.id);
+      await refresh();
+    });
+  }
+
+  async function deleteAccount(account: UpstreamAccountView): Promise<boolean> {
+    return action(async () => {
+      await client.deleteUpstreamAccount(account.id);
+      await refresh();
+    });
+  }
+
+  async function deleteInstance(instance: UpstreamInstanceView): Promise<boolean> {
+    return action(async () => {
+      await client.deleteUpstreamInstance(instance.id);
+      await refresh();
+    });
+  }
+
+  async function deleteUser(user: AdminUser): Promise<boolean> {
+    return action(async () => {
+      await client.deleteUser(user.id);
+      await refresh();
+    });
+  }
+
   async function action(work: () => Promise<void>, options: { silent?: boolean } = {}): Promise<boolean> {
     error.value = "";
     try {
@@ -572,6 +612,11 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     disableInstance,
     createRoute,
     deleteRoute,
+    deleteProfile,
+    deleteKey,
+    deleteAccount,
+    deleteInstance,
+    deleteUser,
     enabledText,
     statusSeverity,
     accountName,

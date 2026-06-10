@@ -318,6 +318,87 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(blockedResponse.status).toBe(401);
   });
 
+  it("lets admins delete unused dashboard data while preserving run history", async () => {
+    const cookie = await harness.login();
+    const unusedProfile = await harness.createMockProfile(cookie, "mock-unused-delete");
+    const usedProfile = await harness.createMockProfile(cookie, "mock-used-delete");
+    const unusedKey = await harness.createApiKey(cookie, { name: "unused-delete-key" });
+    const usedKey = await harness.createApiKey(cookie, { name: "used-delete-key" });
+
+    const userResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/users", {
+        method: "POST",
+        headers: { cookie, "content-type": "application/json" },
+        body: JSON.stringify({ email: "delete-me@example.com", password: "change-me" })
+      })
+    );
+    const user = (await userResponse.json()) as { id: string };
+
+    const runResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${usedKey.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "keep history", profileId: usedProfile.id })
+      })
+    );
+    expect(runResponse.status).toBe(200);
+
+    const deleteUnusedProfile = await harness.app.handle(
+      new Request(`http://localhost/api/admin/profiles/${unusedProfile.id}`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(deleteUnusedProfile.status).toBe(200);
+
+    const deleteUsedProfile = await harness.app.handle(
+      new Request(`http://localhost/api/admin/profiles/${usedProfile.id}`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(deleteUsedProfile.status).toBe(409);
+
+    const deleteUnusedKey = await harness.app.handle(
+      new Request("http://localhost/api/admin/api-keys/unused-id", {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(deleteUnusedKey.status).toBe(404);
+
+    const keys = harness.services.apiKeys.list();
+    const unusedKeyRecord = keys.find((key) => key.keyPrefix === unusedKey.token.slice(0, 14));
+    expect(unusedKeyRecord).toBeTruthy();
+    const deleteRealUnusedKey = await harness.app.handle(
+      new Request(`http://localhost/api/admin/api-keys/${String(unusedKeyRecord?.id)}`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(deleteRealUnusedKey.status).toBe(200);
+
+    const usedKeyRecord = harness.services.apiKeys.list().find((key) => key.keyPrefix === usedKey.token.slice(0, 14));
+    const deleteUsedKey = await harness.app.handle(
+      new Request(`http://localhost/api/admin/api-keys/${String(usedKeyRecord?.id)}`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(deleteUsedKey.status).toBe(409);
+
+    const deleteUser = await harness.app.handle(
+      new Request(`http://localhost/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(deleteUser.status).toBe(200);
+  });
+
   it("serves built dashboard assets when a dist directory is configured", async () => {
     const previous = process.env.CLI2API_DASH_DIST;
     const dir = await mkdtemp(join(tmpdir(), "cli2api-dash-"));

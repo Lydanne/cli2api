@@ -21,7 +21,8 @@ import {
   upstreamAccounts,
   upstreamAuthSessions,
   upstreamInstances,
-  upstreamRouteBindings
+  upstreamRouteBindings,
+  runs
 } from "../db/schema.js";
 
 /** Upstream account creation payload accepted by admin APIs. */
@@ -270,6 +271,43 @@ export class UpstreamService {
   /** Disables one runnable upstream instance. */
   public disableInstance(instanceId: string): UpstreamInstanceResponse {
     return this.updateInstance(instanceId, { enabled: false, healthState: "disabled" });
+  }
+
+  /** Deletes an unused runnable upstream instance and any route bindings pointing at it. */
+  public deleteInstance(instanceId: string): UpstreamInstanceResponse {
+    const instance = this.requireInstance(instanceId);
+    if (instance.currentRuns > 0) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "Upstream instance is currently running", 409);
+    }
+    const hasRunHistory = this.database.db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(eq(runs.upstreamInstanceId, instanceId))
+      .limit(1)
+      .get();
+    if (hasRunHistory) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "Upstream instance has run history; disable it instead", 409);
+    }
+    this.database.db.delete(upstreamRouteBindings).where(eq(upstreamRouteBindings.instanceId, instanceId)).run();
+    this.database.db.delete(upstreamInstances).where(eq(upstreamInstances.id, instanceId)).run();
+    return instance;
+  }
+
+  /** Deletes an upstream account that has no runnable instances. */
+  public deleteAccount(accountId: string): UpstreamAccountResponse {
+    const account = this.requireAccount(accountId);
+    const hasInstances = this.database.db
+      .select({ id: upstreamInstances.id })
+      .from(upstreamInstances)
+      .where(eq(upstreamInstances.accountId, accountId))
+      .limit(1)
+      .get();
+    if (hasInstances) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "Delete this account's executors first", 409);
+    }
+    this.database.db.delete(upstreamAuthSessions).where(eq(upstreamAuthSessions.accountId, accountId)).run();
+    this.database.db.delete(upstreamAccounts).where(eq(upstreamAccounts.id, accountId)).run();
+    return account;
   }
 
   /** Lists explicit profile-to-instance route bindings. */

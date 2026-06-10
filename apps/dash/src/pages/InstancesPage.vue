@@ -13,6 +13,7 @@ const {
   accountOptions,
   approvalPolicyOptions,
   createInstance,
+  deleteInstance,
   disableInstance,
   instanceTypeOptions,
   instances,
@@ -90,7 +91,7 @@ const {
             <Tag :severity="statusSeverity(data.enabled)" :value="statusLabel(data.enabled)" />
           </template>
         </Column>
-        <Column :header="text('actions')" headerStyle="width: 210px">
+        <Column :header="text('actions')" headerStyle="width: 270px">
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">
               <Button :label="text('save')" outlined size="small" @click="saveInstance(data)" />
@@ -101,6 +102,14 @@ const {
                 severity="danger"
                 size="small"
                 @click="disableInstance(data)"
+              />
+              <Button
+                :data-testid="`delete-instance-${data.id}`"
+                :label="text('delete')"
+                outlined
+                severity="danger"
+                size="small"
+                @click="deleteInstance(data)"
               />
             </div>
           </template>

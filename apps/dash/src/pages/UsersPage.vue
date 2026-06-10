@@ -7,7 +7,7 @@ import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useDashboardState } from "../lib/dashboard-state";
 
-const { createUser, newUserEmail, newUserPassword, statusLabel, statusSeverity, text, users } = useDashboardState();
+const { createUser, deleteUser, newUserEmail, newUserPassword, statusLabel, statusSeverity, text, users } = useDashboardState();
 </script>
 
 <template>
@@ -26,6 +26,18 @@ const { createUser, newUserEmail, newUserPassword, statusLabel, statusSeverity, 
         <Column :header="text('status')">
           <template #body="{ data }">
             <Tag :severity="statusSeverity(!data.disabledAt)" :value="statusLabel(!data.disabledAt)" />
+          </template>
+        </Column>
+        <Column :header="text('actions')" headerStyle="width: 120px">
+          <template #body="{ data }">
+            <Button
+              :data-testid="`delete-user-${data.email}`"
+              :label="text('delete')"
+              outlined
+              severity="danger"
+              size="small"
+              @click="deleteUser(data)"
+            />
           </template>
         </Column>
         <template #empty>{{ text("noRows") }}</template>

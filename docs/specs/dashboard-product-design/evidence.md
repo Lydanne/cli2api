@@ -28,3 +28,12 @@
     token being created in the same browser session.
   - Re-ran `pnpm build`, `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`,
     `pnpm lint`, `pnpm check:file-size`, and `./deploy.sh deploy`.
+- Data cleanup follow-up after operator feedback:
+  - Added admin delete APIs for unused client keys, models, Codex accounts,
+    executors, and extra dashboard users.
+  - Preserved audit history by returning 409 when a key/model/executor has run
+    or usage history; those records stay revocable or disableable instead.
+  - Added dashboard delete buttons and E2E coverage for deleting test-created
+    accounts, models, and users.
+  - Re-ran `pnpm build`, `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`,
+    `pnpm lint`, `pnpm check:file-size`, and `./deploy.sh deploy`.

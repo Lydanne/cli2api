@@ -68,6 +68,12 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByText("E2E-1234")).toBeVisible();
   await page.getByTestId("poll-codex-ui-e2e").click();
   await expect(page.getByText("已认证")).toBeVisible();
+  await page.getByTestId("account-id").fill("codex-delete-e2e");
+  await page.getByTestId("account-name").fill("待删账号");
+  await page.getByTestId("create-account").click();
+  await expect(page.getByText("codex-delete-e2e", { exact: true })).toBeVisible();
+  await page.getByTestId("delete-account-codex-delete-e2e").click();
+  await expect(page.getByText("codex-delete-e2e", { exact: true })).toHaveCount(0);
 
   await page.getByTestId("nav-instances").click();
   await page.getByTestId("instance-account").click();
@@ -84,6 +90,11 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("profile-id").fill("mock-ui-e2e");
   await page.getByTestId("create-profile").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).first()).toBeVisible();
+  await page.getByTestId("profile-id").fill("mock-delete-e2e");
+  await page.getByTestId("create-profile").click();
+  await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" }).first()).toBeVisible();
+  await page.getByTestId("delete-profile-mock-delete-e2e").click();
+  await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" })).toHaveCount(0);
 
   await page.getByTestId("nav-routeBindings").click();
   await expect(page).toHaveURL(/#\/route-bindings$/u);
@@ -131,6 +142,8 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("user-password").fill("change-me");
   await page.getByTestId("create-user").click();
   await expect(page.getByText("ops-e2e@example.com")).toBeVisible();
+  await page.getByTestId("delete-user-ops-e2e@example.com").click();
+  await expect(page.getByText("ops-e2e@example.com")).toHaveCount(0);
 
   await page.getByTestId("nav-instances").click();
   await page.getByTestId("disable-instance-mock-ui-inst").click();
