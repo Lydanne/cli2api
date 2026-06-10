@@ -2,23 +2,28 @@
 import type { AgentEvent } from "@cli2api/shared";
 import {
   Activity,
-  Ban,
   Database,
-  Eye,
   GitBranch,
   Globe2,
   KeyRound,
-  LogOut,
   Play,
-  Save,
   Server,
-  Trash2,
-  UserPlus,
   Users
 } from "lucide-vue-next";
+import Button from "primevue/button";
+import Card from "primevue/card";
+import Column from "primevue/column";
+import DataTable from "primevue/datatable";
+import InputText from "primevue/inputtext";
+import Message from "primevue/message";
+import Select from "primevue/select";
+import Tag from "primevue/tag";
+import Toolbar from "primevue/toolbar";
 import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ApiError, createDashboardApi } from "./lib/api";
 import { summarizeOverview } from "./lib/overview";
+import { dashboardTabRoutes, type DashboardRouteName } from "./router";
 import type {
   AdapterProfileView,
   ApiKeyView,
@@ -44,7 +49,7 @@ const messages = {
     accounts: "上游账号",
     instances: "实例池",
     users: "用户",
-    subtitle: "面向 CLI Agent 的本地运营控制台。",
+    subtitle: "面向 CLI Agent 的本地运营控制台",
     refresh: "刷新",
     enabledProfiles: "启用路由",
     activeKeys: "可用密钥",
@@ -92,7 +97,7 @@ const messages = {
     accounts: "Upstream Accounts",
     instances: "Instances",
     users: "Users",
-    subtitle: "Local operations control plane for CLI agents.",
+    subtitle: "Local operations control plane for CLI agents",
     refresh: "Refresh",
     enabledProfiles: "Enabled routes",
     activeKeys: "Active keys",
@@ -134,6 +139,8 @@ type Locale = keyof typeof messages;
 type MessageKey = keyof (typeof messages)["zh-CN"];
 
 const client = createDashboardApi();
+const route = useRoute();
+const vueRouter = useRouter();
 const locale = ref<Locale>(readInitialLocale());
 const email = ref("admin@example.com");
 const password = ref("password");
@@ -147,7 +154,6 @@ const usage = ref<UsageBucketView[]>([]);
 const accounts = ref<UpstreamAccountView[]>([]);
 const instances = ref<UpstreamInstanceView[]>([]);
 const routes = ref<UpstreamRouteBindingView[]>([]);
-const selectedTab = ref("overview");
 const newProfileId = ref("mock-default");
 const newKeyName = ref("dev-key");
 const newKeyDailyLimit = ref(100);
@@ -186,6 +192,11 @@ const navItems = computed(
       ["users", Users, text("users")]
     ] as const
 );
+const selectedTab = computed<DashboardRouteName>(() => (isDashboardRouteName(route.name) ? route.name : "overview"));
+const currentTitle = computed(() => navItems.value.find((item) => item[0] === selectedTab.value)?.[2] ?? text("overview"));
+const profileOptions = computed(() => profiles.value.map((profile) => ({ label: profile.id, value: profile.id })));
+const accountOptions = computed(() => accounts.value.map((account) => ({ label: account.name, value: account.id })));
+const instanceOptions = computed(() => instances.value.map((instance) => ({ label: instance.name, value: instance.id })));
 const summary = computed(() =>
   summarizeOverview({
     profiles: profiles.value,
@@ -228,8 +239,8 @@ async function login() {
   });
 }
 
-async function refresh(options: { silent?: boolean } = {}) {
-  await action(async () => {
+async function refresh(options: { silent?: boolean } = {}): Promise<boolean> {
+  return action(async () => {
     const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows, routeRows] = await Promise.all([
       client.users(),
       client.profiles(),
@@ -397,14 +408,16 @@ async function deleteRoute(route: UpstreamRouteBindingView) {
   });
 }
 
-async function action(work: () => Promise<void>, options: { silent?: boolean } = {}) {
+async function action(work: () => Promise<void>, options: { silent?: boolean } = {}): Promise<boolean> {
   error.value = "";
   try {
     await work();
+    return true;
   } catch (cause) {
     if (!options.silent) {
       error.value = cause instanceof ApiError || cause instanceof Error ? cause.message : "Request failed";
     }
+    return false;
   }
 }
 
@@ -412,341 +425,426 @@ function enabledText(value: boolean | number): string {
   return value ? text("enabled") : text("disabled");
 }
 
+function statusSeverity(value: boolean | number | string): "success" | "info" | "warn" | "danger" | "secondary" {
+  if (value === true || value === 1 || value === "completed" || value === "authenticated" || value === "healthy") {
+    return "success";
+  }
+  if (value === "running" || value === "waiting_for_browser" || value === "unknown") {
+    return "info";
+  }
+  if (value === "pending") {
+    return "warn";
+  }
+  if (value === false || value === 0 || value === "failed" || value === "degraded" || value === "disabled") {
+    return "danger";
+  }
+  return "secondary";
+}
+
+function isDashboardRouteName(value: unknown): value is DashboardRouteName {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(dashboardTabRoutes, value);
+}
+
+function selectTab(tab: DashboardRouteName): void {
+  void vueRouter.push({ name: tab });
+}
+
 onMounted(async () => {
-  await refresh({ silent: true }).catch(() => undefined);
+  loggedIn.value = await refresh({ silent: true });
 });
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-50 text-slate-900">
-    <section v-if="!loggedIn" class="mx-auto flex min-h-screen max-w-sm items-center px-4">
-      <form class="w-full rounded border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="login">
-        <h1 class="text-xl font-semibold">cli2api</h1>
-        <div class="mt-5 space-y-3">
-          <input v-model="email" class="w-full rounded border px-3 py-2" data-testid="login-email" :placeholder="text('email')" />
-          <input
-            v-model="password"
-            class="w-full rounded border px-3 py-2"
-            data-testid="login-password"
-            :placeholder="text('password')"
-            type="password"
-          />
-          <button class="w-full rounded bg-slate-900 px-3 py-2 text-white" data-testid="login-submit">{{ text('login') }}</button>
-        </div>
-        <p v-if="error" class="mt-3 text-sm text-red-600">{{ error }}</p>
-      </form>
+  <main class="min-h-screen bg-slate-100 text-slate-900">
+    <section v-if="!loggedIn" class="mx-auto flex min-h-screen max-w-md items-center px-4">
+      <Card class="w-full border border-slate-200 shadow-sm">
+        <template #title>cli2api</template>
+        <template #subtitle>{{ text('subtitle') }}</template>
+        <template #content>
+          <form class="space-y-4" @submit.prevent="login">
+            <InputText v-model="email" class="w-full" data-testid="login-email" :placeholder="text('email')" />
+            <InputText
+              v-model="password"
+              class="w-full"
+              data-testid="login-password"
+              :placeholder="text('password')"
+              type="password"
+            />
+            <Button class="w-full" data-testid="login-submit" :label="text('login')" type="submit" />
+            <Message v-if="error" severity="error" size="small">{{ error }}</Message>
+          </form>
+        </template>
+      </Card>
     </section>
 
-    <section v-else class="grid min-h-screen grid-cols-[240px_1fr]">
+    <section v-else class="grid min-h-screen grid-cols-[260px_1fr]">
       <aside class="border-r border-slate-200 bg-white p-4">
-        <h1 class="text-lg font-semibold">cli2api</h1>
+        <div class="px-2">
+          <h1 class="text-xl font-semibold">cli2api</h1>
+          <p class="mt-1 text-xs text-slate-500">{{ text('subtitle') }}</p>
+        </div>
         <nav class="mt-6 space-y-1">
           <button
             v-for="item in navItems"
             :key="item[0]"
-            class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm"
-            :class="selectedTab === item[0] ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'"
+            class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm transition"
+            :class="selectedTab === item[0] ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'"
             :data-testid="`nav-${item[0]}`"
-            @click="selectedTab = item[0]"
+            @click="selectTab(item[0])"
           >
             <component :is="item[1]" :size="16" />
-            {{ item[2] }}
+            <span>{{ item[2] }}</span>
           </button>
         </nav>
       </aside>
 
-      <section class="p-6">
-        <header class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="text-2xl font-semibold">{{ navItems.find((item) => item[0] === selectedTab)?.[2] }}</h2>
-            <p class="text-sm text-slate-500">{{ text('subtitle') }}</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <select
-              :value="locale"
-              class="rounded border border-slate-300 bg-white px-2 py-2 text-sm"
-              data-testid="locale-switch"
-              :aria-label="text('language')"
-              @change="setLocale(($event.target as HTMLSelectElement).value as Locale)"
-            >
-              <option value="zh-CN">中文</option>
-              <option value="en-US">English</option>
-            </select>
-            <button class="rounded border border-slate-300 bg-white px-3 py-2 text-sm" @click="refresh">{{ text('refresh') }}</button>
-          </div>
-        </header>
-
-        <p v-if="error" class="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
-
-        <div v-if="selectedTab === 'overview'" class="mt-6 grid grid-cols-5 gap-3">
-          <div
-            v-for="card in [
-              [text('enabledProfiles'), summary.enabledProfiles],
-              [text('activeKeys'), summary.activeApiKeys],
-              [text('running'), summary.runningRuns],
-              [text('failed'), summary.failedRuns],
-              [text('completed'), summary.completedRuns]
-            ]"
-            :key="card[0] as string"
-            class="rounded border bg-white p-4"
-          >
-            <p class="text-xs uppercase text-slate-500">{{ card[0] }}</p>
-            <p class="mt-2 text-2xl font-semibold">{{ card[1] }}</p>
-          </div>
-        </div>
-
-        <div v-if="selectedTab === 'profiles'" class="mt-6 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <div class="flex gap-2">
-              <input v-model="newProfileId" class="rounded border px-3 py-2" data-testid="profile-id" />
-              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-profile" @click="createProfile">
-                {{ text('createMockProfile') }}
-              </button>
+      <section class="min-w-0 p-6">
+        <Toolbar class="mb-5 border border-slate-200 bg-white">
+          <template #start>
+            <div>
+              <h2 class="text-2xl font-semibold">{{ currentTitle }}</h2>
+              <p class="text-sm text-slate-500">{{ text('subtitle') }}</p>
             </div>
-          </div>
-          <table class="w-full rounded border bg-white text-sm">
-            <tbody>
-              <tr v-for="profile in profiles" :key="profile.id" class="border-t">
-                <td class="p-3 font-medium">{{ profile.id }}</td>
-                <td class="p-3">{{ profile.type }}</td>
-                <td class="p-3">{{ profile.cwd }}</td>
-                <td class="p-3">{{ enabledText(profile.enabled) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-if="selectedTab === 'routeBindings'" class="mt-6 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <div class="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <select v-model="selectedRouteProfile" class="rounded border px-3 py-2" data-testid="route-profile">
-                <option v-for="profile in profiles" :key="profile.id" :value="profile.id">{{ profile.id }}</option>
+          </template>
+          <template #end>
+            <div class="flex items-center gap-2">
+              <select
+                :value="locale"
+                class="rounded border border-slate-300 bg-white px-2 py-2 text-sm"
+                data-testid="locale-switch"
+                :aria-label="text('language')"
+                @change="setLocale(($event.target as HTMLSelectElement).value as Locale)"
+              >
+                <option value="zh-CN">中文</option>
+                <option value="en-US">English</option>
               </select>
-              <select v-model="selectedRouteInstance" class="rounded border px-3 py-2" data-testid="route-instance">
-                <option v-for="instance in instances" :key="instance.id" :value="instance.id">{{ instance.name }}</option>
-              </select>
-              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-route" @click="createRoute">
-                <GitBranch :size="14" class="inline" />
-                {{ text('createRoute') }}
-              </button>
+              <Button :label="text('refresh')" outlined size="small" @click="refresh()" />
             </div>
-          </div>
-          <table class="w-full rounded border bg-white text-sm">
-            <tbody>
-              <tr v-for="route in routes" :key="route.id" class="border-t" data-testid="route-row">
-                <td class="p-3 font-medium">{{ route.profileId }}</td>
-                <td class="p-3 font-mono text-xs">{{ route.instanceId }}</td>
-                <td class="p-3 text-right">
-                  <button class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="deleteRoute(route)">
-                    <Trash2 :size="14" />
-                    {{ text('deleteRoute') }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="routes.length === 0">
-                <td class="p-3 text-slate-500" colspan="3">{{ text('noRows') }}</td>
-              </tr>
-            </tbody>
-          </table>
+          </template>
+        </Toolbar>
+
+        <Message v-if="error" class="mb-4" severity="error">{{ error }}</Message>
+
+        <div v-if="selectedTab === 'overview'" class="grid grid-cols-5 gap-3">
+          <Card v-for="card in [
+            [text('enabledProfiles'), summary.enabledProfiles],
+            [text('activeKeys'), summary.activeApiKeys],
+            [text('running'), summary.runningRuns],
+            [text('failed'), summary.failedRuns],
+            [text('completed'), summary.completedRuns]
+          ]" :key="card[0] as string" class="border border-slate-200 shadow-sm">
+            <template #content>
+              <p class="text-xs uppercase text-slate-500">{{ card[0] }}</p>
+              <p class="mt-2 text-3xl font-semibold">{{ card[1] }}</p>
+            </template>
+          </Card>
         </div>
 
-        <div v-if="selectedTab === 'accounts'" class="mt-6 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <div class="grid grid-cols-[180px_1fr_auto] gap-2">
-              <input v-model="newAccountId" class="rounded border px-3 py-2" data-testid="account-id" />
-              <input v-model="newAccountName" class="rounded border px-3 py-2" data-testid="account-name" />
-              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-account" @click="createAccount">
-                {{ text('createAccount') }}
-              </button>
+        <Card v-if="selectedTab === 'profiles'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('profiles') }}</template>
+          <template #content>
+            <div class="mb-4 flex gap-2">
+              <InputText v-model="newProfileId" data-testid="profile-id" />
+              <Button data-testid="create-profile" :label="text('createMockProfile')" @click="createProfile" />
             </div>
-          </div>
-          <div v-if="lastAuthSession" class="rounded border border-blue-200 bg-blue-50 p-3 text-sm">
-            <p>{{ text('authInstruction') }}</p>
-            <p v-if="lastAuthSession.authUrl" class="mt-2">
-              {{ text('authUrl') }}:
-              <a class="font-mono text-blue-700 underline" :href="lastAuthSession.authUrl" target="_blank">{{ lastAuthSession.authUrl }}</a>
-            </p>
-            <p v-if="lastAuthSession.userCode" class="mt-1 font-mono">{{ text('userCode') }}: {{ lastAuthSession.userCode }}</p>
-          </div>
-          <table class="w-full rounded border bg-white text-sm">
-            <tbody>
-              <tr v-for="account in accounts" :key="account.id" class="border-t" data-testid="account-row">
-                <td class="p-3 font-medium">{{ account.name }}</td>
-                <td class="p-3 font-mono text-xs">{{ account.id }}</td>
-                <td class="p-3">{{ account.providerType }}</td>
-                <td class="p-3">{{ account.authState }}</td>
-                <td class="p-3 text-right">
-                  <button class="mr-2 rounded border border-slate-300 px-2 py-1 text-xs" @click="startAuth(account)">
-                    {{ text('startAuth') }}
-                  </button>
-                  <button class="rounded border border-slate-300 px-2 py-1 text-xs" @click="pollAuth(account)">
-                    {{ text('pollAuth') }}
-                  </button>
-                  <button class="ml-2 inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="logoutAccount(account)">
-                    <LogOut :size="14" />
-                    {{ text('logout') }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="accounts.length === 0">
-                <td class="p-3 text-slate-500" colspan="5">{{ text('noRows') }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            <DataTable :value="profiles" dataKey="id" size="small" stripedRows>
+              <Column field="id" header="Profile" />
+              <Column field="type" header="Type" />
+              <Column field="cwd" header="CWD" />
+              <Column header="Status">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(data.enabled)" :value="enabledText(data.enabled)" />
+                </template>
+              </Column>
+            </DataTable>
+          </template>
+        </Card>
 
-        <div v-if="selectedTab === 'instances'" class="mt-6 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <div class="grid grid-cols-[180px_180px_1fr_120px_auto] gap-2">
-              <select v-model="selectedAccountId" class="rounded border px-3 py-2" data-testid="instance-account">
-                <option v-for="account in accounts" :key="account.id" :value="account.id">{{ account.name }}</option>
-              </select>
-              <input v-model="newInstanceId" class="rounded border px-3 py-2" data-testid="instance-id" />
-              <input v-model="newInstanceCwd" class="rounded border px-3 py-2" data-testid="instance-cwd" />
-              <input
-                v-model.number="newInstanceConcurrency"
-                class="rounded border px-3 py-2"
-                data-testid="instance-concurrency"
-                min="1"
-                type="number"
+        <Card v-if="selectedTab === 'routeBindings'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('routeBindings') }}</template>
+          <template #content>
+            <div class="mb-4 grid grid-cols-[1fr_1fr_auto] gap-2">
+              <Select
+                v-model="selectedRouteProfile"
+                data-testid="route-profile"
+                optionLabel="label"
+                optionValue="value"
+                :options="profileOptions"
               />
-              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-instance" @click="createInstance">
-                {{ text('createInstance') }}
-              </button>
+              <Select
+                v-model="selectedRouteInstance"
+                data-testid="route-instance"
+                optionLabel="label"
+                optionValue="value"
+                :options="instanceOptions"
+              />
+              <Button data-testid="create-route" :label="text('createRoute')" @click="createRoute" />
             </div>
-            <input v-model="newInstanceName" class="mt-2 w-full rounded border px-3 py-2" data-testid="instance-name" />
-          </div>
-          <table class="w-full rounded border bg-white text-sm">
-            <tbody>
-              <tr v-for="instance in instances" :key="instance.id" class="border-t" data-testid="instance-row">
-                <td class="p-3">
-                  <input v-model="instance.name" class="w-full rounded border px-2 py-1 font-medium" />
-                </td>
-                <td class="p-3 font-mono text-xs">{{ instance.id }}</td>
-                <td class="p-3">{{ instance.type }}</td>
-                <td class="p-3">
-                  <input v-model="instance.cwd" class="w-full rounded border px-2 py-1" />
-                </td>
-                <td class="p-3">{{ instance.healthState }}</td>
-                <td class="p-3">
-                  {{ instance.currentRuns }} /
-                  <input v-model.number="instance.maxConcurrentRuns" class="w-16 rounded border px-2 py-1" min="1" type="number" />
-                </td>
-                <td class="p-3">{{ enabledText(instance.enabled) }}</td>
-                <td class="p-3 text-right">
-                  <button class="mr-2 inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="saveInstance(instance)">
-                    <Save :size="14" />
-                    {{ text('save') }}
-                  </button>
-                  <button class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="disableInstance(instance)">
-                    <Ban :size="14" />
-                    {{ text('disableInstance') }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="instances.length === 0">
-                <td class="p-3 text-slate-500" colspan="8">{{ text('noRows') }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            <DataTable :value="routes" dataKey="id" size="small" stripedRows>
+              <Column field="profileId" header="Profile" />
+              <Column field="instanceId" header="Instance" />
+              <Column headerStyle="width: 160px" :header="text('deleteRoute')">
+                <template #body="{ data }">
+                  <Button
+                    :data-testid="`delete-route-${data.id}`"
+                    :label="text('deleteRoute')"
+                    outlined
+                    severity="danger"
+                    size="small"
+                    @click="deleteRoute(data)"
+                  />
+                </template>
+              </Column>
+              <template #empty>{{ text('noRows') }}</template>
+            </DataTable>
+          </template>
+        </Card>
 
-        <div v-if="selectedTab === 'keys'" class="mt-6 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <div class="grid grid-cols-[1fr_110px_110px_110px_140px_auto] gap-2">
-              <input v-model="newKeyName" class="rounded border px-3 py-2" data-testid="key-name" />
-              <input v-model.number="newKeyDailyLimit" class="rounded border px-3 py-2" :aria-label="text('dailyLimit')" type="number" />
-              <input v-model.number="newKeyRpmLimit" class="rounded border px-3 py-2" :aria-label="text('rpmLimit')" type="number" />
-              <input v-model.number="newKeyConcurrentLimit" class="rounded border px-3 py-2" :aria-label="text('concurrentLimit')" type="number" />
-              <input v-model.number="newKeyMonthlyTokenLimit" class="rounded border px-3 py-2" :aria-label="text('monthlyTokenLimit')" type="number" />
-              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-key" @click="createKey">
-                {{ text('createApiKey') }}
-              </button>
+        <Card v-if="selectedTab === 'accounts'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('accounts') }}</template>
+          <template #content>
+            <div class="mb-4 grid grid-cols-[180px_1fr_auto] gap-2">
+              <InputText v-model="newAccountId" data-testid="account-id" />
+              <InputText v-model="newAccountName" data-testid="account-name" />
+              <Button data-testid="create-account" :label="text('createAccount')" @click="createAccount" />
             </div>
-            <p v-if="createdToken" class="mt-3 break-all rounded bg-slate-100 p-2 text-xs" data-testid="created-token">
+            <Message v-if="lastAuthSession" class="mb-4" severity="info">
+              <p>{{ text('authInstruction') }}</p>
+              <p v-if="lastAuthSession.authUrl" class="mt-2">
+                {{ text('authUrl') }}:
+                <a class="font-mono underline" :href="lastAuthSession.authUrl" target="_blank">{{ lastAuthSession.authUrl }}</a>
+              </p>
+              <p v-if="lastAuthSession.userCode" class="mt-1 font-mono">{{ text('userCode') }}: {{ lastAuthSession.userCode }}</p>
+            </Message>
+            <DataTable :value="accounts" dataKey="id" size="small" stripedRows>
+              <Column field="name" header="Name" />
+              <Column field="id" header="ID" />
+              <Column field="providerType" header="Provider" />
+              <Column header="Auth">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(data.authState)" :value="data.authState" />
+                </template>
+              </Column>
+              <Column headerStyle="width: 330px" header="Actions">
+                <template #body="{ data }">
+                  <div class="flex gap-2">
+                    <Button
+                      :data-testid="`auth-${data.id}`"
+                      :label="text('startAuth')"
+                      outlined
+                      size="small"
+                      @click="startAuth(data)"
+                    />
+                    <Button
+                      :data-testid="`poll-${data.id}`"
+                      :label="text('pollAuth')"
+                      outlined
+                      size="small"
+                      @click="pollAuth(data)"
+                    />
+                    <Button
+                      :data-testid="`logout-${data.id}`"
+                      :label="text('logout')"
+                      outlined
+                      severity="secondary"
+                      size="small"
+                      @click="logoutAccount(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>{{ text('noRows') }}</template>
+            </DataTable>
+          </template>
+        </Card>
+
+        <Card v-if="selectedTab === 'instances'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('instances') }}</template>
+          <template #content>
+            <div class="mb-4 grid grid-cols-[180px_160px_1fr_110px_auto] gap-2">
+              <Select
+                v-model="selectedAccountId"
+                data-testid="instance-account"
+                optionLabel="label"
+                optionValue="value"
+                :options="accountOptions"
+              />
+              <InputText v-model="newInstanceId" data-testid="instance-id" />
+              <InputText v-model="newInstanceCwd" data-testid="instance-cwd" />
+              <InputText v-model.number="newInstanceConcurrency" data-testid="instance-concurrency" type="number" />
+              <Button data-testid="create-instance" :label="text('createInstance')" @click="createInstance" />
+            </div>
+            <InputText v-model="newInstanceName" class="mb-4 w-full" data-testid="instance-name" />
+            <DataTable :value="instances" dataKey="id" size="small" stripedRows>
+              <Column header="Name">
+                <template #body="{ data }">
+                  <InputText v-model="data.name" class="w-full" />
+                </template>
+              </Column>
+              <Column field="id" header="ID" />
+              <Column field="type" header="Type" />
+              <Column header="CWD">
+                <template #body="{ data }">
+                  <InputText v-model="data.cwd" class="w-full" />
+                </template>
+              </Column>
+              <Column header="Health">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(data.healthState)" :value="data.healthState" />
+                </template>
+              </Column>
+              <Column header="Concurrency">
+                <template #body="{ data }">
+                  <div class="flex items-center gap-2">
+                    <span>{{ data.currentRuns }} /</span>
+                    <InputText v-model.number="data.maxConcurrentRuns" class="w-16" type="number" />
+                  </div>
+                </template>
+              </Column>
+              <Column header="Status">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(data.enabled)" :value="enabledText(data.enabled)" />
+                </template>
+              </Column>
+              <Column headerStyle="width: 220px" header="Actions">
+                <template #body="{ data }">
+                  <div class="flex gap-2">
+                    <Button :label="text('save')" outlined size="small" @click="saveInstance(data)" />
+                    <Button
+                      :data-testid="`disable-instance-${data.id}`"
+                      :label="text('disableInstance')"
+                      outlined
+                      severity="danger"
+                      size="small"
+                      @click="disableInstance(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>{{ text('noRows') }}</template>
+            </DataTable>
+          </template>
+        </Card>
+
+        <Card v-if="selectedTab === 'keys'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('keys') }}</template>
+          <template #content>
+            <div class="mb-4 grid grid-cols-[1fr_110px_110px_110px_140px_auto] gap-2">
+              <InputText v-model="newKeyName" data-testid="key-name" />
+              <InputText v-model.number="newKeyDailyLimit" :aria-label="text('dailyLimit')" type="number" />
+              <InputText v-model.number="newKeyRpmLimit" :aria-label="text('rpmLimit')" type="number" />
+              <InputText v-model.number="newKeyConcurrentLimit" :aria-label="text('concurrentLimit')" type="number" />
+              <InputText v-model.number="newKeyMonthlyTokenLimit" :aria-label="text('monthlyTokenLimit')" type="number" />
+              <Button data-testid="create-key" :label="text('createApiKey')" @click="createKey" />
+            </div>
+            <Message v-if="createdToken" class="mb-4 break-all font-mono text-xs" data-testid="created-token" severity="success">
               {{ createdToken }}
-            </p>
-          </div>
-          <table class="w-full rounded border bg-white text-sm">
-            <tbody>
-              <tr v-for="key in keys" :key="key.id" class="border-t" data-testid="key-row">
-                <td class="p-3 font-medium">{{ key.name }}</td>
-                <td class="p-3">{{ key.keyPrefix }}</td>
-                <td class="p-3">{{ enabledText(key.enabled) }}</td>
-                <td class="p-3">
-                  {{ monthlyUsageByKey.get(key.id)?.runCount ?? 0 }} runs /
-                  {{ monthlyUsageByKey.get(key.id)?.totalTokens ?? 0 }} tokens
-                </td>
-                <td class="p-3 text-right">
-                  <button
-                    class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="key.enabled !== 1"
-                    @click="revokeKey(key)"
-                  >
-                    <Ban :size="14" />
-                    {{ text('revoke') }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            </Message>
+            <DataTable :value="keys" dataKey="id" size="small" stripedRows>
+              <Column field="name" header="Name" />
+              <Column field="keyPrefix" header="Prefix" />
+              <Column header="Status">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(data.enabled)" :value="enabledText(data.enabled)" />
+                </template>
+              </Column>
+              <Column header="Usage">
+                <template #body="{ data }">
+                  {{ monthlyUsageByKey.get(data.id)?.runCount ?? 0 }} runs /
+                  {{ monthlyUsageByKey.get(data.id)?.totalTokens ?? 0 }} tokens
+                </template>
+              </Column>
+              <Column headerStyle="width: 120px" header="Actions">
+                <template #body="{ data }">
+                  <Button
+                    :data-testid="`revoke-key-${data.name}`"
+                    :disabled="data.enabled !== 1"
+                    :label="text('revoke')"
+                    outlined
+                    severity="danger"
+                    size="small"
+                    @click="revokeKey(data)"
+                  />
+                </template>
+              </Column>
+              <template #empty>{{ text('noRows') }}</template>
+            </DataTable>
+          </template>
+        </Card>
 
-        <div v-if="selectedTab === 'runs'" class="mt-6 space-y-4">
-          <div class="rounded border bg-white p-4">
-            <div class="grid grid-cols-[180px_1fr_auto] gap-2">
-              <select v-model="selectedProfile" class="rounded border px-3 py-2" data-testid="run-profile">
-                <option v-for="profile in profiles" :key="profile.id" :value="profile.id">{{ profile.id }}</option>
-              </select>
-              <input v-model="prompt" class="rounded border px-3 py-2" data-testid="run-prompt" />
-              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="run-submit" @click="createRun">
-                {{ text('createRun') }}
-              </button>
+        <Card v-if="selectedTab === 'runs'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('runs') }}</template>
+          <template #content>
+            <div class="mb-4 grid grid-cols-[220px_1fr_auto] gap-2">
+              <Select
+                v-model="selectedProfile"
+                data-testid="run-profile"
+                optionLabel="label"
+                optionValue="value"
+                :options="profileOptions"
+              />
+              <InputText v-model="prompt" data-testid="run-prompt" />
+              <Button data-testid="run-submit" :label="text('createRun')" @click="createRun" />
             </div>
-          </div>
-          <table class="w-full rounded border bg-white text-sm">
-            <tbody>
-              <tr v-for="run in runs" :key="run.id" class="border-t align-top" data-testid="run-row">
-                <td class="p-3 font-mono text-xs" data-testid="run-id">{{ run.id }}</td>
-                <td class="p-3">{{ run.profileId }}</td>
-                <td class="p-3">{{ run.upstreamInstanceId || '-' }}</td>
-                <td class="p-3">{{ run.status }}</td>
-                <td class="p-3">{{ run.output || run.errorCode }}</td>
-                <td class="p-3 text-right">
-                  <button
-                    class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs"
-                    @click="loadRunEvents(run)"
-                  >
-                    <Eye :size="14" />
-                    {{ text('viewEvents') }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="selectedRunId" class="rounded border bg-white p-4" data-testid="run-events">
-            <div class="mb-3 flex items-center justify-between">
-              <p class="text-sm font-medium">{{ text('events') }}</p>
-              <p class="font-mono text-xs text-slate-500">{{ selectedRunId }}</p>
-            </div>
-            <pre class="max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">{{ formattedRunEvents }}</pre>
-          </div>
-        </div>
+            <DataTable :value="runs" dataKey="id" size="small" stripedRows>
+              <Column header="Run">
+                <template #body="{ data }">
+                  <span data-testid="run-id" class="font-mono text-xs">{{ data.id }}</span>
+                </template>
+              </Column>
+              <Column field="profileId" header="Profile" />
+              <Column field="prompt" header="Prompt" />
+              <Column field="upstreamInstanceId" header="Instance" />
+              <Column header="Status">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(data.status)" :value="data.status" />
+                </template>
+              </Column>
+              <Column header="Output">
+                <template #body="{ data }">
+                  {{ data.output || data.errorCode }}
+                </template>
+              </Column>
+              <Column headerStyle="width: 130px" header="Actions">
+                <template #body="{ data }">
+                  <Button :label="text('viewEvents')" outlined size="small" @click="loadRunEvents(data)" />
+                </template>
+              </Column>
+            </DataTable>
+            <Card v-if="selectedRunId" class="mt-4 bg-slate-950 text-slate-100" data-testid="run-events">
+              <template #title>
+                <span class="text-sm text-slate-100">{{ text('events') }}</span>
+              </template>
+              <template #subtitle>
+                <span class="font-mono text-xs text-slate-300">{{ selectedRunId }}</span>
+              </template>
+              <template #content>
+                <pre class="max-h-80 overflow-auto whitespace-pre-wrap text-xs">{{ formattedRunEvents }}</pre>
+              </template>
+            </Card>
+          </template>
+        </Card>
 
-        <div v-if="selectedTab === 'users'" class="mt-6 rounded border bg-white">
-          <div class="grid grid-cols-[1fr_1fr_auto] gap-2 border-b p-4">
-            <input v-model="newUserEmail" class="rounded border px-3 py-2" data-testid="user-email" :placeholder="text('email')" />
-            <input v-model="newUserPassword" class="rounded border px-3 py-2" data-testid="user-password" :placeholder="text('password')" />
-            <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-user" @click="createUser">
-              <UserPlus :size="14" class="inline" />
-              {{ text('createUser') }}
-            </button>
-          </div>
-          <div v-for="user in users" :key="user.id" class="flex justify-between border-t p-3 text-sm">
-            <span>{{ user.email }}</span>
-            <span>{{ user.role }}</span>
-          </div>
-        </div>
+        <Card v-if="selectedTab === 'users'" class="border border-slate-200 shadow-sm">
+          <template #title>{{ text('users') }}</template>
+          <template #content>
+            <div class="mb-4 grid grid-cols-[1fr_1fr_auto] gap-2">
+              <InputText v-model="newUserEmail" data-testid="user-email" :placeholder="text('email')" />
+              <InputText v-model="newUserPassword" data-testid="user-password" :placeholder="text('password')" type="password" />
+              <Button data-testid="create-user" :label="text('createUser')" @click="createUser" />
+            </div>
+            <DataTable :value="users" dataKey="id" size="small" stripedRows>
+              <Column field="email" :header="text('email')" />
+              <Column field="role" header="Role" />
+              <Column header="Status">
+                <template #body="{ data }">
+                  <Tag :severity="statusSeverity(!data.disabledAt)" :value="data.disabledAt ? text('disabled') : text('enabled')" />
+                </template>
+              </Column>
+              <template #empty>{{ text('noRows') }}</template>
+            </DataTable>
+          </template>
+        </Card>
       </section>
     </section>
   </main>

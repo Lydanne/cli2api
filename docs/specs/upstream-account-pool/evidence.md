@@ -91,3 +91,46 @@ Chinese-first dashboard work.
 - `pnpm lint`: passed.
 - `pnpm check:file-size`: all checked source files are <= 1300 lines.
 - `git diff --check`: passed.
+- `pnpm test:e2e`: failed first while adding dashboard URL navigation because
+  clicking `路由绑定` left the page at `/` instead of `#/route-bindings`.
+- `pnpm vitest run apps/dash/src/router.spec.ts`: failed first because
+  `apps/dash/src/router.ts` did not exist.
+- `pnpm vitest run apps/dash/src/router.spec.ts`: then failed because
+  `createWebHashHistory()` touched browser `location` in the Node test
+  environment.
+- `pnpm vitest run apps/dash/src/router.spec.ts`: passed after moving the shared
+  Vue Router route table behind `createDashboardRouter(history)` so tests can
+  use memory history while production uses `createWebHashHistory()`.
+- `pnpm add --filter @cli2api/dash vue-router@^4.6.3`: selected the Vue Router
+  v4 stable line so the dashboard does not raise the repository's documented
+  Node engine floor.
+- `pnpm test:e2e`: passed after moving the dashboard to Vue Router hash-history
+  navigation, restoring the existing admin session on boot, and updating E2E
+  selectors for PrimeVue `Select` and `DataTable` controls.
+- `pnpm build`: passed after replacing the main dashboard surface with PrimeVue
+  `Toolbar`, `Card`, `DataTable`, `Column`, `Select`, `InputText`, `Button`,
+  `Tag`, and `Message`. Vite reported the expected large-chunk warning for the
+  PrimeVue bundle.
+- `pnpm test`: passed with 9 test files and 38 tests.
+- `pnpm test:coverage`: passed with statements 80.48%, branches 65.28%,
+  functions 87.21%, and lines 81.29%.
+- `pnpm test:e2e`: passed with 2 Playwright tests after tightening the run
+  status locator to the row containing `hello dashboard e2e`.
+- `pnpm test`: passed after adding the Vue Router unit test, with 10 test files
+  and 39 tests.
+- `pnpm test:coverage`: passed with statements 80.48%, branches 65.28%,
+  functions 87.21%, and lines 81.29%.
+- `pnpm lint`: passed.
+- `pnpm check:file-size`: all checked source files are <= 1300 lines.
+- `git diff --check`: passed.
+- `./deploy.sh deploy`: failed first after adding `vue-router` because the
+  Docker build context still included workspace-level `node_modules` shims, and
+  `apps/dash/node_modules/.bin/vite` pointed at a stale pnpm virtual-store path.
+- `docker compose -f compose.yaml build dash`: passed after adding
+  `apps/*/node_modules` and `packages/*/node_modules` to `.dockerignore`.
+- `./deploy.sh deploy`: passed; Compose rebuilt `cli2api-api:local` and
+  `cli2api-dash:local`, recreated both services, and reported API plus
+  Dashboard health checks healthy.
+- Browser verification against `http://127.0.0.1:5173/#/route-bindings` passed
+  after `./deploy.sh deploy`: refresh preserved the Vue Router `路由绑定` page
+  and the DOM exposed PrimeVue card, table, and toolbar components.

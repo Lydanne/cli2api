@@ -27,6 +27,11 @@
 - [x] Add instance pool page.
 - [x] Add route management page.
 - [x] Expand API keys and users pages for production operations.
+- [x] Replace bespoke dashboard forms/tables with PrimeVue controls for the main
+  management surface.
+- [x] Add Vue Router hash-history dashboard navigation so direct links and
+  refresh keep the selected page.
+- [x] Restore an existing admin session during dashboard boot.
 
 ## Phase 4: Deployment And Evidence
 
@@ -34,6 +39,8 @@
 - [x] Document Codex browser/device auth from the dashboard.
 - [x] Run build, unit, coverage, E2E, lint, and file-size checks.
 - [x] Verify dashboard language switching and auth flow with mocked Codex auth.
+- [x] Rebuild and redeploy Compose services after dashboard UI changes.
+- [x] Exclude workspace `node_modules` directories from Docker build context.
 
 ## Allowed Write Areas
 

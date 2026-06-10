@@ -7,6 +7,10 @@
   downstream API surface.
 - The dashboard is still MVP-grade and must become an operations console with
   Chinese as the primary UI language plus optional English.
+- The installed PrimeVue library should carry the main dashboard controls rather
+  than leaving the UI as bespoke forms and HTML tables.
+- Dashboard navigation must use Vue Router and survive browser refresh and
+  direct links.
 - Codex authentication should be initiated from the dashboard, while actual auth
   execution stays in trusted backend or SDK code.
 
@@ -32,6 +36,8 @@
   - Dashboard account pool, instance pool, routing, run monitoring, API key, and
     user-management improvements.
   - Chinese-first dashboard i18n with `zh-CN` default and `en-US` fallback.
+  - PrimeVue-based dashboard control surface, Vue Router hash-history page
+    navigation, and existing-session restore on page load.
 - Allowed write paths:
   - `packages/agents-sdk/**`, `packages/shared/**`, `apps/core/**`,
     `apps/dash/**`, `docs/**`, root workspace config, and tests.
@@ -44,7 +50,8 @@
 - No billing, recharge, or commercial account marketplace.
 - No plaintext persistence of upstream secrets or downstream API keys.
 - No browser-side direct execution of Codex CLI or SDK.
-- No full replacement of all dashboard screens in the first implementation step.
+- No browser-history deployment rewrite; Vue Router uses hash history so Compose
+  Nginx and core static serving keep working with direct links.
 
 ## Acceptance Criteria
 
@@ -68,6 +75,12 @@
   instance selection.
 - [x] Dashboard exposes route binding, upstream logout/disable, API key quota,
   and admin-user creation controls.
+- [x] Dashboard uses the installed PrimeVue component library for the main
+  control surface instead of plain hand-rolled tables/forms.
+- [x] Dashboard navigation is backed by Vue Router and writes the current page
+  into the URL so refresh and direct links keep the selected management page.
+- [x] Dashboard restores an existing admin session on page load so refresh does
+  not discard visible backend state.
 - [x] `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`, `pnpm lint`, and
   `pnpm check:file-size` pass before release handoff.
 

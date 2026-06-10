@@ -62,6 +62,9 @@ The dashboard becomes Chinese-first:
 - Default locale: `zh-CN`.
 - Optional locale: `en-US`.
 - Locale switch in the header, persisted in `localStorage`.
+- Page navigation is defined in a Vue Router instance that uses hash history,
+  which keeps direct links refresh-safe without requiring additional Nginx or
+  core fallback routes.
 - API field names and error codes stay stable; UI maps them to localized copy.
 
 New operator surfaces:
@@ -88,7 +91,9 @@ New operator surfaces:
 
 Compose stores account auth homes in the existing data volume, by default under
 `/data/codex-homes/<accountId>`. The dashboard service remains stateless. The
-API service owns auth jobs and Codex CLI invocation.
+API service owns auth jobs and Codex CLI invocation. The Docker build context
+excludes root and workspace `node_modules` directories so local pnpm shims do
+not overwrite the container's fresh frozen-lockfile install.
 
 ## Rejected Options
 
