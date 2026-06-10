@@ -55,6 +55,7 @@ export const runs = sqliteTable("runs", {
   id: text("id").primaryKey(),
   apiKeyId: text("api_key_id").notNull(),
   profileId: text("profile_id").notNull(),
+  upstreamInstanceId: text("upstream_instance_id"),
   status: text("status").notNull(),
   prompt: text("prompt").notNull(),
   output: text("output"),
@@ -90,6 +91,52 @@ export const usageBuckets = sqliteTable("usage_buckets", {
   updatedAt: integer("updated_at").notNull()
 });
 
+/** Authenticated upstream provider account. */
+export const upstreamAccounts = sqliteTable("upstream_accounts", {
+  id: text("id").primaryKey(),
+  providerType: text("provider_type").notNull(),
+  name: text("name").notNull(),
+  authState: text("auth_state").notNull().default("pending"),
+  authHome: text("auth_home").notNull(),
+  disabledAt: integer("disabled_at"),
+  lastAuthError: text("last_auth_error"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull()
+});
+
+/** Backend-managed upstream authentication session. */
+export const upstreamAuthSessions = sqliteTable("upstream_auth_sessions", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerType: text("provider_type").notNull(),
+  state: text("state").notNull(),
+  authUrl: text("auth_url"),
+  userCode: text("user_code"),
+  expiresAt: integer("expires_at"),
+  message: text("message"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull()
+});
+
+/** Runnable upstream adapter instance bound to one upstream account. */
+export const upstreamInstances = sqliteTable("upstream_instances", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  type: text("type").notNull(),
+  name: text("name").notNull(),
+  cwd: text("cwd").notNull(),
+  enabled: integer("enabled").notNull().default(1),
+  healthState: text("health_state").notNull().default("unknown"),
+  currentRuns: integer("current_runs").notNull().default(0),
+  maxConcurrentRuns: integer("max_concurrent_runs").notNull().default(1),
+  sandbox: text("sandbox"),
+  approvalPolicy: text("approval_policy"),
+  configJson: text("config_json").notNull().default("{}"),
+  lastError: text("last_error"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull()
+});
+
 /** Drizzle schema object used when creating typed database clients. */
 export const schema = {
   users,
@@ -98,5 +145,8 @@ export const schema = {
   adapterProfiles,
   runs,
   runEvents,
-  usageBuckets
+  usageBuckets,
+  upstreamAccounts,
+  upstreamAuthSessions,
+  upstreamInstances
 };

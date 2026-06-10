@@ -45,14 +45,38 @@ test("admin can create profile and key, then downstream key can run and read eve
   expect(eventBody.map((event) => event.type)).toContain("run.completed");
 });
 
-test("dashboard covers login, profile, API key, run, and event viewing path", async ({ page, request }) => {
+test("dashboard covers Chinese account pool, profile, API key, run, and events", async ({ page, request }) => {
   await page.goto("/");
   await expect(page.getByText("Missing admin session")).toHaveCount(0);
 
   await page.getByTestId("login-email").fill("admin@example.com");
   await page.getByTestId("login-password").fill("password");
-  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByRole("heading", { name: "概览" })).toBeVisible();
+  await page.getByTestId("locale-switch").selectOption("en-US");
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await page.getByTestId("locale-switch").selectOption("zh-CN");
+  await expect(page.getByRole("heading", { name: "概览" })).toBeVisible();
+
+  await page.getByTestId("nav-accounts").click();
+  await page.getByTestId("account-id").fill("codex-ui-e2e");
+  await page.getByTestId("account-name").fill("UI Codex 账号");
+  await page.getByTestId("create-account").click();
+  const accountRow = page.getByTestId("account-row").filter({ hasText: "codex-ui-e2e" });
+  await expect(accountRow).toContainText("pending");
+  await accountRow.getByRole("button", { name: "网页认证" }).click();
+  await expect(page.getByText("E2E-1234")).toBeVisible();
+  await accountRow.getByRole("button", { name: "刷新认证" }).click();
+  await expect(accountRow).toContainText("authenticated");
+
+  await page.getByTestId("nav-instances").click();
+  await page.getByTestId("instance-account").selectOption("codex-ui-e2e");
+  await page.getByTestId("instance-id").fill("mock-ui-inst");
+  await page.getByTestId("instance-name").fill("UI Mock 实例");
+  await page.getByTestId("instance-cwd").fill(process.cwd());
+  await page.getByTestId("instance-concurrency").fill("2");
+  await page.getByTestId("create-instance").click();
+  await expect(page.getByTestId("instance-row").filter({ hasText: "mock-ui-inst" })).toContainText("unknown");
 
   await page.getByTestId("nav-profiles").click();
   await page.getByTestId("profile-id").fill("mock-ui-e2e");
@@ -71,7 +95,8 @@ test("dashboard covers login, profile, API key, run, and event viewing path", as
   await page.getByTestId("run-submit").click();
   const runRow = page.getByTestId("run-row").filter({ hasText: "hello dashboard e2e" });
   await expect(runRow).toContainText("completed");
-  await runRow.getByRole("button", { name: "View events" }).click();
+  await expect(runRow).toContainText("mock-ui-inst");
+  await runRow.getByRole("button", { name: "查看事件" }).click();
   await expect(page.getByTestId("run-events")).toContainText("run.completed");
 
   const runId = (await runRow.getByTestId("run-id").textContent())?.trim() ?? "";
@@ -84,6 +109,6 @@ test("dashboard covers login, profile, API key, run, and event viewing path", as
 
   await page.getByTestId("nav-keys").click();
   const keyRow = page.getByTestId("key-row").filter({ hasText: "ui-e2e-key" });
-  await keyRow.getByRole("button", { name: "Revoke" }).click();
-  await expect(keyRow).toContainText("disabled");
+  await keyRow.getByRole("button", { name: "吊销" }).click();
+  await expect(keyRow).toContainText("停用");
 });

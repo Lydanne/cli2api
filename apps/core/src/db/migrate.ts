@@ -47,6 +47,7 @@ const statements = [
     id TEXT PRIMARY KEY,
     api_key_id TEXT NOT NULL,
     profile_id TEXT NOT NULL,
+    upstream_instance_id TEXT,
     status TEXT NOT NULL,
     prompt TEXT NOT NULL,
     output TEXT,
@@ -78,10 +79,52 @@ const statements = [
     updated_at INTEGER NOT NULL,
     UNIQUE(api_key_id, bucket_type, bucket_key)
   )`,
+  `CREATE TABLE IF NOT EXISTS upstream_accounts (
+    id TEXT PRIMARY KEY,
+    provider_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    auth_state TEXT NOT NULL DEFAULT 'pending',
+    auth_home TEXT NOT NULL,
+    disabled_at INTEGER,
+    last_auth_error TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS upstream_auth_sessions (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    provider_type TEXT NOT NULL,
+    state TEXT NOT NULL,
+    auth_url TEXT,
+    user_code TEXT,
+    expires_at INTEGER,
+    message TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS upstream_instances (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    cwd TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    health_state TEXT NOT NULL DEFAULT 'unknown',
+    current_runs INTEGER NOT NULL DEFAULT 0,
+    max_concurrent_runs INTEGER NOT NULL DEFAULT 1,
+    sandbox TEXT,
+    approval_policy TEXT,
+    config_json TEXT NOT NULL DEFAULT '{}',
+    last_error TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
   "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
   "CREATE INDEX IF NOT EXISTS idx_runs_api_key ON runs(api_key_id)",
   "CREATE INDEX IF NOT EXISTS idx_run_events_run ON run_events(run_id, seq)",
-  "CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix)"
+  "CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix)",
+  "CREATE INDEX IF NOT EXISTS idx_upstream_auth_sessions_account ON upstream_auth_sessions(account_id)",
+  "CREATE INDEX IF NOT EXISTS idx_upstream_instances_account ON upstream_instances(account_id)"
 ];
 
 /** Applies the MVP SQLite schema. */
@@ -91,6 +134,7 @@ export function migrateDatabase(database: CoreDatabase): void {
       database.sqlite.prepare(statement).run();
     }
     ensureColumn(database, "runs", "metadata_json", "TEXT NOT NULL DEFAULT '{}'");
+    ensureColumn(database, "runs", "upstream_instance_id", "TEXT");
   });
   migration();
 }

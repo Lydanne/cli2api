@@ -10,28 +10,30 @@
 
 ## Phase 2: Core Account Pool
 
-- [ ] Add shared DTOs and error codes for upstream auth and scheduling.
-- [ ] Add SQLite tables and migrations for upstream accounts, auth sessions, and
+- [x] Add shared DTOs and error codes for upstream auth and scheduling.
+- [x] Add SQLite tables and migrations for upstream accounts, auth sessions, and
   instances.
-- [ ] Add services for account persistence and auth session lifecycle.
-- [ ] Add admin APIs for account creation, auth start/status/cancel, logout, and
-  instance CRUD.
-- [ ] Add scheduler service and record `upstreamInstanceId` on runs.
+- [x] Add services for account persistence and auth session lifecycle.
+- [x] Add admin APIs for account creation, auth start/status/cancel, and
+  instance create/list.
+- [x] Add scheduler service and record `upstreamInstanceId` on runs.
+- [ ] Add logout, instance update/disable, and explicit route-assignment APIs.
 
 ## Phase 3: Dashboard Chinese-first Operations UI
 
-- [ ] Add dashboard i18n with `zh-CN` default and `en-US` fallback.
-- [ ] Replace MVP English copy with Chinese primary labels.
-- [ ] Add upstream account auth flow pages.
-- [ ] Add instance pool and route management pages.
-- [ ] Expand runs, API keys, and users pages for production operations.
+- [x] Add dashboard i18n with `zh-CN` default and `en-US` fallback.
+- [x] Replace MVP English copy with Chinese primary labels.
+- [x] Add upstream account auth flow pages.
+- [x] Add instance pool page.
+- [ ] Add route management page.
+- [ ] Expand API keys and users pages for production operations.
 
 ## Phase 4: Deployment And Evidence
 
-- [ ] Persist `/data/codex-homes` in Compose deployment.
-- [ ] Document Codex browser/device auth from the dashboard.
-- [ ] Run build, unit, coverage, E2E, lint, and file-size checks.
-- [ ] Verify dashboard language switching and auth flow with mocked Codex auth.
+- [x] Persist `/data/codex-homes` in Compose deployment.
+- [x] Document Codex browser/device auth from the dashboard.
+- [x] Run build, unit, coverage, E2E, lint, and file-size checks.
+- [x] Verify dashboard language switching and auth flow with mocked Codex auth.
 
 ## Allowed Write Areas
 

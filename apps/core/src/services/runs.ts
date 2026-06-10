@@ -18,6 +18,7 @@ import { runEvents, runs } from "../db/schema.js";
 import type { ApiKeyRow } from "./api-keys.js";
 import { ProfileService } from "./profiles.js";
 import { QuotaService } from "./quotas.js";
+import { UpstreamService } from "./upstream.js";
 
 /** Service that creates runs, executes adapters, and persists events. */
 export class RunService {
@@ -26,7 +27,8 @@ export class RunService {
     private readonly database: CoreDatabase,
     private readonly profiles: ProfileService,
     private readonly quotas: QuotaService,
-    private readonly adapters: AdapterRegistry
+    private readonly adapters: AdapterRegistry,
+    private readonly upstream?: UpstreamService
   ) {}
 
   /** Creates and executes a run synchronously for MVP API flows. */
@@ -43,6 +45,8 @@ export class RunService {
       }
       throw error;
     }
+    const selection = this.upstream?.selectForProfile(profile) ?? null;
+    const runtimeProfile = selection?.profile ?? profile;
 
     const runId = randomUUID();
     const startedAt = Date.now();
@@ -52,6 +56,7 @@ export class RunService {
         id: runId,
         apiKeyId: key.id,
         profileId: profile.id,
+        upstreamInstanceId: selection?.instanceId ?? null,
         status: "running",
         prompt: request.prompt,
         output: null,
@@ -71,8 +76,8 @@ export class RunService {
     let seq = 0;
 
     try {
-      const adapter = this.adapters.get(profile.type);
-      for await (const event of adapter.run({ runId, prompt: request.prompt, profile })) {
+      const adapter = this.adapters.get(runtimeProfile.type);
+      for await (const event of adapter.run({ runId, prompt: request.prompt, profile: runtimeProfile })) {
         this.storeEvent(runId, seq++, event);
         if (event.type === "output.delta") {
           output += event.delta;
@@ -98,6 +103,9 @@ export class RunService {
         .where(eq(runs.id, runId))
         .run();
       this.quotas.complete(key.id, usage);
+      if (selection) {
+        this.upstream?.releaseInstance(selection.instanceId);
+      }
       return this.require(runId);
     } catch (error) {
       const failed = error instanceof Error ? error : new Error("Run failed");
@@ -117,6 +125,9 @@ export class RunService {
         .where(eq(runs.id, runId))
         .run();
       this.quotas.complete(key.id, usage);
+      if (selection) {
+        this.upstream?.releaseInstance(selection.instanceId);
+      }
       throw createCli2ApiError(code as ErrorCode, failed.message, 500);
     }
   }
@@ -130,6 +141,7 @@ export class RunService {
     return {
       id: row.id,
       profileId: row.profileId,
+      upstreamInstanceId: row.upstreamInstanceId,
       status: row.status as RunResponse["status"],
       prompt: row.prompt,
       output: row.output,
@@ -206,6 +218,7 @@ export class RunService {
         id: runId,
         apiKeyId: keyId,
         profileId,
+        upstreamInstanceId: null,
         status: "failed",
         prompt,
         output: "",

@@ -10,6 +10,7 @@ services:
       CLI2API_PORT: "3000"
       CLI2API_DB: /data/cli2api.sqlite
       CLI2API_DASH_DIST: /app/apps/dash/dist
+      CLI2API_AUTH_HOME_BASE: /data/codex-homes
     ports:
       - "${CLI2API_PUBLISHED_PORT:-3000}:3000"
     volumes:

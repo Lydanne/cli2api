@@ -42,6 +42,8 @@ export interface RunResponse {
   id: string;
   /** Selected profile id. */
   profileId: string;
+  /** Selected upstream instance id, or null when legacy profile routing is used. */
+  upstreamInstanceId: string | null;
   /** Current status. */
   status: RunStatus;
   /** Prompt supplied by the downstream caller. */
@@ -86,6 +88,98 @@ export interface UsageBucketResponse {
   outputTokens: number;
   /** Total tokens counted in the bucket. */
   totalTokens: number;
+  /** Last update timestamp in milliseconds. */
+  updatedAt: number;
+}
+
+/** Authentication lifecycle state for an upstream account. */
+export type UpstreamAuthState =
+  | "pending"
+  | "waiting_for_browser"
+  | "authenticated"
+  | "failed"
+  | "expired"
+  | "canceled";
+
+/** Health state used when selecting an upstream instance. */
+export type UpstreamHealthState = "unknown" | "healthy" | "degraded" | "disabled";
+
+/** Upstream account returned by admin APIs. */
+export interface UpstreamAccountResponse {
+  /** Stable upstream account id. */
+  id: string;
+  /** Upstream provider type, such as `codex`. */
+  providerType: string;
+  /** Operator-facing display name. */
+  name: string;
+  /** Current authentication state. */
+  authState: UpstreamAuthState;
+  /** Isolated provider auth home, such as a per-account `CODEX_HOME`. */
+  authHome: string;
+  /** Disabled timestamp in milliseconds, or null when enabled. */
+  disabledAt: number | null;
+  /** Last non-secret authentication error. */
+  lastAuthError: string | null;
+  /** Creation timestamp in milliseconds. */
+  createdAt: number;
+  /** Last update timestamp in milliseconds. */
+  updatedAt: number;
+}
+
+/** Upstream authentication session returned by admin APIs. */
+export interface UpstreamAuthSessionResponse {
+  /** Stable auth session id. */
+  id: string;
+  /** Account id that owns the session. */
+  accountId: string;
+  /** Upstream provider type. */
+  providerType: string;
+  /** Current session state. */
+  state: UpstreamAuthState;
+  /** Optional browser URL for device auth. */
+  authUrl: string | null;
+  /** Optional user/device code for browser auth. */
+  userCode: string | null;
+  /** Optional expiry timestamp in milliseconds. */
+  expiresAt: number | null;
+  /** Non-secret status message. */
+  message: string | null;
+  /** Creation timestamp in milliseconds. */
+  createdAt: number;
+  /** Last update timestamp in milliseconds. */
+  updatedAt: number;
+}
+
+/** Upstream runnable instance returned by admin APIs. */
+export interface UpstreamInstanceResponse {
+  /** Stable instance id. */
+  id: string;
+  /** Account id bound to this instance. */
+  accountId: string;
+  /** Adapter implementation type. */
+  type: string;
+  /** Operator-facing display name. */
+  name: string;
+  /** Fixed working directory for this instance. */
+  cwd: string;
+  /** Whether the scheduler may select this instance. */
+  enabled: boolean;
+  /** Current health state. */
+  healthState: UpstreamHealthState;
+  /** Number of currently running jobs assigned to this instance. */
+  currentRuns: number;
+  /** Maximum concurrent jobs allowed for this instance. */
+  maxConcurrentRuns: number;
+  /** Optional sandbox policy. */
+  sandbox: AdapterProfile["sandbox"] | null;
+  /** Optional approval policy. */
+  approvalPolicy: AdapterProfile["approvalPolicy"] | null;
+  /** Adapter-specific non-secret config. */
+  config: Record<string, unknown>;
+  /** Last non-secret error. */
+  lastError: string | null;
+  /** Creation timestamp in milliseconds. */
+  createdAt: number;
   /** Last update timestamp in milliseconds. */
   updatedAt: number;
 }

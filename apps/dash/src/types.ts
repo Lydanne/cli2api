@@ -1,3 +1,9 @@
+import type {
+  UpstreamAccountResponse,
+  UpstreamAuthSessionResponse,
+  UpstreamInstanceResponse
+} from "@cli2api/shared";
+
 /** Admin user displayed in the dashboard. */
 export interface AdminUser {
   /** User id. */
@@ -58,6 +64,8 @@ export interface RunView {
   output: string | null;
   /** Error code if failed. */
   errorCode: string | null;
+  /** Selected upstream instance id, or null when legacy profile routing is used. */
+  upstreamInstanceId: string | null;
 }
 
 /** Usage bucket displayed in the dashboard. */
@@ -79,3 +87,12 @@ export interface UsageBucketView {
   /** Total tokens in this bucket. */
   totalTokens: number;
 }
+
+/** Upstream account displayed in the dashboard. */
+export type UpstreamAccountView = UpstreamAccountResponse;
+
+/** Upstream auth session displayed in the dashboard. */
+export type UpstreamAuthSessionView = UpstreamAuthSessionResponse;
+
+/** Upstream runnable instance displayed in the dashboard. */
+export type UpstreamInstanceView = UpstreamInstanceResponse;

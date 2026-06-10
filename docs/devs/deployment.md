@@ -8,7 +8,8 @@ cli2api includes a root Docker Compose package for local private deployments.
 
 - `api`: builds the root `Dockerfile` `runtime` target, runs
   `apps/core/dist/server.js`, stores SQLite data in the `cli2api-data` volume,
-  exposes `http://127.0.0.1:3000`, and checks `/api/health`.
+  stores Codex account auth homes under `/data/codex-homes`, exposes
+  `http://127.0.0.1:3000`, and checks `/api/health`.
 - `dash`: builds the `dash-runtime` target, serves `apps/dash/dist` through
   Nginx, exposes `http://127.0.0.1:5173`, and proxies `/api/` and `/v1/` to the
   API service for same-origin browser calls.
@@ -19,6 +20,10 @@ ports:
 ```bash
 CLI2API_PUBLISHED_PORT=8080 CLI2API_DASH_PUBLISHED_PORT=8081 ./deploy.sh deploy
 ```
+
+Set `CLI2API_AUTH_HOME_BASE` if the API container should use a different
+per-account Codex auth directory. The default is `/data/codex-homes`, which is
+inside the persistent `cli2api-data` Compose volume.
 
 ## Operations
 
@@ -57,3 +62,14 @@ docker compose -f compose.yaml exec api \
 
 The CLI uses the same `CLI2API_DB=/data/cli2api.sqlite` environment as the
 running server, so the admin is stored in the Compose volume.
+
+## Codex Account Pool
+
+Use the dashboard `上游账号` page to create a Codex upstream account. Click
+`网页认证`, open the returned auth URL, enter the displayed user code, and then
+click `刷新认证` until the account becomes `authenticated`.
+
+After authentication, open `实例池`, bind the account, set the fixed `cwd` and
+concurrency limit, and create an instance. Runs that target a matching adapter
+profile are scheduled onto enabled, authenticated instances and record the
+selected `upstreamInstanceId`.

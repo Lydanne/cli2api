@@ -1,12 +1,102 @@
 <script setup lang="ts">
 import type { AgentEvent } from "@cli2api/shared";
-import { Activity, Ban, Eye, KeyRound, Play, Server, Users } from "lucide-vue-next";
+import { Activity, Ban, Database, Eye, Globe2, KeyRound, Play, Server, Users } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { ApiError, createDashboardApi } from "./lib/api";
 import { summarizeOverview } from "./lib/overview";
-import type { AdapterProfileView, ApiKeyView, AdminUser, RunView, UsageBucketView } from "./types";
+import type {
+  AdapterProfileView,
+  ApiKeyView,
+  AdminUser,
+  RunView,
+  UpstreamAccountView,
+  UpstreamAuthSessionView,
+  UpstreamInstanceView,
+  UsageBucketView
+} from "./types";
+
+const messages = {
+  "zh-CN": {
+    login: "登录",
+    email: "邮箱",
+    password: "密码",
+    overview: "概览",
+    runs: "运行记录",
+    keys: "API 密钥",
+    profiles: "路由配置",
+    accounts: "上游账号",
+    instances: "实例池",
+    users: "用户",
+    subtitle: "面向 CLI Agent 的本地运营控制台。",
+    refresh: "刷新",
+    enabledProfiles: "启用路由",
+    activeKeys: "可用密钥",
+    running: "运行中",
+    failed: "失败",
+    completed: "完成",
+    createMockProfile: "创建 Mock 路由",
+    createApiKey: "创建 API 密钥",
+    createRun: "运行",
+    createAccount: "创建账号",
+    startAuth: "网页认证",
+    pollAuth: "刷新认证",
+    createInstance: "创建实例",
+    viewEvents: "查看事件",
+    revoke: "吊销",
+    events: "事件",
+    enabled: "启用",
+    disabled: "停用",
+    createKeyFirst: "请先创建 API 密钥。",
+    authInstruction: "打开认证链接并输入验证码，完成后点击刷新认证。",
+    authUrl: "认证链接",
+    userCode: "验证码",
+    noRows: "暂无数据",
+    language: "语言"
+  },
+  "en-US": {
+    login: "Login",
+    email: "Email",
+    password: "Password",
+    overview: "Overview",
+    runs: "Runs",
+    keys: "API Keys",
+    profiles: "Routes",
+    accounts: "Upstream Accounts",
+    instances: "Instances",
+    users: "Users",
+    subtitle: "Local operations control plane for CLI agents.",
+    refresh: "Refresh",
+    enabledProfiles: "Enabled routes",
+    activeKeys: "Active keys",
+    running: "Running",
+    failed: "Failed",
+    completed: "Completed",
+    createMockProfile: "Create mock route",
+    createApiKey: "Create API key",
+    createRun: "Run",
+    createAccount: "Create account",
+    startAuth: "Browser auth",
+    pollAuth: "Refresh auth",
+    createInstance: "Create instance",
+    viewEvents: "View events",
+    revoke: "Revoke",
+    events: "Events",
+    enabled: "enabled",
+    disabled: "disabled",
+    createKeyFirst: "Create an API key first.",
+    authInstruction: "Open the auth URL, enter the code, then refresh auth.",
+    authUrl: "Auth URL",
+    userCode: "User code",
+    noRows: "No data",
+    language: "Language"
+  }
+} as const;
+
+type Locale = keyof typeof messages;
+type MessageKey = keyof (typeof messages)["zh-CN"];
 
 const client = createDashboardApi();
+const locale = ref<Locale>(readInitialLocale());
 const email = ref("admin@example.com");
 const password = ref("password");
 const loggedIn = ref(false);
@@ -16,6 +106,8 @@ const profiles = ref<AdapterProfileView[]>([]);
 const keys = ref<ApiKeyView[]>([]);
 const runs = ref<RunView[]>([]);
 const usage = ref<UsageBucketView[]>([]);
+const accounts = ref<UpstreamAccountView[]>([]);
+const instances = ref<UpstreamInstanceView[]>([]);
 const selectedTab = ref("overview");
 const newProfileId = ref("mock-default");
 const newKeyName = ref("dev-key");
@@ -24,7 +116,28 @@ const selectedProfile = ref("");
 const createdToken = ref("");
 const selectedRunId = ref("");
 const runEvents = ref<AgentEvent[]>([]);
+const newAccountId = ref("codex-main");
+const newAccountName = ref("主 Codex 账号");
+const lastAuthSession = ref<UpstreamAuthSessionView | null>(null);
+const newInstanceId = ref("codex-inst-1");
+const newInstanceName = ref("Codex 实例 1");
+const selectedAccountId = ref("");
+const newInstanceType = ref("mock");
+const newInstanceCwd = ref("/workspace");
+const newInstanceConcurrency = ref(1);
 
+const navItems = computed(
+  () =>
+    [
+      ["overview", Activity, text("overview")],
+      ["runs", Play, text("runs")],
+      ["keys", KeyRound, text("keys")],
+      ["profiles", Server, text("profiles")],
+      ["accounts", Globe2, text("accounts")],
+      ["instances", Database, text("instances")],
+      ["users", Users, text("users")]
+    ] as const
+);
 const summary = computed(() =>
   summarizeOverview({
     profiles: profiles.value,
@@ -43,6 +156,22 @@ const monthlyUsageByKey = computed(() => {
 });
 const formattedRunEvents = computed(() => runEvents.value.map((event) => JSON.stringify(event, null, 2)).join("\n\n"));
 
+function text(key: MessageKey): string {
+  return messages[locale.value][key] ?? messages["zh-CN"][key];
+}
+
+function setLocale(value: Locale): void {
+  locale.value = value;
+  window.localStorage.setItem("cli2api.locale", value);
+}
+
+function readInitialLocale(): Locale {
+  if (typeof window === "undefined") {
+    return "zh-CN";
+  }
+  return (window.localStorage.getItem("cli2api.locale") as Locale) || "zh-CN";
+}
+
 async function login() {
   await action(async () => {
     await client.login({ email: email.value, password: password.value });
@@ -53,19 +182,24 @@ async function login() {
 
 async function refresh(options: { silent?: boolean } = {}) {
   await action(async () => {
-    const [userRows, profileRows, keyRows, runRows, usageRows] = await Promise.all([
+    const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows] = await Promise.all([
       client.users(),
       client.profiles(),
       client.apiKeys(),
       client.runs(),
-      client.usage()
+      client.usage(),
+      client.upstreamAccounts(),
+      client.upstreamInstances()
     ]);
     users.value = userRows;
     profiles.value = profileRows;
     keys.value = keyRows;
     runs.value = runRows;
     usage.value = usageRows;
-    selectedProfile.value = profiles.value[0]?.id ?? "";
+    accounts.value = accountRows;
+    instances.value = instanceRows;
+    selectedProfile.value = selectedProfile.value || profiles.value[0]?.id || "";
+    selectedAccountId.value = selectedAccountId.value || accounts.value[0]?.id || "";
   }, options);
 }
 
@@ -98,7 +232,7 @@ async function createKey() {
 async function createRun() {
   await action(async () => {
     if (!createdToken.value) {
-      throw new Error("Create an API key first.");
+      throw new Error(text("createKeyFirst"));
     }
     await client.createRun(createdToken.value, { prompt: prompt.value, profileId: selectedProfile.value });
     await refresh();
@@ -119,6 +253,47 @@ async function revokeKey(key: ApiKeyView) {
   });
 }
 
+async function createAccount() {
+  await action(async () => {
+    const account = await client.createUpstreamAccount({
+      id: newAccountId.value,
+      providerType: "codex",
+      name: newAccountName.value
+    });
+    selectedAccountId.value = account.id;
+    await refresh();
+  });
+}
+
+async function startAuth(account: UpstreamAccountView) {
+  await action(async () => {
+    lastAuthSession.value = await client.startUpstreamAuth(account.id, { method: "device" });
+    await refresh();
+  });
+}
+
+async function pollAuth(account: UpstreamAccountView) {
+  await action(async () => {
+    lastAuthSession.value = await client.pollUpstreamAuth(account.id);
+    await refresh();
+  });
+}
+
+async function createInstance() {
+  await action(async () => {
+    await client.createUpstreamInstance({
+      id: newInstanceId.value,
+      accountId: selectedAccountId.value,
+      type: newInstanceType.value,
+      name: newInstanceName.value,
+      cwd: newInstanceCwd.value,
+      enabled: true,
+      maxConcurrentRuns: Number(newInstanceConcurrency.value)
+    });
+    await refresh();
+  });
+}
+
 async function action(work: () => Promise<void>, options: { silent?: boolean } = {}) {
   error.value = "";
   try {
@@ -128,6 +303,10 @@ async function action(work: () => Promise<void>, options: { silent?: boolean } =
       error.value = cause instanceof ApiError || cause instanceof Error ? cause.message : "Request failed";
     }
   }
+}
+
+function enabledText(value: boolean | number): string {
+  return value ? text("enabled") : text("disabled");
 }
 
 onMounted(async () => {
@@ -141,15 +320,15 @@ onMounted(async () => {
       <form class="w-full rounded border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="login">
         <h1 class="text-xl font-semibold">cli2api</h1>
         <div class="mt-5 space-y-3">
-          <input v-model="email" class="w-full rounded border px-3 py-2" data-testid="login-email" placeholder="Email" />
+          <input v-model="email" class="w-full rounded border px-3 py-2" data-testid="login-email" :placeholder="text('email')" />
           <input
             v-model="password"
             class="w-full rounded border px-3 py-2"
             data-testid="login-password"
-            placeholder="Password"
+            :placeholder="text('password')"
             type="password"
           />
-          <button class="w-full rounded bg-slate-900 px-3 py-2 text-white">Login</button>
+          <button class="w-full rounded bg-slate-900 px-3 py-2 text-white" data-testid="login-submit">{{ text('login') }}</button>
         </div>
         <p v-if="error" class="mt-3 text-sm text-red-600">{{ error }}</p>
       </form>
@@ -160,18 +339,12 @@ onMounted(async () => {
         <h1 class="text-lg font-semibold">cli2api</h1>
         <nav class="mt-6 space-y-1">
           <button
-            v-for="item in [
-              ['overview', Activity, 'Overview'],
-              ['runs', Play, 'Runs'],
-              ['keys', KeyRound, 'API Keys'],
-              ['profiles', Server, 'Profiles'],
-              ['users', Users, 'Users']
-            ]"
-            :key="item[0] as string"
+            v-for="item in navItems"
+            :key="item[0]"
             class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm"
             :class="selectedTab === item[0] ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'"
             :data-testid="`nav-${item[0]}`"
-            @click="selectedTab = item[0] as string"
+            @click="selectedTab = item[0]"
           >
             <component :is="item[1]" :size="16" />
             {{ item[2] }}
@@ -180,24 +353,40 @@ onMounted(async () => {
       </aside>
 
       <section class="p-6">
-        <header class="flex items-center justify-between">
+        <header class="flex items-center justify-between gap-3">
           <div>
-            <h2 class="text-2xl font-semibold capitalize">{{ selectedTab }}</h2>
-            <p class="text-sm text-slate-500">Operational control plane for CLI adapters.</p>
+            <h2 class="text-2xl font-semibold">{{ navItems.find((item) => item[0] === selectedTab)?.[2] }}</h2>
+            <p class="text-sm text-slate-500">{{ text('subtitle') }}</p>
           </div>
-          <button class="rounded border border-slate-300 bg-white px-3 py-2 text-sm" @click="refresh">Refresh</button>
+          <div class="flex items-center gap-2">
+            <select
+              :value="locale"
+              class="rounded border border-slate-300 bg-white px-2 py-2 text-sm"
+              data-testid="locale-switch"
+              :aria-label="text('language')"
+              @change="setLocale(($event.target as HTMLSelectElement).value as Locale)"
+            >
+              <option value="zh-CN">中文</option>
+              <option value="en-US">English</option>
+            </select>
+            <button class="rounded border border-slate-300 bg-white px-3 py-2 text-sm" @click="refresh">{{ text('refresh') }}</button>
+          </div>
         </header>
 
         <p v-if="error" class="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
 
         <div v-if="selectedTab === 'overview'" class="mt-6 grid grid-cols-5 gap-3">
-          <div v-for="card in [
-            ['Enabled profiles', summary.enabledProfiles],
-            ['Active keys', summary.activeApiKeys],
-            ['Running', summary.runningRuns],
-            ['Failed', summary.failedRuns],
-            ['Completed', summary.completedRuns]
-          ]" :key="card[0] as string" class="rounded border bg-white p-4">
+          <div
+            v-for="card in [
+              [text('enabledProfiles'), summary.enabledProfiles],
+              [text('activeKeys'), summary.activeApiKeys],
+              [text('running'), summary.runningRuns],
+              [text('failed'), summary.failedRuns],
+              [text('completed'), summary.completedRuns]
+            ]"
+            :key="card[0] as string"
+            class="rounded border bg-white p-4"
+          >
             <p class="text-xs uppercase text-slate-500">{{ card[0] }}</p>
             <p class="mt-2 text-2xl font-semibold">{{ card[1] }}</p>
           </div>
@@ -208,7 +397,7 @@ onMounted(async () => {
             <div class="flex gap-2">
               <input v-model="newProfileId" class="rounded border px-3 py-2" data-testid="profile-id" />
               <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-profile" @click="createProfile">
-                Create mock profile
+                {{ text('createMockProfile') }}
               </button>
             </div>
           </div>
@@ -218,7 +407,86 @@ onMounted(async () => {
                 <td class="p-3 font-medium">{{ profile.id }}</td>
                 <td class="p-3">{{ profile.type }}</td>
                 <td class="p-3">{{ profile.cwd }}</td>
-                <td class="p-3">{{ profile.enabled ? 'enabled' : 'disabled' }}</td>
+                <td class="p-3">{{ enabledText(profile.enabled) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="selectedTab === 'accounts'" class="mt-6 space-y-4">
+          <div class="rounded border bg-white p-4">
+            <div class="grid grid-cols-[180px_1fr_auto] gap-2">
+              <input v-model="newAccountId" class="rounded border px-3 py-2" data-testid="account-id" />
+              <input v-model="newAccountName" class="rounded border px-3 py-2" data-testid="account-name" />
+              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-account" @click="createAccount">
+                {{ text('createAccount') }}
+              </button>
+            </div>
+          </div>
+          <div v-if="lastAuthSession" class="rounded border border-blue-200 bg-blue-50 p-3 text-sm">
+            <p>{{ text('authInstruction') }}</p>
+            <p v-if="lastAuthSession.authUrl" class="mt-2">
+              {{ text('authUrl') }}:
+              <a class="font-mono text-blue-700 underline" :href="lastAuthSession.authUrl" target="_blank">{{ lastAuthSession.authUrl }}</a>
+            </p>
+            <p v-if="lastAuthSession.userCode" class="mt-1 font-mono">{{ text('userCode') }}: {{ lastAuthSession.userCode }}</p>
+          </div>
+          <table class="w-full rounded border bg-white text-sm">
+            <tbody>
+              <tr v-for="account in accounts" :key="account.id" class="border-t" data-testid="account-row">
+                <td class="p-3 font-medium">{{ account.name }}</td>
+                <td class="p-3 font-mono text-xs">{{ account.id }}</td>
+                <td class="p-3">{{ account.providerType }}</td>
+                <td class="p-3">{{ account.authState }}</td>
+                <td class="p-3 text-right">
+                  <button class="mr-2 rounded border border-slate-300 px-2 py-1 text-xs" @click="startAuth(account)">
+                    {{ text('startAuth') }}
+                  </button>
+                  <button class="rounded border border-slate-300 px-2 py-1 text-xs" @click="pollAuth(account)">
+                    {{ text('pollAuth') }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="accounts.length === 0">
+                <td class="p-3 text-slate-500" colspan="5">{{ text('noRows') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="selectedTab === 'instances'" class="mt-6 space-y-4">
+          <div class="rounded border bg-white p-4">
+            <div class="grid grid-cols-[180px_180px_1fr_120px_auto] gap-2">
+              <select v-model="selectedAccountId" class="rounded border px-3 py-2" data-testid="instance-account">
+                <option v-for="account in accounts" :key="account.id" :value="account.id">{{ account.name }}</option>
+              </select>
+              <input v-model="newInstanceId" class="rounded border px-3 py-2" data-testid="instance-id" />
+              <input v-model="newInstanceCwd" class="rounded border px-3 py-2" data-testid="instance-cwd" />
+              <input
+                v-model.number="newInstanceConcurrency"
+                class="rounded border px-3 py-2"
+                data-testid="instance-concurrency"
+                min="1"
+                type="number"
+              />
+              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-instance" @click="createInstance">
+                {{ text('createInstance') }}
+              </button>
+            </div>
+            <input v-model="newInstanceName" class="mt-2 w-full rounded border px-3 py-2" data-testid="instance-name" />
+          </div>
+          <table class="w-full rounded border bg-white text-sm">
+            <tbody>
+              <tr v-for="instance in instances" :key="instance.id" class="border-t" data-testid="instance-row">
+                <td class="p-3 font-medium">{{ instance.name }}</td>
+                <td class="p-3 font-mono text-xs">{{ instance.id }}</td>
+                <td class="p-3">{{ instance.type }}</td>
+                <td class="p-3">{{ instance.healthState }}</td>
+                <td class="p-3">{{ instance.currentRuns }} / {{ instance.maxConcurrentRuns }}</td>
+                <td class="p-3">{{ enabledText(instance.enabled) }}</td>
+              </tr>
+              <tr v-if="instances.length === 0">
+                <td class="p-3 text-slate-500" colspan="6">{{ text('noRows') }}</td>
               </tr>
             </tbody>
           </table>
@@ -229,7 +497,7 @@ onMounted(async () => {
             <div class="flex gap-2">
               <input v-model="newKeyName" class="rounded border px-3 py-2" data-testid="key-name" />
               <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-key" @click="createKey">
-                Create API key
+                {{ text('createApiKey') }}
               </button>
             </div>
             <p v-if="createdToken" class="mt-3 break-all rounded bg-slate-100 p-2 text-xs" data-testid="created-token">
@@ -241,7 +509,7 @@ onMounted(async () => {
               <tr v-for="key in keys" :key="key.id" class="border-t" data-testid="key-row">
                 <td class="p-3 font-medium">{{ key.name }}</td>
                 <td class="p-3">{{ key.keyPrefix }}</td>
-                <td class="p-3">{{ key.enabled ? 'enabled' : 'disabled' }}</td>
+                <td class="p-3">{{ enabledText(key.enabled) }}</td>
                 <td class="p-3">
                   {{ monthlyUsageByKey.get(key.id)?.runCount ?? 0 }} runs /
                   {{ monthlyUsageByKey.get(key.id)?.totalTokens ?? 0 }} tokens
@@ -253,7 +521,7 @@ onMounted(async () => {
                     @click="revokeKey(key)"
                   >
                     <Ban :size="14" />
-                    Revoke
+                    {{ text('revoke') }}
                   </button>
                 </td>
               </tr>
@@ -269,7 +537,7 @@ onMounted(async () => {
               </select>
               <input v-model="prompt" class="rounded border px-3 py-2" data-testid="run-prompt" />
               <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="run-submit" @click="createRun">
-                Run
+                {{ text('createRun') }}
               </button>
             </div>
           </div>
@@ -278,6 +546,7 @@ onMounted(async () => {
               <tr v-for="run in runs" :key="run.id" class="border-t align-top" data-testid="run-row">
                 <td class="p-3 font-mono text-xs" data-testid="run-id">{{ run.id }}</td>
                 <td class="p-3">{{ run.profileId }}</td>
+                <td class="p-3">{{ run.upstreamInstanceId || '-' }}</td>
                 <td class="p-3">{{ run.status }}</td>
                 <td class="p-3">{{ run.output || run.errorCode }}</td>
                 <td class="p-3 text-right">
@@ -286,7 +555,7 @@ onMounted(async () => {
                     @click="loadRunEvents(run)"
                   >
                     <Eye :size="14" />
-                    View events
+                    {{ text('viewEvents') }}
                   </button>
                 </td>
               </tr>
@@ -294,7 +563,7 @@ onMounted(async () => {
           </table>
           <div v-if="selectedRunId" class="rounded border bg-white p-4" data-testid="run-events">
             <div class="mb-3 flex items-center justify-between">
-              <p class="text-sm font-medium">Events</p>
+              <p class="text-sm font-medium">{{ text('events') }}</p>
               <p class="font-mono text-xs text-slate-500">{{ selectedRunId }}</p>
             </div>
             <pre class="max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">{{ formattedRunEvents }}</pre>

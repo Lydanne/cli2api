@@ -79,6 +79,65 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .get("/api/admin/upstream/accounts", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return services.upstream.listAccounts();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/upstream/accounts", async ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        const body = (await request.json()) as Parameters<typeof services.upstream.createAccount>[0];
+        return jsonResponse(services.upstream.createAccount(body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/upstream/accounts/:id/auth/start", async ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        const body = (await request.json()) as Parameters<typeof services.upstream.startAuth>[1];
+        return jsonResponse(await services.upstream.startAuth(params.id, body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .get("/api/admin/upstream/accounts/:id/auth/status", async ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(await services.upstream.pollAuthStatus(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/upstream/auth-sessions/:id/cancel", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.upstream.cancelAuthSession(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .get("/api/admin/upstream/instances", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return services.upstream.listInstances();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/upstream/instances", async ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        const body = (await request.json()) as Parameters<typeof services.upstream.createInstance>[0];
+        return jsonResponse(services.upstream.createInstance(body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .get("/api/admin/api-keys", ({ request }) => {
       try {
         requireAdmin(services, request);

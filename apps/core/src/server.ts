@@ -4,12 +4,14 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { openCoreDatabase } from "./db/client.js";
 import { migrateDatabase } from "./db/migrate.js";
+import { createServices } from "./services/index.js";
 
 const config = loadConfig();
 const database = openCoreDatabase(config.databasePath);
 migrateDatabase(database);
+const services = createServices(database, { authHomeBase: config.authHomeBase });
 
-const app = new Elysia({ adapter: node() }).use(createApp({ database })).listen({
+const app = new Elysia({ adapter: node() }).use(createApp({ database, services })).listen({
   hostname: config.host,
   port: config.port
 });

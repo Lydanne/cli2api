@@ -97,4 +97,68 @@ describe("dashboard Eden API facade", () => {
     await expect(api.usage()).resolves.toEqual([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]);
     await expect(api.revokeApiKey("key-1")).resolves.toEqual({ ok: true });
   });
+
+  it("exposes upstream account auth and instance APIs", async () => {
+    const accountClient = Object.assign(
+      vi.fn(() => ({
+        auth: {
+          start: {
+            post: vi.fn(async () => treatyResponse({ id: "session-1", state: "waiting_for_browser" }))
+          },
+          status: {
+            get: vi.fn(async () => treatyResponse({ id: "session-1", state: "authenticated" }))
+          }
+        }
+      })),
+      {
+        get: vi.fn(async () => treatyResponse([{ id: "account-1", providerType: "codex", authState: "pending" }])),
+        post: vi.fn(async () => treatyResponse({ id: "account-1", providerType: "codex", authState: "pending" }))
+      }
+    );
+    const sessionClient = vi.fn(() => ({
+      cancel: {
+        post: vi.fn(async () => treatyResponse({ id: "session-1", state: "canceled" }))
+      }
+    }));
+    const instancesClient = {
+      get: vi.fn(async () => treatyResponse([{ id: "instance-1", accountId: "account-1" }])),
+      post: vi.fn(async () => treatyResponse({ id: "instance-1", accountId: "account-1" }))
+    };
+    const fakeClient = {
+      api: {
+        admin: {
+          upstream: {
+            accounts: accountClient,
+            "auth-sessions": sessionClient,
+            instances: instancesClient
+          }
+        }
+      }
+    } as unknown as DashboardTreaty;
+    const api = createDashboardApi("", () => fakeClient);
+
+    await expect(api.upstreamAccounts()).resolves.toEqual([
+      { id: "account-1", providerType: "codex", authState: "pending" }
+    ]);
+    await expect(api.createUpstreamAccount({ id: "account-1", providerType: "codex", name: "主账号" })).resolves.toMatchObject({
+      id: "account-1"
+    });
+    await expect(api.startUpstreamAuth("account-1", { method: "device" })).resolves.toMatchObject({
+      state: "waiting_for_browser"
+    });
+    await expect(api.pollUpstreamAuth("account-1")).resolves.toMatchObject({ state: "authenticated" });
+    await expect(api.cancelUpstreamAuth("session-1")).resolves.toMatchObject({ state: "canceled" });
+    await expect(
+      api.createUpstreamInstance({
+        id: "instance-1",
+        accountId: "account-1",
+        type: "mock",
+        name: "实例 1",
+        cwd: "/repo",
+        enabled: true,
+        maxConcurrentRuns: 1
+      })
+    ).resolves.toMatchObject({ id: "instance-1" });
+    await expect(api.upstreamInstances()).resolves.toEqual([{ id: "instance-1", accountId: "account-1" }]);
+  });
 });

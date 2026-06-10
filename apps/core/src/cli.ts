@@ -15,11 +15,12 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const config = loadConfig({
     host: options.host,
     port: options.port ? Number(options.port) : undefined,
-    databasePath: options.db ?? options.config
+    databasePath: options.db ?? options.config,
+    authHomeBase: options["auth-home-base"]
   });
   const database = openCoreDatabase(config.databasePath);
   migrateDatabase(database);
-  const services = createServices(database);
+  const services = createServices(database, { authHomeBase: config.authHomeBase });
 
   if (command === "migrate") {
     console.log(`Migrated ${config.databasePath}`);
@@ -90,7 +91,7 @@ function required(value: string | undefined, flag: string): string {
 
 function usage(): void {
   console.log(`Usage:
-  cli2api serve --host 127.0.0.1 --port 3000 --db data/cli2api.sqlite
+  cli2api serve --host 127.0.0.1 --port 3000 --db data/cli2api.sqlite --auth-home-base /data/codex-homes
   cli2api migrate --db data/cli2api.sqlite
   cli2api admin create --email admin@example.com --password change-me
   cli2api admin reset-password --email admin@example.com --password change-me

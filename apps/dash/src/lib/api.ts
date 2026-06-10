@@ -1,7 +1,16 @@
 import { treaty, type Treaty } from "@elysia/eden";
 import type { AgentEvent } from "@cli2api/shared";
 import type { App } from "@cli2api/core";
-import type { AdapterProfileView, AdminUser, ApiKeyView, RunView, UsageBucketView } from "../types";
+import type {
+  AdapterProfileView,
+  AdminUser,
+  ApiKeyView,
+  RunView,
+  UpstreamAccountView,
+  UpstreamAuthSessionView,
+  UpstreamInstanceView,
+  UsageBucketView
+} from "../types";
 
 /** Error thrown when a backend API request fails. */
 export class ApiError extends Error {
@@ -92,6 +101,42 @@ export interface CreateRunInput {
   profileId: string;
 }
 
+/** Upstream account creation payload used by the dashboard. */
+export interface CreateUpstreamAccountInput {
+  /** Optional stable upstream account id. */
+  id?: string;
+  /** Provider type, such as `codex`. */
+  providerType: string;
+  /** Operator-facing account name. */
+  name: string;
+}
+
+/** Upstream auth start payload used by the dashboard. */
+export interface StartUpstreamAuthInput {
+  /** Auth method. */
+  method: "device";
+}
+
+/** Upstream instance creation payload used by the dashboard. */
+export interface CreateUpstreamInstanceInput {
+  /** Optional stable upstream instance id. */
+  id?: string;
+  /** Bound upstream account id. */
+  accountId: string;
+  /** Adapter implementation type. */
+  type: string;
+  /** Operator-facing instance name. */
+  name: string;
+  /** Fixed working directory. */
+  cwd: string;
+  /** Whether the scheduler can select this instance. */
+  enabled: boolean;
+  /** Maximum concurrent runs. */
+  maxConcurrentRuns: number;
+  /** Optional adapter config. */
+  config?: Record<string, unknown>;
+}
+
 /** Dashboard API facade backed by Elysia Eden Treaty. */
 export interface DashboardApi {
   /** Logs in an admin user through the session-cookie API. */
@@ -116,6 +161,20 @@ export interface DashboardApi {
   createRun(token: string, input: CreateRunInput): Promise<RunView>;
   /** Reads events for a run through the admin API. */
   runEvents(runId: string): Promise<AgentEvent[]>;
+  /** Lists upstream accounts. */
+  upstreamAccounts(): Promise<UpstreamAccountView[]>;
+  /** Creates an upstream account. */
+  createUpstreamAccount(input: CreateUpstreamAccountInput): Promise<UpstreamAccountView>;
+  /** Starts an upstream account auth flow. */
+  startUpstreamAuth(accountId: string, input: StartUpstreamAuthInput): Promise<UpstreamAuthSessionView>;
+  /** Polls upstream account auth status. */
+  pollUpstreamAuth(accountId: string): Promise<UpstreamAuthSessionView>;
+  /** Cancels an upstream auth session. */
+  cancelUpstreamAuth(sessionId: string): Promise<UpstreamAuthSessionView>;
+  /** Lists upstream runnable instances. */
+  upstreamInstances(): Promise<UpstreamInstanceView[]>;
+  /** Creates an upstream runnable instance. */
+  createUpstreamInstance(input: CreateUpstreamInstanceInput): Promise<UpstreamInstanceView>;
 }
 
 interface TreatyResult<T> {
@@ -141,6 +200,34 @@ interface AdminRunsClient {
       get(): Promise<TreatyResult<AgentEvent[]>>;
     };
   };
+}
+
+interface AdminUpstreamAccountsClient {
+  get(): Promise<TreatyResult<UpstreamAccountView[]>>;
+  post(input: CreateUpstreamAccountInput): Promise<TreatyResult<UpstreamAccountView>>;
+  (params: { id: string }): {
+    auth: {
+      start: {
+        post(input: StartUpstreamAuthInput): Promise<TreatyResult<UpstreamAuthSessionView>>;
+      };
+      status: {
+        get(): Promise<TreatyResult<UpstreamAuthSessionView>>;
+      };
+    };
+  };
+}
+
+interface AdminUpstreamAuthSessionsClient {
+  (params: { id: string }): {
+    cancel: {
+      post(): Promise<TreatyResult<UpstreamAuthSessionView>>;
+    };
+  };
+}
+
+interface AdminUpstreamInstancesClient {
+  get(): Promise<TreatyResult<UpstreamInstanceView[]>>;
+  post(input: CreateUpstreamInstanceInput): Promise<TreatyResult<UpstreamInstanceView>>;
 }
 
 const defaultTreatyFactory: TreatyFactory = (baseUrl, config) => treaty<App>(baseUrl, config);
@@ -171,8 +258,30 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
           headers: authorizationHeaders(token)
         }) as Promise<TreatyResult<RunView>>
       ),
-    runEvents: (runId) => unwrap<AgentEvent[]>(adminRuns({ id: runId }).events.get())
+    runEvents: (runId) => unwrap<AgentEvent[]>(adminRuns({ id: runId }).events.get()),
+    upstreamAccounts: () => unwrap<UpstreamAccountView[]>(upstreamAccountsClient(client).get()),
+    createUpstreamAccount: (input) => unwrap<UpstreamAccountView>(upstreamAccountsClient(client).post(input)),
+    startUpstreamAuth: (accountId, input) =>
+      unwrap<UpstreamAuthSessionView>(upstreamAccountsClient(client)({ id: accountId }).auth.start.post(input)),
+    pollUpstreamAuth: (accountId) =>
+      unwrap<UpstreamAuthSessionView>(upstreamAccountsClient(client)({ id: accountId }).auth.status.get()),
+    cancelUpstreamAuth: (sessionId) =>
+      unwrap<UpstreamAuthSessionView>(upstreamAuthSessionsClient(client)({ id: sessionId }).cancel.post()),
+    upstreamInstances: () => unwrap<UpstreamInstanceView[]>(upstreamInstancesClient(client).get()),
+    createUpstreamInstance: (input) => unwrap<UpstreamInstanceView>(upstreamInstancesClient(client).post(input))
   };
+}
+
+function upstreamAccountsClient(client: DashboardTreaty): AdminUpstreamAccountsClient {
+  return client.api.admin.upstream.accounts as unknown as AdminUpstreamAccountsClient;
+}
+
+function upstreamAuthSessionsClient(client: DashboardTreaty): AdminUpstreamAuthSessionsClient {
+  return client.api.admin.upstream["auth-sessions"] as unknown as AdminUpstreamAuthSessionsClient;
+}
+
+function upstreamInstancesClient(client: DashboardTreaty): AdminUpstreamInstancesClient {
+  return client.api.admin.upstream.instances as unknown as AdminUpstreamInstancesClient;
 }
 
 async function unwrap<T>(responsePromise: Promise<TreatyResult<T>>): Promise<T> {

@@ -54,13 +54,13 @@
   isolated `CODEX_HOME`.
 - [x] Unit tests cover Codex auth command construction without launching real
   Codex authentication.
-- [ ] Core can persist upstream accounts, auth sessions, and upstream instances.
-- [ ] Core admin APIs can start/poll/cancel Codex auth sessions.
-- [ ] Runs record the selected upstream instance id.
-- [ ] Scheduler only selects enabled, healthy instances below concurrency limit.
-- [ ] Dashboard supports Chinese as the default language and English as an
+- [x] Core can persist upstream accounts, auth sessions, and upstream instances.
+- [x] Core admin APIs can start/poll/cancel Codex auth sessions.
+- [x] Runs record the selected upstream instance id.
+- [x] Scheduler only selects enabled, healthy instances below concurrency limit.
+- [x] Dashboard supports Chinese as the default language and English as an
   alternate locale.
-- [ ] Dashboard lets operators create Codex accounts, start browser/device auth,
+- [x] Dashboard lets operators create Codex accounts, start browser/device auth,
   poll status, create instances, and inspect health/concurrency.
 - [ ] `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`, `pnpm lint`, and
   `pnpm check:file-size` pass before release handoff.
