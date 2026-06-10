@@ -48,7 +48,7 @@
 - [x] Downstream API keys can only read runs and events created by the same key.
 - [x] Admin dashboard users can inspect stored run events without needing the downstream key token.
 - [x] Operators can revoke API keys and inspect usage buckets from the dashboard.
-- [ ] `docker compose` can build and run the API with built dashboard assets and persistent SQLite storage.
+- [x] `docker compose` can build and run API plus dashboard services with persistent SQLite storage.
 - [x] `./deploy.sh` supports `deploy`, `build`, `up`, `down`, `restart`, `status`, `logs`, `test`, and `help`.
 
 ## Open Questions

@@ -2,9 +2,11 @@
 set -euo pipefail
 
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yaml}"
-SERVICE_NAME="${SERVICE_NAME:-api}"
+API_SERVICE_NAME="${API_SERVICE_NAME:-api}"
 PUBLISHED_PORT="${CLI2API_PUBLISHED_PORT:-3000}"
+DASH_PUBLISHED_PORT="${CLI2API_DASH_PUBLISHED_PORT:-5173}"
 API_HEALTH_URL="${CLI2API_API_HEALTH_URL:-http://127.0.0.1:${PUBLISHED_PORT}/api/health}"
+DASH_HEALTH_URL="${CLI2API_DASH_HEALTH_URL:-http://127.0.0.1:${DASH_PUBLISHED_PORT}/}"
 
 usage() {
   cat <<'USAGE'
@@ -12,11 +14,11 @@ Usage: ./deploy.sh [command]
 
 Commands:
   deploy    Build runtime service images, recreate services, and wait for health. Default.
-  build     Build the cli2api runtime image with bundled frontend assets.
+  build     Build the cli2api API and dashboard images.
   up        Start all Compose services in detached mode.
   down      Stop and remove Compose services.
   restart   Restart the API service and wait for health.
-  status    Show Compose service status and API health.
+  status    Show Compose service status plus API and dashboard health.
   logs      Follow API logs.
   test      Run the pnpm test suite.
   help      Show this help.
@@ -38,44 +40,48 @@ require_docker() {
   fi
 }
 
-fetch_health() {
+fetch_url() {
+  local url="$1"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsS "${API_HEALTH_URL}"
+    curl -fsS "${url}"
     return
   fi
 
-  node -e "fetch(process.argv[1]).then(async r => { if (!r.ok) process.exit(1); console.log(await r.text()); }).catch(() => process.exit(1));" "${API_HEALTH_URL}"
+  node -e "fetch(process.argv[1]).then(async r => { if (!r.ok) process.exit(1); console.log(await r.text()); }).catch(() => process.exit(1));" "${url}"
 }
 
 wait_for_health() {
+  local name="$1"
+  local url="$2"
   local attempts="${CLI2API_HEALTH_ATTEMPTS:-30}"
   local delay="${CLI2API_HEALTH_DELAY:-2}"
 
-  echo "Waiting for API health at ${API_HEALTH_URL}"
+  echo "Waiting for ${name} health at ${url}"
   for attempt in $(seq 1 "${attempts}"); do
-    if fetch_health >/dev/null 2>&1; then
-      echo "API is healthy"
+    if fetch_url "${url}" >/dev/null 2>&1; then
+      echo "${name} is healthy"
       return
     fi
-    echo "Health check ${attempt}/${attempts} failed; retrying in ${delay}s..."
+    echo "${name} health check ${attempt}/${attempts} failed; retrying in ${delay}s..."
     sleep "${delay}"
   done
 
-  echo "API did not become healthy at ${API_HEALTH_URL}" >&2
-  compose logs --tail=80 "${SERVICE_NAME}" >&2 || true
+  echo "${name} did not become healthy at ${url}" >&2
+  compose logs --tail=80 >&2 || true
   exit 1
 }
 
 cmd_deploy() {
   require_docker
-  compose build "${SERVICE_NAME}"
-  compose up -d --force-recreate "${SERVICE_NAME}"
-  wait_for_health
+  compose build
+  compose up -d --force-recreate
+  wait_for_health "API" "${API_HEALTH_URL}"
+  wait_for_health "Dashboard" "${DASH_HEALTH_URL}"
 }
 
 cmd_build() {
   require_docker
-  compose build "${SERVICE_NAME}"
+  compose build
 }
 
 cmd_up() {
@@ -90,8 +96,8 @@ cmd_down() {
 
 cmd_restart() {
   require_docker
-  compose restart "${SERVICE_NAME}"
-  wait_for_health
+  compose restart "${API_SERVICE_NAME}"
+  wait_for_health "API" "${API_HEALTH_URL}"
 }
 
 cmd_status() {
@@ -99,16 +105,23 @@ cmd_status() {
   compose ps
   echo
   echo "API health:"
-  fetch_health || {
+  fetch_url "${API_HEALTH_URL}" || {
     echo "API health check failed at ${API_HEALTH_URL}" >&2
     exit 1
   }
   echo
+  echo
+  echo "Dashboard health:"
+  fetch_url "${DASH_HEALTH_URL}" >/dev/null || {
+    echo "Dashboard health check failed at ${DASH_HEALTH_URL}" >&2
+    exit 1
+  }
+  echo "${DASH_HEALTH_URL}"
 }
 
 cmd_logs() {
   require_docker
-  compose logs -f "${SERVICE_NAME}"
+  compose logs -f "${API_SERVICE_NAME}"
 }
 
 cmd_test() {

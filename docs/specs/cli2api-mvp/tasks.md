@@ -24,6 +24,9 @@
 - [x] Add root `deploy.sh` with documented operational commands.
 - [x] Update docs and evidence for deployment commands.
 - [x] Run targeted deploy helper tests plus build, unit, coverage, E2E, lint, and file-size checks.
+- [x] Fix runtime pnpm package resolution and native SQLite binding build.
+- [x] Add a separate dashboard Compose service with same-origin API proxying.
+- [x] Verify `./deploy.sh deploy` reaches API and dashboard health.
 
 ## Allowed Write Areas
 

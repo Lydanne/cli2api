@@ -45,15 +45,20 @@ prompt, and adapter profile. The failed run stores the stable error code and a
 
 ## Deployment
 
-The local deployment package uses Docker Compose with one `api` service. The
-image builds all pnpm workspaces, includes `apps/dash/dist`, and runs the core
-server with `CLI2API_DASH_DIST` pointing at the built dashboard assets. SQLite
-data is stored in a named Compose volume mounted at `/data`.
+The local deployment package uses Docker Compose with separate `api` and `dash`
+services. The API image builds all pnpm workspaces, rebuilds native SQLite
+bindings for the container platform, and runs the core server. SQLite data is
+stored in a named Compose volume mounted at `/data`.
+
+The dashboard image serves `apps/dash/dist` through Nginx. It proxies `/api` and
+`/v1` to the API service so browser calls stay same-origin while API clients can
+still call the API port directly.
 
 The root `deploy.sh` helper wraps common Compose operations. `deploy` builds the
-image, recreates services, and waits for `/api/health`. `status` prints Compose
-state and the API health response. `test` stays repo-native and runs `pnpm test`
-instead of invoking Docker so it remains useful during local development.
+images, recreates services, and waits for both API and dashboard health.
+`status` prints Compose state plus API and dashboard health responses. `test`
+stays repo-native and runs `pnpm test` instead of invoking Docker so it remains
+useful during local development.
 
 ## Rejected Options
 

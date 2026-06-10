@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     image: cli2api-api:local
     environment:
       CLI2API_HOST: 0.0.0.0
@@ -21,6 +22,26 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+    restart: unless-stopped
+  dash:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dash-runtime
+    image: cli2api-dash:local
+    ports:
+      - "${CLI2API_DASH_PUBLISHED_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "wget -qO- http://127.0.0.1/ >/dev/null"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
     restart: unless-stopped
 
 volumes:

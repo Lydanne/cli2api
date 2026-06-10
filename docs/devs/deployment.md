@@ -2,21 +2,22 @@
 
 cli2api includes a root Docker Compose package for local private deployments.
 
-## Compose Service
+## Compose Services
 
-`compose.yaml` defines one `api` service:
+`compose.yaml` defines two services:
 
-- builds the root `Dockerfile`
-- runs `apps/core/dist/server.js`
-- serves built dashboard assets from `/app/apps/dash/dist`
-- stores SQLite data in the `cli2api-data` volume mounted at `/data`
-- exposes `http://127.0.0.1:3000` by default
-- checks health with `/api/health`
+- `api`: builds the root `Dockerfile` `runtime` target, runs
+  `apps/core/dist/server.js`, stores SQLite data in the `cli2api-data` volume,
+  exposes `http://127.0.0.1:3000`, and checks `/api/health`.
+- `dash`: builds the `dash-runtime` target, serves `apps/dash/dist` through
+  Nginx, exposes `http://127.0.0.1:5173`, and proxies `/api/` and `/v1/` to the
+  API service for same-origin browser calls.
 
-Set `CLI2API_PUBLISHED_PORT` to change the host port:
+Set `CLI2API_PUBLISHED_PORT` and `CLI2API_DASH_PUBLISHED_PORT` to change host
+ports:
 
 ```bash
-CLI2API_PUBLISHED_PORT=8080 ./deploy.sh deploy
+CLI2API_PUBLISHED_PORT=8080 CLI2API_DASH_PUBLISHED_PORT=8081 ./deploy.sh deploy
 ```
 
 ## Operations
@@ -33,13 +34,14 @@ CLI2API_PUBLISHED_PORT=8080 ./deploy.sh deploy
 ./deploy.sh help
 ```
 
-`deploy` is the default command. It builds the image, recreates the API service,
-and waits until `/api/health` is healthy. `status` prints Compose service state
-and the API health response. `test` runs the local `pnpm test` suite.
+`deploy` is the default command. It builds both images, recreates both services,
+and waits until API and dashboard health checks pass. `status` prints Compose
+service state plus API and dashboard health. `test` runs the local `pnpm test`
+suite.
 
 ## First Admin
 
-After the service is healthy, create the first admin user inside the API
+After the API service is healthy, create the first admin user inside the API
 container:
 
 ```bash

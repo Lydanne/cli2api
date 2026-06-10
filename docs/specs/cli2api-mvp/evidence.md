@@ -13,8 +13,9 @@ This file records verification evidence for the MVP.
 ## Evidence Log
 
 - `pnpm build`: passed after TypeScript package export fixes.
-- `pnpm test`: 5 test files passed, 18 tests passed.
-- `pnpm test:coverage`: passed with statements 76%, branches 62.01%, functions 82.4%, lines 76.45%.
+- `pnpm test`: passed with 6 test files and 23 tests.
+- `pnpm test:coverage`: passed with statements 78.71%, branches 63.18%,
+  functions 82.17%, and lines 79.09%.
 - `pnpm test:e2e`: 2 Playwright E2E tests passed, covering API and dashboard flows.
 - `pnpm check:file-size`: all checked source files are <= 1300 lines.
 
@@ -35,6 +36,25 @@ This file records verification evidence for the MVP.
   functions 82.17%, and lines 79.09%.
 - `pnpm lint`: passed.
 - `pnpm check:file-size`: all checked source files are <= 1300 lines.
+- User-provided `./deploy.sh` output: image built and container started, but
+  API health failed because runtime image lacked package-level pnpm
+  `node_modules` links for `@elysiajs/node`.
+- `./deploy.sh deploy`: after copying package-level pnpm links, API advanced
+  past module resolution but failed because `better-sqlite3` native bindings
+  were missing in the runtime image.
+- `pnpm vitest run apps/core/src/deploy-script.spec.ts`: failed first after
+  adding checks for `better-sqlite3` build approval and a dashboard Compose
+  service.
+- `pnpm vitest run apps/core/src/deploy-script.spec.ts`: passed after adding
+  package-level pnpm links, pnpm `onlyBuiltDependencies`, dashboard Nginx config,
+  and Compose `dash` service.
+- `docker compose -f compose.yaml config`: passed with `api` and `dash` services.
+- `./deploy.sh deploy`: passed; built `cli2api-api:local` and
+  `cli2api-dash:local`, recreated services, and reported API plus Dashboard
+  healthy.
+- `./deploy.sh status`: passed; showed `api` and `dash` services healthy.
+- `curl -fsS http://127.0.0.1:5173/api/health`: passed and returned
+  `{"ok":true,"service":"cli2api-core"}` through the dashboard proxy.
 
 ## Docker Compose Deployment Evidence
 

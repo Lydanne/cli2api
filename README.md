@@ -28,9 +28,12 @@ Then open `http://127.0.0.1:3000`.
 ./deploy.sh status
 ```
 
-The Compose deployment builds the API runtime with bundled dashboard assets and
-stores SQLite data in the `cli2api-data` volume. Set `CLI2API_PUBLISHED_PORT` to
-change the host port.
+The Compose deployment builds separate API and dashboard services. SQLite data
+is stored in the `cli2api-data` volume. Set `CLI2API_PUBLISHED_PORT` for the API
+port and `CLI2API_DASH_PUBLISHED_PORT` for the dashboard port.
+
+By default, the API is available at `http://127.0.0.1:3000` and the dashboard is
+available at `http://127.0.0.1:5173`.
 
 ## Verification
 
