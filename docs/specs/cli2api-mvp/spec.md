@@ -21,6 +21,7 @@
   - Cookie-session admin API and bearer-token downstream API.
   - Quota checks for concurrent runs, requests per minute, daily runs, and monthly tokens.
   - Vite/Vue dashboard for overview, runs, API keys, users, and adapter profiles.
+  - Docker Compose packaging and a root `deploy.sh` helper for local operations.
 - Allowed write paths:
   - `packages/**`, `apps/**`, `docs/**`, `.agents/**`, root workspace config, and root tests/config.
 - Read-only context:
@@ -37,13 +38,18 @@
 ## Acceptance Criteria
 
 - [ ] `pnpm install` installs the workspace.
-- [ ] `pnpm build` type-checks and builds every package.
-- [ ] `pnpm test` passes unit tests.
-- [ ] `pnpm test:coverage` enforces at least 60% coverage.
-- [ ] `pnpm test:e2e` covers login, API key creation, adapter profile creation, run creation, and event viewing.
-- [ ] `/api/runs`, `/v1/responses`, and `/v1/chat/completions` all map to the same internal run service.
-- [ ] API key quota failures return stable machine-readable errors and write run or usage evidence where applicable.
-- [ ] No request payload can override adapter profile `cwd`.
+- [x] `pnpm build` type-checks and builds every package.
+- [x] `pnpm test` passes unit tests.
+- [x] `pnpm test:coverage` enforces at least 60% coverage.
+- [x] `pnpm test:e2e` covers login, API key creation, adapter profile creation, run creation, and event viewing.
+- [x] `/api/runs`, `/v1/responses`, and `/v1/chat/completions` all map to the same internal run service.
+- [x] API key quota failures return stable machine-readable errors and write run or usage evidence where applicable.
+- [x] No request payload can override adapter profile `cwd`.
+- [x] Downstream API keys can only read runs and events created by the same key.
+- [x] Admin dashboard users can inspect stored run events without needing the downstream key token.
+- [x] Operators can revoke API keys and inspect usage buckets from the dashboard.
+- [ ] `docker compose` can build and run the API with built dashboard assets and persistent SQLite storage.
+- [x] `./deploy.sh` supports `deploy`, `build`, `up`, `down`, `restart`, `status`, `logs`, `test`, and `help`.
 
 ## Open Questions
 

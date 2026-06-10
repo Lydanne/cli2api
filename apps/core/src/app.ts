@@ -111,10 +111,35 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .post("/api/admin/api-keys/:id/revoke", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        services.apiKeys.revoke(params.id);
+        return { ok: true };
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .get("/api/admin/usage", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return services.quotas.listUsage();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .get("/api/admin/runs", ({ request }) => {
       try {
         requireAdmin(services, request);
         return services.runs.list();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .get("/api/admin/runs/:id/events", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return services.runs.events(params.id);
       } catch (error) {
         return errorResponse(error);
       }
@@ -136,16 +161,16 @@ export function createApp(context: AppContext) {
     })
     .get("/api/runs/:id", ({ params, request }) => {
       try {
-        requireApiKey(services, request);
-        return services.runs.require(params.id);
+        const key = requireApiKey(services, request);
+        return services.runs.requireForKey(params.id, key.id);
       } catch (error) {
         return errorResponse(error);
       }
     })
     .get("/api/runs/:id/events", ({ params, request }) => {
       try {
-        requireApiKey(services, request);
-        const events = services.runs.events(params.id);
+        const key = requireApiKey(services, request);
+        const events = services.runs.eventsForKey(params.id, key.id);
         return request.headers.get("accept")?.includes("text/event-stream") ? sseResponse(events) : events;
       } catch (error) {
         return errorResponse(error);

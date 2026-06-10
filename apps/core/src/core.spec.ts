@@ -131,6 +131,138 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(await json(response)).toMatchObject({
       error: { code: "QUOTA_EXCEEDED" }
     });
+
+    const runsResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/runs", {
+        headers: { cookie }
+      })
+    );
+    const runs = (await runsResponse.json()) as Array<Record<string, unknown>>;
+    const failedRun = runs.find((run) => run.prompt === "blocked");
+    expect(failedRun).toMatchObject({
+      status: "failed",
+      errorCode: "QUOTA_EXCEEDED",
+      profileId: profile.id
+    });
+
+    const eventsResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/runs/${String(failedRun?.id)}/events`, {
+        headers: { cookie }
+      })
+    );
+    expect(eventsResponse.status).toBe(200);
+    const events = (await eventsResponse.json()) as Array<Record<string, unknown>>;
+    expect(events).toContainEqual(expect.objectContaining({ type: "run.failed", code: "QUOTA_EXCEEDED" }));
+  });
+
+  it("scopes downstream run reads to the API key that created the run", async () => {
+    const cookie = await harness.login();
+    const profile = await harness.createMockProfile(cookie, "mock-owner");
+    const ownerKey = await harness.createApiKey(cookie, { name: "owner-key" });
+    const otherKey = await harness.createApiKey(cookie, { name: "other-key" });
+
+    const runResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${ownerKey.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "owned run", profileId: profile.id })
+      })
+    );
+    const run = await json(runResponse);
+
+    const ownerRead = await harness.app.handle(
+      new Request(`http://localhost/api/runs/${String(run.id)}`, {
+        headers: { authorization: `Bearer ${ownerKey.token}` }
+      })
+    );
+    expect(ownerRead.status).toBe(200);
+
+    const crossRead = await harness.app.handle(
+      new Request(`http://localhost/api/runs/${String(run.id)}`, {
+        headers: { authorization: `Bearer ${otherKey.token}` }
+      })
+    );
+    expect(crossRead.status).toBe(404);
+    expect(await json(crossRead)).toMatchObject({ error: { code: "INVALID_REQUEST" } });
+
+    const crossEvents = await harness.app.handle(
+      new Request(`http://localhost/api/runs/${String(run.id)}/events`, {
+        headers: { authorization: `Bearer ${otherKey.token}` }
+      })
+    );
+    expect(crossEvents.status).toBe(404);
+
+    const adminEvents = await harness.app.handle(
+      new Request(`http://localhost/api/admin/runs/${String(run.id)}/events`, {
+        headers: { cookie }
+      })
+    );
+    expect(adminEvents.status).toBe(200);
+    const events = (await adminEvents.json()) as Array<Record<string, unknown>>;
+    expect(events).toContainEqual(expect.objectContaining({ type: "run.completed" }));
+  });
+
+  it("lets admins inspect usage buckets and revoke API keys", async () => {
+    const cookie = await harness.login();
+    const profile = await harness.createMockProfile(cookie, "mock-admin-ops");
+    const keyResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/api-keys", {
+        method: "POST",
+        headers: { cookie, "content-type": "application/json" },
+        body: JSON.stringify({ name: "ops-key", dailyRunLimit: 10 })
+      })
+    );
+    const key = (await keyResponse.json()) as { id: string; token: string };
+
+    const runResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "usage visible", profileId: profile.id })
+      })
+    );
+    expect(runResponse.status).toBe(200);
+
+    const usageResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/usage", {
+        headers: { cookie }
+      })
+    );
+    expect(usageResponse.status).toBe(200);
+    const usage = (await usageResponse.json()) as Array<Record<string, unknown>>;
+    expect(usage).toContainEqual(
+      expect.objectContaining({
+        apiKeyId: key.id,
+        bucketType: "month",
+        runCount: 1
+      })
+    );
+
+    const revokeResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/api-keys/${key.id}/revoke`, {
+        method: "POST",
+        headers: { cookie }
+      })
+    );
+    expect(revokeResponse.status).toBe(200);
+
+    const blockedResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "after revoke", profileId: profile.id })
+      })
+    );
+    expect(blockedResponse.status).toBe(401);
   });
 
   it("serves built dashboard assets when a dist directory is configured", async () => {

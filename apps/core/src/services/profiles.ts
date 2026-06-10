@@ -21,10 +21,11 @@ export class ProfileService {
   /** Creates an adapter profile. */
   public create(input: CreateProfileInput): AdapterProfile {
     const now = Date.now();
+    const id = input.id || randomUUID();
     this.database.db
       .insert(adapterProfiles)
       .values({
-        id: input.id || randomUUID(),
+        id,
         type: input.type,
         name: input.name,
         cwd: input.cwd,
@@ -37,7 +38,7 @@ export class ProfileService {
         updatedAt: now
       })
       .run();
-    return this.require(input.id);
+    return this.require(id);
   }
 
   /** Returns all adapter profiles. */

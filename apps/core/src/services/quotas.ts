@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { normalizeUsage, type AgentUsage } from "@cli2api/shared";
+import { asc } from "drizzle-orm";
+import { normalizeUsage, type AgentUsage, type UsageBucketResponse } from "@cli2api/shared";
 import { ErrorCode, createCli2ApiError } from "@cli2api/shared";
 import type { CoreDatabase } from "../db/client.js";
+import { usageBuckets } from "../db/schema.js";
 import type { ApiKeyRow } from "./api-keys.js";
 
 /** Single-process quota service for API key limits. */
@@ -47,6 +49,15 @@ export class QuotaService {
     this.activeRuns.set(keyId, active);
     this.addUsage(keyId, "day", utcDayKey(), usage);
     this.addUsage(keyId, "month", utcMonthKey(), usage);
+  }
+
+  /** Lists persisted usage buckets for operator inspection. */
+  public listUsage(): UsageBucketResponse[] {
+    return this.database.db
+      .select()
+      .from(usageBuckets)
+      .orderBy(asc(usageBuckets.bucketKey))
+      .all();
   }
 
   private countRunsSince(keyId: string, since: number): number {

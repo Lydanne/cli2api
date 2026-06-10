@@ -54,6 +54,8 @@ export interface RunResponse {
   errorMessage: string | null;
   /** Token usage when available. */
   usage: import("./events.js").AgentUsage;
+  /** Operator or caller metadata recorded with the run. */
+  metadata: Record<string, unknown>;
 }
 
 /** Minimal OpenAI-compatible model record. */
@@ -64,4 +66,26 @@ export interface OpenAiModel {
   id: string;
   /** Owner label. */
   owned_by: string;
+}
+
+/** Usage bucket returned by admin quota inspection APIs. */
+export interface UsageBucketResponse {
+  /** Usage bucket id. */
+  id: string;
+  /** API key id that owns this usage. */
+  apiKeyId: string;
+  /** Bucket granularity. */
+  bucketType: string;
+  /** UTC bucket key, such as YYYY-MM-DD or YYYY-MM. */
+  bucketKey: string;
+  /** Number of completed runs counted in the bucket. */
+  runCount: number;
+  /** Input tokens counted in the bucket. */
+  inputTokens: number;
+  /** Output tokens counted in the bucket. */
+  outputTokens: number;
+  /** Total tokens counted in the bucket. */
+  totalTokens: number;
+  /** Last update timestamp in milliseconds. */
+  updatedAt: number;
 }

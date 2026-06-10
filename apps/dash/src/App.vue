@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Activity, KeyRound, Play, Server, Users } from "lucide-vue-next";
+import type { AgentEvent } from "@cli2api/shared";
+import { Activity, Ban, Eye, KeyRound, Play, Server, Users } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { ApiError, createDashboardApi } from "./lib/api";
 import { summarizeOverview } from "./lib/overview";
-import type { AdapterProfileView, ApiKeyView, AdminUser, RunView } from "./types";
+import type { AdapterProfileView, ApiKeyView, AdminUser, RunView, UsageBucketView } from "./types";
 
 const client = createDashboardApi();
 const email = ref("admin@example.com");
@@ -14,12 +15,15 @@ const users = ref<AdminUser[]>([]);
 const profiles = ref<AdapterProfileView[]>([]);
 const keys = ref<ApiKeyView[]>([]);
 const runs = ref<RunView[]>([]);
+const usage = ref<UsageBucketView[]>([]);
 const selectedTab = ref("overview");
 const newProfileId = ref("mock-default");
 const newKeyName = ref("dev-key");
 const prompt = ref("hello from dashboard");
 const selectedProfile = ref("");
 const createdToken = ref("");
+const selectedRunId = ref("");
+const runEvents = ref<AgentEvent[]>([]);
 
 const summary = computed(() =>
   summarizeOverview({
@@ -28,6 +32,16 @@ const summary = computed(() =>
     runs: runs.value
   })
 );
+const monthlyUsageByKey = computed(() => {
+  const buckets = new Map<string, UsageBucketView>();
+  for (const bucket of usage.value) {
+    if (bucket.bucketType === "month") {
+      buckets.set(bucket.apiKeyId, bucket);
+    }
+  }
+  return buckets;
+});
+const formattedRunEvents = computed(() => runEvents.value.map((event) => JSON.stringify(event, null, 2)).join("\n\n"));
 
 async function login() {
   await action(async () => {
@@ -39,16 +53,18 @@ async function login() {
 
 async function refresh(options: { silent?: boolean } = {}) {
   await action(async () => {
-    const [userRows, profileRows, keyRows, runRows] = await Promise.all([
+    const [userRows, profileRows, keyRows, runRows, usageRows] = await Promise.all([
       client.users(),
       client.profiles(),
       client.apiKeys(),
-      client.runs()
+      client.runs(),
+      client.usage()
     ]);
     users.value = userRows;
     profiles.value = profileRows;
     keys.value = keyRows;
     runs.value = runRows;
+    usage.value = usageRows;
     selectedProfile.value = profiles.value[0]?.id ?? "";
   }, options);
 }
@@ -85,6 +101,20 @@ async function createRun() {
       throw new Error("Create an API key first.");
     }
     await client.createRun(createdToken.value, { prompt: prompt.value, profileId: selectedProfile.value });
+    await refresh();
+  });
+}
+
+async function loadRunEvents(run: RunView) {
+  await action(async () => {
+    selectedRunId.value = run.id;
+    runEvents.value = await client.runEvents(run.id);
+  });
+}
+
+async function revokeKey(key: ApiKeyView) {
+  await action(async () => {
+    await client.revokeApiKey(key.id);
     await refresh();
   });
 }
@@ -208,10 +238,24 @@ onMounted(async () => {
           </div>
           <table class="w-full rounded border bg-white text-sm">
             <tbody>
-              <tr v-for="key in keys" :key="key.id" class="border-t">
+              <tr v-for="key in keys" :key="key.id" class="border-t" data-testid="key-row">
                 <td class="p-3 font-medium">{{ key.name }}</td>
                 <td class="p-3">{{ key.keyPrefix }}</td>
                 <td class="p-3">{{ key.enabled ? 'enabled' : 'disabled' }}</td>
+                <td class="p-3">
+                  {{ monthlyUsageByKey.get(key.id)?.runCount ?? 0 }} runs /
+                  {{ monthlyUsageByKey.get(key.id)?.totalTokens ?? 0 }} tokens
+                </td>
+                <td class="p-3 text-right">
+                  <button
+                    class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="key.enabled !== 1"
+                    @click="revokeKey(key)"
+                  >
+                    <Ban :size="14" />
+                    Revoke
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -236,9 +280,25 @@ onMounted(async () => {
                 <td class="p-3">{{ run.profileId }}</td>
                 <td class="p-3">{{ run.status }}</td>
                 <td class="p-3">{{ run.output || run.errorCode }}</td>
+                <td class="p-3 text-right">
+                  <button
+                    class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs"
+                    @click="loadRunEvents(run)"
+                  >
+                    <Eye :size="14" />
+                    View events
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
+          <div v-if="selectedRunId" class="rounded border bg-white p-4" data-testid="run-events">
+            <div class="mb-3 flex items-center justify-between">
+              <p class="text-sm font-medium">Events</p>
+              <p class="font-mono text-xs text-slate-500">{{ selectedRunId }}</p>
+            </div>
+            <pre class="max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">{{ formattedRunEvents }}</pre>
+          </div>
         </div>
 
         <div v-if="selectedTab === 'users'" class="mt-6 rounded border bg-white">

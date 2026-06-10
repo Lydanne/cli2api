@@ -1,0 +1,15 @@
+.git
+.husky
+node_modules
+coverage
+playwright-report
+test-results
+apps/*/dist
+packages/*/dist
+data
+*.sqlite
+*.sqlite-*
+.DS_Store
+.env
+.env.*
+!.env.example

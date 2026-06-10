@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import {
   ErrorCode,
+  Cli2ApiError,
   createCli2ApiError,
   normalizeUsage,
   parseJsonObject,
@@ -34,7 +35,14 @@ export class RunService {
       throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "prompt is required", 400);
     }
     const profile = this.profiles.resolve(request.profileId);
-    this.quotas.assertAllowed(key);
+    try {
+      this.quotas.assertAllowed(key);
+    } catch (error) {
+      if (error instanceof Cli2ApiError) {
+        this.storeRejectedRun(key.id, profile.id, request.prompt, request.metadata, error);
+      }
+      throw error;
+    }
 
     const runId = randomUUID();
     const startedAt = Date.now();
@@ -50,6 +58,7 @@ export class RunService {
         errorCode: null,
         errorMessage: null,
         usageJson: stringifyJson(normalizeUsage(undefined)),
+        metadataJson: stringifyJson(request.metadata ?? {}),
         createdAt: startedAt,
         completedAt: null,
         durationMs: null
@@ -126,8 +135,18 @@ export class RunService {
       output: row.output,
       errorCode: row.errorCode,
       errorMessage: row.errorMessage,
-      usage: normalizeUsage(parseJsonObject(row.usageJson, {}))
+      usage: normalizeUsage(parseJsonObject(row.usageJson, {})),
+      metadata: parseJsonObject(row.metadataJson, {})
     };
+  }
+
+  /** Returns one public run response only when it belongs to the API key. */
+  public requireForKey(runId: string, keyId: string): RunResponse {
+    const row = this.database.db.select().from(runs).where(eq(runs.id, runId)).get();
+    if (!row || row.apiKeyId !== keyId) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, `Run not found: ${runId}`, 404);
+    }
+    return this.require(runId);
   }
 
   /** Lists recent runs for the management dashboard. */
@@ -142,6 +161,7 @@ export class RunService {
 
   /** Returns normalized stored events for a run. */
   public events(runId: string): AgentEvent[] {
+    this.require(runId);
     return this.database.db
       .select()
       .from(runEvents)
@@ -149,6 +169,12 @@ export class RunService {
       .orderBy(asc(runEvents.seq))
       .all()
       .map((row) => parseJsonObject(row.payloadJson, { type: row.type, runId }) as AgentEvent);
+  }
+
+  /** Returns normalized stored events only when the run belongs to the API key. */
+  public eventsForKey(runId: string, keyId: string): AgentEvent[] {
+    this.requireForKey(runId, keyId);
+    return this.events(runId);
   }
 
   private storeEvent(runId: string, seq: number, event: AgentEvent): void {
@@ -163,5 +189,41 @@ export class RunService {
         createdAt: Date.now()
       })
       .run();
+  }
+
+  private storeRejectedRun(
+    keyId: string,
+    profileId: string,
+    prompt: string,
+    metadata: Record<string, unknown> | undefined,
+    error: Cli2ApiError
+  ): void {
+    const runId = randomUUID();
+    const now = Date.now();
+    this.database.db
+      .insert(runs)
+      .values({
+        id: runId,
+        apiKeyId: keyId,
+        profileId,
+        status: "failed",
+        prompt,
+        output: "",
+        errorCode: error.code,
+        errorMessage: error.message,
+        usageJson: stringifyJson(normalizeUsage(undefined)),
+        metadataJson: stringifyJson(metadata ?? {}),
+        createdAt: now,
+        completedAt: now,
+        durationMs: 0
+      })
+      .run();
+    this.storeEvent(runId, 0, {
+      type: "run.failed",
+      runId,
+      code: error.code,
+      message: error.message,
+      timestamp: now
+    });
   }
 }

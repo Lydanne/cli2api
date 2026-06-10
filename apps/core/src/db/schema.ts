@@ -61,6 +61,7 @@ export const runs = sqliteTable("runs", {
   errorCode: text("error_code"),
   errorMessage: text("error_message"),
   usageJson: text("usage_json").notNull().default("{\"inputTokens\":0,\"outputTokens\":0,\"totalTokens\":0}"),
+  metadataJson: text("metadata_json").notNull().default("{}"),
   createdAt: integer("created_at").notNull(),
   completedAt: integer("completed_at"),
   durationMs: integer("duration_ms")

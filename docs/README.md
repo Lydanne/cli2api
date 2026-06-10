@@ -18,6 +18,7 @@ Open `http://127.0.0.1:3000` for the dashboard after `apps/dash` is built.
 
 - `docs/specs/`: specifications, architecture decisions, tasks, and evidence.
 - `docs/devs/`: developer-facing architecture, testing, and extension notes.
+- `docs/devs/deployment.md`: Docker Compose and `deploy.sh` operations.
 
 ## MVP Scope
 

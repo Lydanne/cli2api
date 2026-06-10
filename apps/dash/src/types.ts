@@ -32,6 +32,14 @@ export interface ApiKeyView {
   keyPrefix: string;
   /** Enabled flag. */
   enabled: number;
+  /** Maximum concurrent runs allowed for this key. */
+  maxConcurrentRuns: number;
+  /** Requests per minute limit. */
+  rpmLimit: number;
+  /** Daily run count limit. */
+  dailyRunLimit: number;
+  /** Monthly token limit. */
+  monthlyTokenLimit: number;
   /** One-time token returned during creation. */
   token?: string;
 }
@@ -50,4 +58,24 @@ export interface RunView {
   output: string | null;
   /** Error code if failed. */
   errorCode: string | null;
+}
+
+/** Usage bucket displayed in the dashboard. */
+export interface UsageBucketView {
+  /** Usage bucket id. */
+  id: string;
+  /** API key id that owns this usage. */
+  apiKeyId: string;
+  /** Bucket granularity. */
+  bucketType: string;
+  /** UTC bucket key. */
+  bucketKey: string;
+  /** Completed run count in this bucket. */
+  runCount: number;
+  /** Input tokens in this bucket. */
+  inputTokens: number;
+  /** Output tokens in this bucket. */
+  outputTokens: number;
+  /** Total tokens in this bucket. */
+  totalTokens: number;
 }

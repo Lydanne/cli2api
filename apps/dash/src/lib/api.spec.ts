@@ -70,4 +70,31 @@ describe("dashboard Eden API facade", () => {
     });
     expect(ApiError).toBeDefined();
   });
+
+  it("exposes admin run events, usage buckets, and API key revocation", async () => {
+    const fakeClient = {
+      api: {
+        admin: {
+          runs: vi.fn(() => ({
+            events: {
+              get: vi.fn(async () => treatyResponse([{ type: "run.completed", runId: "run-1" }]))
+            }
+          })),
+          usage: {
+            get: vi.fn(async () => treatyResponse([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]))
+          },
+          "api-keys": vi.fn(() => ({
+            revoke: {
+              post: vi.fn(async () => treatyResponse({ ok: true }))
+            }
+          }))
+        }
+      }
+    } as unknown as DashboardTreaty;
+    const api = createDashboardApi("", () => fakeClient);
+
+    await expect(api.runEvents("run-1")).resolves.toEqual([{ type: "run.completed", runId: "run-1" }]);
+    await expect(api.usage()).resolves.toEqual([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]);
+    await expect(api.revokeApiKey("key-1")).resolves.toEqual({ ok: true });
+  });
 });

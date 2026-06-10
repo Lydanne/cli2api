@@ -53,6 +53,7 @@ const statements = [
     error_code TEXT,
     error_message TEXT,
     usage_json TEXT NOT NULL DEFAULT '{"inputTokens":0,"outputTokens":0,"totalTokens":0}',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
     created_at INTEGER NOT NULL,
     completed_at INTEGER,
     duration_ms INTEGER
@@ -89,6 +90,14 @@ export function migrateDatabase(database: CoreDatabase): void {
     for (const statement of statements) {
       database.sqlite.prepare(statement).run();
     }
+    ensureColumn(database, "runs", "metadata_json", "TEXT NOT NULL DEFAULT '{}'");
   });
   migration();
+}
+
+function ensureColumn(database: CoreDatabase, table: string, column: string, definition: string): void {
+  const columns = database.sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((entry) => entry.name === column)) {
+    database.sqlite.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+  }
 }

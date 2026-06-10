@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cli2api-api:local
+    environment:
+      CLI2API_HOST: 0.0.0.0
+      CLI2API_PORT: "3000"
+      CLI2API_DB: /data/cli2api.sqlite
+      CLI2API_DASH_DIST: /app/apps/dash/dist
+    ports:
+      - "${CLI2API_PUBLISHED_PORT:-3000}:3000"
+    volumes:
+      - cli2api-data:/data
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  cli2api-data:

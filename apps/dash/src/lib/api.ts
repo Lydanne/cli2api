@@ -1,7 +1,7 @@
 import { treaty, type Treaty } from "@elysia/eden";
 import type { AgentEvent } from "@cli2api/shared";
 import type { App } from "@cli2api/core";
-import type { AdapterProfileView, AdminUser, ApiKeyView, RunView } from "../types";
+import type { AdapterProfileView, AdminUser, ApiKeyView, RunView, UsageBucketView } from "../types";
 
 /** Error thrown when a backend API request fails. */
 export class ApiError extends Error {
@@ -78,6 +78,12 @@ export interface CreatedApiKey extends ApiKeyView {
   token?: string;
 }
 
+/** API key revocation result. */
+export interface RevokeApiKeyResult {
+  /** Whether the key was revoked. */
+  ok: boolean;
+}
+
 /** Run creation payload used by the dashboard. */
 export interface CreateRunInput {
   /** Prompt sent to the selected adapter profile. */
@@ -100,12 +106,16 @@ export interface DashboardApi {
   apiKeys(): Promise<ApiKeyView[]>;
   /** Creates an API key and returns its one-time plaintext token. */
   createApiKey(input: CreateApiKeyInput): Promise<CreatedApiKey>;
+  /** Revokes an API key. */
+  revokeApiKey(id: string): Promise<RevokeApiKeyResult>;
+  /** Lists usage buckets for API keys. */
+  usage(): Promise<UsageBucketView[]>;
   /** Lists runs visible to admins. */
   runs(): Promise<RunView[]>;
   /** Creates a run using a downstream API key token. */
   createRun(token: string, input: CreateRunInput): Promise<RunView>;
-  /** Reads events for a run using a downstream API key token. */
-  runEvents(token: string, runId: string): Promise<AgentEvent[]>;
+  /** Reads events for a run through the admin API. */
+  runEvents(runId: string): Promise<AgentEvent[]>;
 }
 
 interface TreatyResult<T> {
@@ -114,11 +124,32 @@ interface TreatyResult<T> {
   status: number;
 }
 
+interface AdminApiKeysClient {
+  get(): Promise<TreatyResult<ApiKeyView[]>>;
+  post(input: CreateApiKeyInput): Promise<TreatyResult<CreatedApiKey>>;
+  (params: { id: string }): {
+    revoke: {
+      post(): Promise<TreatyResult<RevokeApiKeyResult>>;
+    };
+  };
+}
+
+interface AdminRunsClient {
+  get(): Promise<TreatyResult<RunView[]>>;
+  (params: { id: string }): {
+    events: {
+      get(): Promise<TreatyResult<AgentEvent[]>>;
+    };
+  };
+}
+
 const defaultTreatyFactory: TreatyFactory = (baseUrl, config) => treaty<App>(baseUrl, config);
 
 /** Creates a dashboard API facade backed by Elysia Eden Treaty. */
 export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFactory = defaultTreatyFactory): DashboardApi {
   const client = factory(baseUrl, { fetch: { credentials: "include" } });
+  const adminApiKeys = client.api.admin["api-keys"] as unknown as AdminApiKeysClient;
+  const adminRuns = client.api.admin.runs as unknown as AdminRunsClient;
   return {
     login: (input) => unwrap<LoginResult>(client.api.admin.login.post(input) as Promise<TreatyResult<LoginResult>>),
     users: () => unwrap<AdminUser[]>(client.api.admin.users.get() as Promise<TreatyResult<AdminUser[]>>),
@@ -128,22 +159,19 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
       unwrap<AdapterProfileView>(
         client.api.admin.profiles.post(input) as Promise<TreatyResult<AdapterProfileView>>
       ),
-    apiKeys: () => unwrap<ApiKeyView[]>(client.api.admin["api-keys"].get() as Promise<TreatyResult<ApiKeyView[]>>),
+    apiKeys: () => unwrap<ApiKeyView[]>(adminApiKeys.get()),
     createApiKey: (input) =>
-      unwrap<CreatedApiKey>(client.api.admin["api-keys"].post(input) as Promise<TreatyResult<CreatedApiKey>>),
-    runs: () => unwrap<RunView[]>(client.api.admin.runs.get() as Promise<TreatyResult<RunView[]>>),
+      unwrap<CreatedApiKey>(adminApiKeys.post(input)),
+    revokeApiKey: (id) => unwrap<RevokeApiKeyResult>(adminApiKeys({ id }).revoke.post()),
+    usage: () => unwrap<UsageBucketView[]>(client.api.admin.usage.get() as Promise<TreatyResult<UsageBucketView[]>>),
+    runs: () => unwrap<RunView[]>(adminRuns.get()),
     createRun: (token, input) =>
       unwrap<RunView>(
         client.api.runs.post(input, {
           headers: authorizationHeaders(token)
         }) as Promise<TreatyResult<RunView>>
       ),
-    runEvents: (token, runId) =>
-      unwrap<AgentEvent[]>(
-        client.api.runs({ id: runId }).events.get({
-          headers: authorizationHeaders(token)
-        }) as Promise<TreatyResult<AgentEvent[]>>
-      )
+    runEvents: (runId) => unwrap<AgentEvent[]>(adminRuns({ id: runId }).events.get())
   };
 }
 

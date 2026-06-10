@@ -71,6 +71,8 @@ test("dashboard covers login, profile, API key, run, and event viewing path", as
   await page.getByTestId("run-submit").click();
   const runRow = page.getByTestId("run-row").filter({ hasText: "hello dashboard e2e" });
   await expect(runRow).toContainText("completed");
+  await runRow.getByRole("button", { name: "View events" }).click();
+  await expect(page.getByTestId("run-events")).toContainText("run.completed");
 
   const runId = (await runRow.getByTestId("run-id").textContent())?.trim() ?? "";
   const events = await request.get(`/api/runs/${runId}/events`, {
@@ -79,4 +81,9 @@ test("dashboard covers login, profile, API key, run, and event viewing path", as
   expect(events.ok()).toBeTruthy();
   const eventBody = (await events.json()) as Array<{ type: string }>;
   expect(eventBody.map((event) => event.type)).toContain("run.completed");
+
+  await page.getByTestId("nav-keys").click();
+  const keyRow = page.getByTestId("key-row").filter({ hasText: "ui-e2e-key" });
+  await keyRow.getByRole("button", { name: "Revoke" }).click();
+  await expect(keyRow).toContainText("disabled");
 });

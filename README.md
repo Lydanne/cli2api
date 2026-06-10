@@ -21,6 +21,17 @@ pnpm --filter @cli2api/core cli serve --host 127.0.0.1 --port 3000
 
 Then open `http://127.0.0.1:3000`.
 
+## Docker Compose
+
+```bash
+./deploy.sh deploy
+./deploy.sh status
+```
+
+The Compose deployment builds the API runtime with bundled dashboard assets and
+stores SQLite data in the `cli2api-data` volume. Set `CLI2API_PUBLISHED_PORT` to
+change the host port.
+
 ## Verification
 
 ```bash
