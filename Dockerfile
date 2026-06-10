@@ -40,6 +40,7 @@ ENV CLI2API_PORT="3000"
 ENV CLI2API_DB="/data/cli2api.sqlite"
 ENV CLI2API_DASH_DIST="/app/apps/dash/dist"
 ENV CLI2API_AUTH_HOME_BASE="/data/codex-homes"
+ENV CLI2API_RUNTIME_WORKSPACE_BASE="/data/runtime-workspaces"
 
 WORKDIR /app
 
@@ -57,7 +58,7 @@ COPY --from=build /app/packages/agents-sdk/dist ./packages/agents-sdk/dist
 COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 
-RUN mkdir -p /data/codex-homes
+RUN mkdir -p /data/codex-homes /data/runtime-workspaces
 
 EXPOSE 3000
 

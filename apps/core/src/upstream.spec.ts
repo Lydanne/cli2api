@@ -74,6 +74,7 @@ async function createUpstreamHarness(): Promise<{
   database: CoreDatabase;
   services: Services;
   provider: FakeCodexAuthProvider;
+  runtimeWorkspaceBase: string;
   cookie: string;
   close: () => Promise<void>;
 }> {
@@ -81,7 +82,12 @@ async function createUpstreamHarness(): Promise<{
   const database = openCoreDatabase(join(dir, "test.sqlite"));
   migrateDatabase(database);
   const provider = new FakeCodexAuthProvider();
-  const services = createServices(database, { authProviders: [provider], authHomeBase: "/data/codex-homes" });
+  const runtimeWorkspaceBase = join(dir, "runtime-workspaces");
+  const services = createServices(database, {
+    authProviders: [provider],
+    authHomeBase: "/data/codex-homes",
+    runtimeWorkspaceBase
+  });
   services.users.createAdmin("admin@example.com", "password");
   const app = createApp({ database, services });
   const login = await app.handle(
@@ -100,6 +106,7 @@ async function createUpstreamHarness(): Promise<{
     database,
     services,
     provider,
+    runtimeWorkspaceBase,
     cookie,
     close: async () => {
       database.sqlite.close();
@@ -302,15 +309,16 @@ describe("@cli2api/core upstream account pool", () => {
           cwd: process.cwd(),
           enabled: true,
           maxConcurrentRuns: 3,
-          sandbox: "workspace-write",
-          approvalPolicy: "never",
+          sandbox: "danger-full-access",
+          approvalPolicy: "on-request",
           config: { model: "gpt-5" }
         })
       })
     );
 
     expect(instanceResponse.status).toBe(200);
-    expect(await instanceResponse.json()).toMatchObject({
+    const instanceBody = (await instanceResponse.json()) as { cwd: string };
+    expect(instanceBody).toMatchObject({
       id: "inst-codex-1",
       accountId: "acct-codex-3",
       type: "codex",
@@ -319,8 +327,12 @@ describe("@cli2api/core upstream account pool", () => {
       enabled: true,
       currentRuns: 0,
       maxConcurrentRuns: 3,
+      sandbox: "read-only",
+      approvalPolicy: "never",
       config: { model: "gpt-5" }
     });
+    expect(instanceBody.cwd.startsWith(join(harness.runtimeWorkspaceBase, "instances"))).toBe(true);
+    expect(instanceBody.cwd).not.toBe(process.cwd());
 
     const listResponse = await harness.app.handle(
       new Request("http://localhost/api/admin/upstream/instances", {
@@ -360,6 +372,35 @@ describe("@cli2api/core upstream account pool", () => {
     expect(harness.services.upstream.listInstances()).toMatchObject([
       { id: instance.id, currentRuns: 0 }
     ]);
+  });
+
+  it("ignores instance workspace and policy override attempts", async () => {
+    await createAuthenticatedAccount("acct-policy-override");
+    const instance = await createInstance("inst-policy-override", "acct-policy-override", { maxConcurrentRuns: 1 });
+
+    const updateResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/instances/${instance.id}`, {
+        method: "PATCH",
+        headers: { cookie: harness.cookie, "content-type": "application/json" },
+        body: JSON.stringify({
+          cwd: process.cwd(),
+          sandbox: "danger-full-access",
+          approvalPolicy: "on-request",
+          maxConcurrentRuns: 2
+        })
+      })
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const body = (await updateResponse.json()) as { cwd: string };
+    expect(body).toMatchObject({
+      id: instance.id,
+      sandbox: "read-only",
+      approvalPolicy: "never",
+      maxConcurrentRuns: 2
+    });
+    expect(body.cwd.startsWith(join(harness.runtimeWorkspaceBase, "instances"))).toBe(true);
+    expect(body.cwd).not.toBe(process.cwd());
   });
 
   it("returns a stable error when matching upstream instances are at capacity", async () => {

@@ -16,6 +16,11 @@ test("admin can create profile and key, then downstream key can run and read eve
     }
   });
   expect(profile.ok()).toBeTruthy();
+  const profileBody = (await profile.json()) as { cwd: string; sandbox: string; approvalPolicy: string };
+  expect(profileBody.cwd).toContain("runtime-workspaces");
+  expect(profileBody.cwd).not.toBe(process.cwd());
+  expect(profileBody.sandbox).toBe("read-only");
+  expect(profileBody.approvalPolicy).toBe("never");
 
   const key = await request.post("/api/admin/api-keys", {
     data: {
@@ -80,7 +85,6 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByRole("option", { name: "UI Codex 账号" }).click();
   await page.getByTestId("instance-id").fill("mock-ui-inst");
   await page.getByTestId("instance-name").fill("UI Mock 实例");
-  await page.getByTestId("instance-cwd").fill(process.cwd());
   await page.getByTestId("instance-concurrency").fill("2");
   await page.getByTestId("create-instance").click();
   await expect(page.getByText("mock-ui-inst")).toBeVisible();

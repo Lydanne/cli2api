@@ -6,7 +6,11 @@ The MVP is a TypeScript monorepo. `packages/shared` defines stable events, error
 
 ## Adapter Model
 
-Adapter profiles are persisted records. Each profile binds an adapter type, model/config defaults, environment variables, sandbox settings, approval policy, and a fixed `cwd`. Runtime requests choose a profile by `model` or explicit `profileId`, but cannot override filesystem access.
+Adapter profiles are persisted public model records. Each profile binds an
+adapter type plus model/config defaults, while the service assigns an internal
+empty runtime workspace and safe execution policy. Runtime requests choose a
+profile by `model` or explicit `profileId`, but cannot override filesystem
+access.
 
 The Codex adapter uses `@openai/codex-sdk` by default. A mock adapter is included so tests and demos do not require live Codex credentials.
 
@@ -71,5 +75,6 @@ useful during local development.
 ## Rejected Options
 
 - Raw `codex exec --json` first: rejected because the official SDK already wraps the CLI and provides a Node-friendly interface.
-- Request-provided `cwd`: rejected because it expands filesystem access beyond operator-approved adapter profiles.
+- Request-provided `cwd`: rejected because cli2api is a base-model API service,
+  not a remote local-workspace agent surface.
 - Full billing in MVP: rejected to keep the first release focused on controlled execution and observability.

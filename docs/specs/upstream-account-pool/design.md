@@ -4,8 +4,8 @@
 
 An upstream account represents one authenticated provider identity, such as a
 Codex login stored in a dedicated `CODEX_HOME`. An upstream instance represents a
-runnable execution slot bound to one account, one adapter type, fixed working
-directory, sandbox policy, approval policy, model/config overrides, health
+runnable execution slot bound to one account, one adapter type, service-owned
+empty runtime workspace, safe execution policy, model/config overrides, health
 state, and concurrency limit.
 
 Adapter profiles become external routing contracts. A downstream client selects
@@ -72,8 +72,8 @@ New operator surfaces:
 - Overview: account health, available instances, running count, failed count.
 - Upstream accounts: create account, start Codex browser/device auth, copy/open
   auth URL, enter or view user code when present, poll auth state, logout.
-- Instances: bind account, configure cwd/sandbox/approval/model/concurrency,
-  enable/disable, inspect health and recent errors.
+- Instances: bind account, configure type/name/concurrency, enable/disable, and
+  inspect health and recent errors.
 - Routes: bind external profiles to instance pools.
 - Runs: show selected instance, duration, status, error, and events.
 - API keys/users: richer create, revoke, disable, reset, and quota controls.
@@ -85,7 +85,8 @@ New operator surfaces:
 - API-key/access-token login sends secrets over authenticated admin APIs and
   passes them to Codex on stdin only.
 - `CODEX_HOME` must be rooted under an operator-approved base directory.
-- Request payloads still cannot override an instance or profile `cwd`.
+- Request and admin payloads cannot override an instance or profile `cwd`;
+  runtime workspaces are service-owned.
 
 ## Deployment
 

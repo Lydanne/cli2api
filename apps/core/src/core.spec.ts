@@ -47,6 +47,13 @@ describe("@cli2api/core HTTP contracts", () => {
     const run = await json(runResponse);
     expect(run.status).toBe("completed");
     expect(run.output).toContain("hello from native");
+    const storedProfile = harness.services.profiles.require(profile.id);
+    expect(storedProfile).toMatchObject({
+      sandbox: "read-only",
+      approvalPolicy: "never"
+    });
+    expect(storedProfile.cwd.startsWith(join(harness.runtimeWorkspaceBase, "profiles"))).toBe(true);
+    expect(storedProfile.cwd).not.toBe("/this-must-be-ignored");
 
     const eventsResponse = await harness.app.handle(
       new Request(`http://localhost/api/runs/${String(run.id)}/events`, {
@@ -62,7 +69,7 @@ describe("@cli2api/core HTTP contracts", () => {
     const dir = await mkdtemp(join(tmpdir(), "cli2api-first-admin-"));
     const database = openCoreDatabase(join(dir, "test.sqlite"));
     migrateDatabase(database);
-    const services = createServices(database);
+    const services = createServices(database, { runtimeWorkspaceBase: join(dir, "runtime-workspaces") });
     const app = createApp({ database, services });
 
     try {

@@ -179,7 +179,6 @@ describe("dashboard Eden API facade", () => {
         accountId: "account-1",
         type: "mock",
         name: "实例 1",
-        cwd: "/repo",
         enabled: true,
         maxConcurrentRuns: 1
       })
@@ -230,9 +229,9 @@ describe("dashboard Eden API facade", () => {
       email: "ops@example.com"
     });
     await expect(api.deleteUser("user-2")).resolves.toMatchObject({ id: "user-2" });
-    await expect(
-      api.createProfile({ id: "profile-1", type: "mock", name: "profile", cwd: "/repo", enabled: true })
-    ).resolves.toMatchObject({ id: "profile-1" });
+    await expect(api.createProfile({ id: "profile-1", type: "mock", name: "profile", enabled: true })).resolves.toMatchObject({
+      id: "profile-1"
+    });
     await expect(api.deleteProfile("profile-1")).resolves.toMatchObject({ id: "profile-1" });
   });
 });

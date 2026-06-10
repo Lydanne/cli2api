@@ -15,6 +15,8 @@ export interface TestHarness {
   database: CoreDatabase;
   /** Runtime services. */
   services: Services;
+  /** Base directory for service-owned runtime workspaces. */
+  runtimeWorkspaceBase: string;
   /** Logs into the seeded admin and returns a Cookie header. */
   login: () => Promise<string>;
   /** Creates a deterministic mock profile through the admin API. */
@@ -30,7 +32,8 @@ export async function createTestHarness(): Promise<TestHarness> {
   const dir = await mkdtemp(join(tmpdir(), "cli2api-core-"));
   const database = openCoreDatabase(join(dir, "test.sqlite"));
   migrateDatabase(database);
-  const services = createServices(database);
+  const runtimeWorkspaceBase = join(dir, "runtime-workspaces");
+  const services = createServices(database, { runtimeWorkspaceBase });
   services.users.createAdmin("admin@example.com", "password");
   const app = createApp({ database, services });
 
@@ -38,6 +41,7 @@ export async function createTestHarness(): Promise<TestHarness> {
     app,
     database,
     services,
+    runtimeWorkspaceBase,
     login: async () => {
       const response = await app.handle(
         new Request("http://localhost/api/admin/login", {

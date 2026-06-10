@@ -24,6 +24,7 @@ import {
   upstreamRouteBindings,
   runs
 } from "../db/schema.js";
+import type { RuntimeWorkspaceService } from "./runtime-workspaces.js";
 
 /** Upstream account creation payload accepted by admin APIs. */
 export interface CreateUpstreamAccountInput {
@@ -53,15 +54,15 @@ export interface CreateUpstreamInstanceInput {
   type: string;
   /** Operator-facing display name. */
   name: string;
-  /** Fixed working directory. */
-  cwd: string;
+  /** Legacy working directory value. Ignored because model serving owns runtime workspaces. */
+  cwd?: string;
   /** Whether the scheduler may select this instance. */
   enabled?: boolean;
   /** Maximum concurrent runs. */
   maxConcurrentRuns?: number;
-  /** Optional sandbox policy. */
+  /** Legacy sandbox policy value. Ignored because model serving forces safe defaults. */
   sandbox?: UpstreamInstanceResponse["sandbox"];
-  /** Optional approval policy. */
+  /** Legacy approval policy value. Ignored because model serving forces safe defaults. */
   approvalPolicy?: UpstreamInstanceResponse["approvalPolicy"];
   /** Adapter-specific non-secret config. */
   config?: Record<string, unknown>;
@@ -71,7 +72,7 @@ export interface CreateUpstreamInstanceInput {
 export interface UpdateUpstreamInstanceInput {
   /** Operator-facing display name. */
   name?: string;
-  /** Fixed working directory. */
+  /** Legacy working directory value. Ignored because model serving owns runtime workspaces. */
   cwd?: string;
   /** Whether the scheduler may select this instance. */
   enabled?: boolean;
@@ -79,9 +80,9 @@ export interface UpdateUpstreamInstanceInput {
   healthState?: UpstreamHealthState;
   /** Maximum concurrent runs. */
   maxConcurrentRuns?: number;
-  /** Optional sandbox policy. */
+  /** Optional sandbox policy. Ignored because model serving forces safe defaults. */
   sandbox?: UpstreamInstanceResponse["sandbox"];
-  /** Optional approval policy. */
+  /** Optional approval policy. Ignored because model serving forces safe defaults. */
   approvalPolicy?: UpstreamInstanceResponse["approvalPolicy"];
   /** Adapter-specific non-secret config. */
   config?: Record<string, unknown>;
@@ -113,7 +114,8 @@ export class UpstreamService {
   public constructor(
     private readonly database: CoreDatabase,
     authProviders: AgentAuthProvider[],
-    private readonly authHomeBase: string
+    private readonly authHomeBase: string,
+    private readonly runtimeWorkspaces: RuntimeWorkspaceService
   ) {
     this.providers = new Map(authProviders.map((provider) => [provider.type, provider]));
   }
@@ -217,20 +219,20 @@ export class UpstreamService {
       accountId: account.id,
       type: input.type,
       name: input.name,
-      cwd: input.cwd,
+      cwd: this.runtimeWorkspaces.instanceWorkspace(id),
       enabled: input.enabled === false ? 0 : 1,
       healthState: "unknown",
       currentRuns: 0,
       maxConcurrentRuns: input.maxConcurrentRuns ?? 1,
-      sandbox: input.sandbox ?? null,
-      approvalPolicy: input.approvalPolicy ?? null,
+      sandbox: "read-only",
+      approvalPolicy: "never",
       configJson: stringifyJson(input.config ?? {}),
       lastError: null,
       createdAt: now,
       updatedAt: now
     };
     this.database.db.insert(upstreamInstances).values(row).run();
-    return toInstance(row);
+    return this.toRuntimeInstance(row);
   }
 
   /** Lists runnable upstream instances. */
@@ -240,7 +242,7 @@ export class UpstreamService {
       .from(upstreamInstances)
       .orderBy(asc(upstreamInstances.createdAt))
       .all()
-      .map(toInstance);
+      .map((row) => this.toRuntimeInstance(row));
   }
 
   /** Updates one runnable upstream instance. */
@@ -250,7 +252,6 @@ export class UpstreamService {
       updatedAt: Date.now()
     };
     if (input.name !== undefined) update.name = input.name;
-    if (input.cwd !== undefined) update.cwd = input.cwd;
     if (input.enabled !== undefined) {
       update.enabled = input.enabled ? 1 : 0;
       if (!input.enabled && input.healthState === undefined) {
@@ -259,8 +260,6 @@ export class UpstreamService {
     }
     if (input.healthState !== undefined) update.healthState = input.healthState;
     if (input.maxConcurrentRuns !== undefined) update.maxConcurrentRuns = input.maxConcurrentRuns;
-    if (input.sandbox !== undefined) update.sandbox = input.sandbox;
-    if (input.approvalPolicy !== undefined) update.approvalPolicy = input.approvalPolicy;
     if (input.config !== undefined) update.configJson = stringifyJson(input.config);
     if (input.lastError !== undefined) update.lastError = input.lastError;
 
@@ -443,7 +442,16 @@ export class UpstreamService {
     if (!row) {
       throw createCli2ApiError("UPSTREAM_NOT_FOUND" as ErrorCode, `Upstream instance not found: ${instanceId}`, 404);
     }
-    return toInstance(row);
+    return this.toRuntimeInstance(row);
+  }
+
+  private toRuntimeInstance(row: typeof upstreamInstances.$inferSelect): UpstreamInstanceResponse {
+    return {
+      ...toInstance(row),
+      cwd: this.runtimeWorkspaces.instanceWorkspace(row.id),
+      sandbox: "read-only",
+      approvalPolicy: "never"
+    };
   }
 
   private requireProfile(profileId: string): typeof adapterProfiles.$inferSelect {

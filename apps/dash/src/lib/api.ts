@@ -66,8 +66,8 @@ export interface CreateProfileInput {
   type: "codex" | "mock";
   /** Human readable adapter profile name. */
   name: string;
-  /** Fixed adapter working directory. */
-  cwd: string;
+  /** Legacy working directory value. Ignored by model-serving backend. */
+  cwd?: string;
   /** Whether the profile can receive runs. */
   enabled: boolean;
   /** Optional adapter configuration. */
@@ -142,15 +142,15 @@ export interface CreateUpstreamInstanceInput {
   type: string;
   /** Operator-facing instance name. */
   name: string;
-  /** Fixed working directory. */
-  cwd: string;
+  /** Legacy working directory value. Ignored by model-serving backend. */
+  cwd?: string;
   /** Whether the scheduler can select this instance. */
   enabled: boolean;
   /** Maximum concurrent runs. */
   maxConcurrentRuns: number;
-  /** Optional sandbox policy. */
+  /** Legacy sandbox policy value. Ignored by model-serving backend. */
   sandbox?: "read-only" | "workspace-write" | "danger-full-access";
-  /** Optional approval policy. */
+  /** Legacy approval policy value. Ignored by model-serving backend. */
   approvalPolicy?: "untrusted" | "on-request" | "never";
   /** Optional adapter config. */
   config?: Record<string, unknown>;
@@ -160,15 +160,15 @@ export interface CreateUpstreamInstanceInput {
 export interface UpdateUpstreamInstanceInput {
   /** Operator-facing instance name. */
   name?: string;
-  /** Fixed working directory. */
+  /** Legacy working directory value. Ignored by model-serving backend. */
   cwd?: string;
   /** Whether the scheduler can select this instance. */
   enabled?: boolean;
   /** Maximum concurrent runs. */
   maxConcurrentRuns?: number;
-  /** Optional sandbox policy. */
+  /** Legacy sandbox policy value. Ignored by model-serving backend. */
   sandbox?: "read-only" | "workspace-write" | "danger-full-access";
-  /** Optional approval policy. */
+  /** Legacy approval policy value. Ignored by model-serving backend. */
   approvalPolicy?: "untrusted" | "on-request" | "never";
   /** Optional adapter config. */
   config?: Record<string, unknown>;

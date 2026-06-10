@@ -9,7 +9,10 @@ import { createServices } from "./services/index.js";
 const config = loadConfig();
 const database = openCoreDatabase(config.databasePath);
 migrateDatabase(database);
-const services = createServices(database, { authHomeBase: config.authHomeBase });
+const services = createServices(database, {
+  authHomeBase: config.authHomeBase,
+  runtimeWorkspaceBase: config.runtimeWorkspaceBase
+});
 
 const app = new Elysia({ adapter: node() }).use(createApp({ database, services })).listen({
   hostname: config.host,

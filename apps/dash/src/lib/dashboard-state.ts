@@ -70,7 +70,6 @@ export interface DashboardState {
   newProfileId: Ref<string>;
   newProfileName: Ref<string>;
   newProfileType: Ref<"codex" | "mock">;
-  newProfileCwd: Ref<string>;
   newKeyName: Ref<string>;
   newKeyDailyLimit: Ref<number>;
   newKeyRpmLimit: Ref<number>;
@@ -91,10 +90,7 @@ export interface DashboardState {
   newInstanceName: Ref<string>;
   selectedAccountId: Ref<string>;
   newInstanceType: Ref<string>;
-  newInstanceCwd: Ref<string>;
   newInstanceConcurrency: Ref<number>;
-  newInstanceSandbox: Ref<"read-only" | "workspace-write" | "danger-full-access" | "">;
-  newInstanceApprovalPolicy: Ref<"untrusted" | "on-request" | "never" | "">;
   selectedRouteProfile: Ref<string>;
   selectedRouteInstance: Ref<string>;
   profileOptions: ComputedRef<SelectOption[]>;
@@ -102,8 +98,6 @@ export interface DashboardState {
   instanceOptions: ComputedRef<SelectOption[]>;
   profileTypeOptions: SelectOption[];
   instanceTypeOptions: SelectOption[];
-  sandboxOptions: SelectOption[];
-  approvalPolicyOptions: SelectOption[];
   summary: ComputedRef<OperationsSummary>;
   monthlyUsageByKey: ComputedRef<Map<string, UsageBucketView>>;
   formattedRunEvents: ComputedRef<string>;
@@ -159,7 +153,6 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
   const newProfileId = ref("mock-default");
   const newProfileName = ref("");
   const newProfileType = ref<"codex" | "mock">("mock");
-  const newProfileCwd = ref("/workspace");
   const newKeyName = ref("dev-key");
   const newKeyDailyLimit = ref(100);
   const newKeyRpmLimit = ref(60);
@@ -180,10 +173,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
   const newInstanceName = ref("Codex 实例 1");
   const selectedAccountId = ref("");
   const newInstanceType = ref("mock");
-  const newInstanceCwd = ref("/workspace");
   const newInstanceConcurrency = ref(1);
-  const newInstanceSandbox = ref<"read-only" | "workspace-write" | "danger-full-access" | "">("workspace-write");
-  const newInstanceApprovalPolicy = ref<"untrusted" | "on-request" | "never" | "">("on-request");
   const selectedRouteProfile = ref("");
   const selectedRouteInstance = ref("");
 
@@ -195,17 +185,6 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     { label: "mock", value: "mock" },
     { label: "codex", value: "codex" }
   ];
-  const sandboxOptions = [
-    { label: "read-only", value: "read-only" },
-    { label: "workspace-write", value: "workspace-write" },
-    { label: "danger-full-access", value: "danger-full-access" }
-  ];
-  const approvalPolicyOptions = [
-    { label: "untrusted", value: "untrusted" },
-    { label: "on-request", value: "on-request" },
-    { label: "never", value: "never" }
-  ];
-
   const profileOptions = computed(() =>
     profiles.value.map((profile) => ({ label: `${profile.id} · ${profile.type}`, value: profile.id }))
   );
@@ -314,7 +293,6 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
         id: newProfileId.value,
         type: newProfileType.value,
         name: newProfileName.value || newProfileId.value,
-        cwd: newProfileCwd.value,
         enabled: true
       });
       await refresh();
@@ -408,11 +386,8 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
         accountId: selectedAccountId.value,
         type: newInstanceType.value,
         name: newInstanceName.value,
-        cwd: newInstanceCwd.value,
         enabled: true,
-        maxConcurrentRuns: Number(newInstanceConcurrency.value),
-        sandbox: newInstanceSandbox.value || undefined,
-        approvalPolicy: newInstanceApprovalPolicy.value || undefined
+        maxConcurrentRuns: Number(newInstanceConcurrency.value)
       });
       await refresh();
     });
@@ -422,11 +397,8 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     return action(async () => {
       await client.updateUpstreamInstance(instance.id, {
         name: instance.name,
-        cwd: instance.cwd,
         enabled: instance.enabled,
         maxConcurrentRuns: Number(instance.maxConcurrentRuns),
-        sandbox: instance.sandbox ?? undefined,
-        approvalPolicy: instance.approvalPolicy ?? undefined,
         config: instance.config
       });
       await refresh();
@@ -555,7 +527,6 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     newProfileId,
     newProfileName,
     newProfileType,
-    newProfileCwd,
     newKeyName,
     newKeyDailyLimit,
     newKeyRpmLimit,
@@ -576,10 +547,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     newInstanceName,
     selectedAccountId,
     newInstanceType,
-    newInstanceCwd,
     newInstanceConcurrency,
-    newInstanceSandbox,
-    newInstanceApprovalPolicy,
     selectedRouteProfile,
     selectedRouteInstance,
     profileOptions,
@@ -587,8 +555,6 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     instanceOptions,
     profileTypeOptions,
     instanceTypeOptions,
-    sandboxOptions,
-    approvalPolicyOptions,
     summary,
     monthlyUsageByKey,
     formattedRunEvents,

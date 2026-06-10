@@ -1,7 +1,7 @@
 /** Supported adapter implementation names. */
 export type AdapterType = "codex" | "mock" | string;
 
-/** Operator-managed adapter profile. */
+/** Public model profile backed by service-owned runtime execution settings. */
 export interface AdapterProfile {
   /** Stable profile id used as the OpenAI-compatible model id. */
   id: string;
@@ -9,13 +9,13 @@ export interface AdapterProfile {
   type: AdapterType;
   /** Human-readable profile name. */
   name: string;
-  /** Fixed working directory approved by the operator. */
+  /** Internal service-owned runtime workspace. Not caller configurable. */
   cwd: string;
   /** Whether downstream callers can select this profile. */
   enabled: boolean;
-  /** Optional sandbox policy passed to the adapter. */
+  /** Internal sandbox policy passed to the adapter. Not caller configurable. */
   sandbox?: "read-only" | "workspace-write" | "danger-full-access";
-  /** Optional approval policy passed to the adapter. */
+  /** Internal approval policy passed to the adapter. Not caller configurable. */
   approvalPolicy?: "untrusted" | "on-request" | "never";
   /** Environment variables available to the adapter process. */
   env?: Record<string, string>;
@@ -160,7 +160,7 @@ export interface UpstreamInstanceResponse {
   type: string;
   /** Operator-facing display name. */
   name: string;
-  /** Fixed working directory for this instance. */
+  /** Internal service-owned runtime workspace for this instance. */
   cwd: string;
   /** Whether the scheduler may select this instance. */
   enabled: boolean;
@@ -170,9 +170,9 @@ export interface UpstreamInstanceResponse {
   currentRuns: number;
   /** Maximum concurrent jobs allowed for this instance. */
   maxConcurrentRuns: number;
-  /** Optional sandbox policy. */
+  /** Internal sandbox policy. */
   sandbox: AdapterProfile["sandbox"] | null;
-  /** Optional approval policy. */
+  /** Internal approval policy. */
   approvalPolicy: AdapterProfile["approvalPolicy"] | null;
   /** Adapter-specific non-secret config. */
   config: Record<string, unknown>;

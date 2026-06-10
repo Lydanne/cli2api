@@ -69,7 +69,8 @@ Use the dashboard `上游账号` page to create a Codex upstream account. Click
 `网页认证`, open the returned auth URL, enter the displayed user code, and then
 click `刷新认证` until the account becomes `authenticated`.
 
-After authentication, open `实例池`, bind the account, set the fixed `cwd` and
-concurrency limit, and create an instance. Runs that target a matching adapter
-profile are scheduled onto enabled, authenticated instances and record the
-selected `upstreamInstanceId`.
+After authentication, open `实例池`, bind the account, set the concurrency limit,
+and create an instance. The API service assigns a service-owned empty runtime
+workspace automatically. Runs that target a matching model profile are scheduled
+onto enabled, authenticated instances and record the selected
+`upstreamInstanceId`.

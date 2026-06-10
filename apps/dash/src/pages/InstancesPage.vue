@@ -11,20 +11,15 @@ import { useDashboardState } from "../lib/dashboard-state";
 const {
   accountName,
   accountOptions,
-  approvalPolicyOptions,
   createInstance,
   deleteInstance,
   disableInstance,
   instanceTypeOptions,
   instances,
-  newInstanceApprovalPolicy,
   newInstanceConcurrency,
-  newInstanceCwd,
   newInstanceId,
   newInstanceName,
-  newInstanceSandbox,
   newInstanceType,
-  sandboxOptions,
   saveInstance,
   selectedAccountId,
   statusLabel,
@@ -47,15 +42,10 @@ const {
         />
         <Select v-model="newInstanceType" optionLabel="label" optionValue="value" :options="instanceTypeOptions" />
         <InputText v-model="newInstanceId" data-testid="instance-id" :placeholder="text('id')" />
-        <InputText v-model="newInstanceCwd" data-testid="instance-cwd" :placeholder="text('cwd')" />
+        <InputText v-model="newInstanceName" data-testid="instance-name" :placeholder="text('name')" />
         <InputText v-model.number="newInstanceConcurrency" data-testid="instance-concurrency" type="number" />
         <Button data-testid="create-instance" :label="text('createInstance')" type="submit" />
       </form>
-      <div class="mb-4 grid grid-cols-1 gap-2 lg:grid-cols-[1fr_220px_220px]">
-        <InputText v-model="newInstanceName" data-testid="instance-name" :placeholder="text('name')" />
-        <Select v-model="newInstanceSandbox" optionLabel="label" optionValue="value" :options="sandboxOptions" />
-        <Select v-model="newInstanceApprovalPolicy" optionLabel="label" optionValue="value" :options="approvalPolicyOptions" />
-      </div>
 
       <DataTable :value="instances" dataKey="id" size="small" stripedRows>
         <Column :header="text('name')">
@@ -68,11 +58,6 @@ const {
           <template #body="{ data }">{{ accountName(data.accountId) }}</template>
         </Column>
         <Column field="type" :header="text('type')" />
-        <Column :header="text('cwd')">
-          <template #body="{ data }">
-            <InputText v-model="data.cwd" class="w-full" />
-          </template>
-        </Column>
         <Column :header="text('health')">
           <template #body="{ data }">
             <Tag :severity="statusSeverity(data.healthState)" :value="statusLabel(data.healthState)" />

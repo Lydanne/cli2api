@@ -11,7 +11,6 @@ import { useDashboardState } from "../lib/dashboard-state";
 const {
   createProfile,
   deleteProfile,
-  newProfileCwd,
   newProfileId,
   newProfileName,
   newProfileType,
@@ -27,11 +26,10 @@ const {
   <Card class="border border-slate-200 shadow-sm">
     <template #title>{{ text("profiles") }}</template>
     <template #content>
-      <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[170px_150px_1fr_1fr_auto]" @submit.prevent="createProfile">
+      <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[170px_150px_1fr_auto]" @submit.prevent="createProfile">
         <InputText v-model="newProfileId" data-testid="profile-id" :placeholder="text('id')" />
         <Select v-model="newProfileType" optionLabel="label" optionValue="value" :options="profileTypeOptions" />
         <InputText v-model="newProfileName" :placeholder="text('name')" />
-        <InputText v-model="newProfileCwd" :placeholder="text('cwd')" />
         <Button data-testid="create-profile" :label="text('createProfile')" type="submit" />
       </form>
 
@@ -39,7 +37,6 @@ const {
         <Column field="id" :header="text('profile')" />
         <Column field="name" :header="text('name')" />
         <Column field="type" :header="text('type')" />
-        <Column field="cwd" :header="text('cwd')" />
         <Column :header="text('status')">
           <template #body="{ data }">
             <Tag :severity="statusSeverity(data.enabled)" :value="statusLabel(data.enabled)" />

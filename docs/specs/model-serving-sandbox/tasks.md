@@ -1,0 +1,12 @@
+# Model Serving Sandbox Tasks
+
+- [x] Add runtime workspace base configuration.
+- [x] Add a service helper that creates deterministic profile and instance
+  runtime workspaces.
+- [x] Normalize profile creation to ignore payload `cwd`.
+- [x] Normalize upstream instance create/update to ignore payload `cwd`, unsafe
+  sandbox, and interactive approval policy.
+- [x] Remove profile `cwd` input/table column from Dash.
+- [x] Remove upstream instance `cwd`, sandbox, and approval controls from Dash.
+- [x] Update focused unit tests and E2E expectations.
+- [x] Record verification in `evidence.md`.

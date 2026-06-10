@@ -83,7 +83,6 @@ describe("dashboard state", () => {
 
     state.newProfileId.value = "mock-main";
     state.newProfileName.value = "Mock Main";
-    state.newProfileCwd.value = "/repo";
     await expect(state.createProfile()).resolves.toBe(true);
     expect(resources.profiles).toHaveLength(1);
 
@@ -98,13 +97,13 @@ describe("dashboard state", () => {
     state.newInstanceId.value = "inst-1";
     state.newInstanceName.value = "实例 1";
     state.selectedAccountId.value = "acct-1";
-    state.newInstanceCwd.value = "/repo";
     state.newInstanceConcurrency.value = 2;
     await expect(state.createInstance()).resolves.toBe(true);
     expect(resources.instances[0]).toMatchObject({
       id: "inst-1",
-      sandbox: "workspace-write",
-      approvalPolicy: "on-request"
+      cwd: "/runtime/instances/inst-1",
+      sandbox: "read-only",
+      approvalPolicy: "never"
     });
 
     state.selectedRouteProfile.value = "mock-main";
@@ -205,7 +204,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
         id: input.id,
         type: input.type,
         name: input.name,
-        cwd: input.cwd,
+        cwd: `/runtime/profiles/${input.id}`,
         enabled: input.enabled
       };
       resources.profiles.push(profile);
@@ -327,7 +326,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
 
 function seedResources(resources: FakeResources): void {
   resources.users.push({ id: "user-1", email: "admin@example.com", role: "admin", disabledAt: null });
-  resources.profiles.push({ id: "mock-main", type: "mock", name: "Mock Main", cwd: "/repo", enabled: true });
+  resources.profiles.push({ id: "mock-main", type: "mock", name: "Mock Main", cwd: "/runtime/profiles/mock-main", enabled: true });
   resources.keys.push({
     id: "key-1",
     name: "dev",
@@ -384,7 +383,6 @@ function seedResources(resources: FakeResources): void {
       accountId: "acct-1",
       type: "mock",
       name: "实例 1",
-      cwd: "/repo",
       enabled: true,
       maxConcurrentRuns: 3
     })
@@ -429,13 +427,13 @@ function createInstance(input: CreateUpstreamInstanceInput): UpstreamInstanceVie
     accountId: input.accountId,
     type: input.type,
     name: input.name,
-    cwd: input.cwd,
-    enabled: input.enabled,
+    cwd: `/runtime/instances/${input.id ?? "inst-1"}`,
+    enabled: input.enabled ?? true,
     healthState: "unknown",
     currentRuns: 0,
-    maxConcurrentRuns: input.maxConcurrentRuns,
-    sandbox: input.sandbox ?? null,
-    approvalPolicy: input.approvalPolicy ?? null,
+    maxConcurrentRuns: input.maxConcurrentRuns ?? 1,
+    sandbox: "read-only",
+    approvalPolicy: "never",
     config: input.config ?? {},
     lastError: null,
     createdAt: 1,

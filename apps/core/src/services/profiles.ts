@@ -9,14 +9,19 @@ import {
 } from "@cli2api/shared";
 import type { CoreDatabase } from "../db/client.js";
 import { adapterProfiles, runs, upstreamRouteBindings } from "../db/schema.js";
+import type { RuntimeWorkspaceService } from "./runtime-workspaces.js";
 
 /** Adapter profile creation input accepted by admin APIs and CLI. */
-export type CreateProfileInput = Omit<AdapterProfile, "enabled"> & { enabled?: boolean };
+export type CreateProfileInput = Omit<AdapterProfile, "enabled" | "cwd" | "sandbox" | "approvalPolicy"> &
+  Partial<Pick<AdapterProfile, "cwd" | "sandbox" | "approvalPolicy">> & { enabled?: boolean };
 
 /** Service that manages upstream adapter profiles. */
 export class ProfileService {
   /** Creates a profile service. */
-  public constructor(private readonly database: CoreDatabase) {}
+  public constructor(
+    private readonly database: CoreDatabase,
+    private readonly runtimeWorkspaces: RuntimeWorkspaceService
+  ) {}
 
   /** Creates an adapter profile. */
   public create(input: CreateProfileInput): AdapterProfile {
@@ -28,10 +33,10 @@ export class ProfileService {
         id,
         type: input.type,
         name: input.name,
-        cwd: input.cwd,
+        cwd: this.runtimeWorkspaces.profileWorkspace(id),
         enabled: input.enabled === false ? 0 : 1,
-        sandbox: input.sandbox ?? null,
-        approvalPolicy: input.approvalPolicy ?? null,
+        sandbox: "read-only",
+        approvalPolicy: "never",
         envJson: stringifyJson(input.env ?? {}),
         configJson: stringifyJson(input.config ?? {}),
         createdAt: now,
@@ -44,7 +49,7 @@ export class ProfileService {
   /** Returns all adapter profiles. */
   public list(includeDisabled = true): AdapterProfile[] {
     const rows = this.database.db.select().from(adapterProfiles).all();
-    return rows.map(toProfile).filter((profile) => includeDisabled || profile.enabled);
+    return rows.map((row) => this.toRuntimeProfile(row)).filter((profile) => includeDisabled || profile.enabled);
   }
 
   /** Resolves an enabled profile by id or throws a stable error. */
@@ -57,7 +62,7 @@ export class ProfileService {
     if (!row || row.enabled !== 1) {
       throw createCli2ApiError(ErrorCode.PROFILE_NOT_FOUND, `Profile not found: ${id}`, 404);
     }
-    return toProfile(row);
+    return this.toRuntimeProfile(row);
   }
 
   /** Resolves the requested profile or the first enabled profile. */
@@ -93,7 +98,16 @@ export class ProfileService {
     }
     this.database.db.delete(upstreamRouteBindings).where(eq(upstreamRouteBindings.profileId, id)).run();
     this.database.db.delete(adapterProfiles).where(eq(adapterProfiles.id, id)).run();
-    return toProfile(row);
+    return this.toRuntimeProfile(row);
+  }
+
+  private toRuntimeProfile(row: typeof adapterProfiles.$inferSelect): AdapterProfile {
+    return {
+      ...toProfile(row),
+      cwd: this.runtimeWorkspaces.profileWorkspace(row.id),
+      sandbox: "read-only",
+      approvalPolicy: "never"
+    };
   }
 }
 

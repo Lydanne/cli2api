@@ -22,8 +22,7 @@ first login creates the administrator account when the database has no users.
 
 ## MVP Scope
 
-- Native run API for agent tasks.
-- Minimal `/v1/responses` and `/v1/chat/completions` compatibility.
+- Base-model style API through `/v1/responses` and `/v1/chat/completions`.
 - Multi-user downstream API keys with quotas.
-- Adapter profiles that bind an upstream CLI configuration to a fixed working directory.
+- Public model profiles routed to service-owned upstream account capacity.
 - Sub2API-style management dashboard for operators.

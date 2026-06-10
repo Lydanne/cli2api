@@ -8,8 +8,8 @@ the managed serving path:
 1. Downstream clients authenticate with API keys.
 2. External model/profile ids define what clients can request.
 3. Upstream provider accounts hold private Codex authentication state.
-4. Runnable instances bind accounts to working directories, sandbox policy,
-   approval policy, and concurrency.
+4. Runnable instances bind accounts to service-owned runtime workspaces,
+   safe execution policy, and concurrency.
 5. Route bindings connect public profiles to one or more upstream instances.
 6. Runs prove the path and expose events, selected instance, errors, and usage.
 
@@ -26,8 +26,7 @@ profiles, route bindings, upstream accounts, instances, users.
 - Route bindings: profile-to-instance routing and coverage gaps.
 - Upstream accounts: upstream account creation, browser/device auth, polling, and
   logout.
-- Instances: execution slots, account binding, cwd, sandbox/approval policy,
-  health, and concurrency.
+- Instances: execution slots, account binding, health, and concurrency.
 - Users: dashboard administrators.
 
 ## Interaction Rules

@@ -25,7 +25,7 @@ export interface AdapterProfileView {
   type: string;
   /** Profile name. */
   name: string;
-  /** Fixed working directory. */
+  /** Internal service-owned runtime workspace. */
   cwd: string;
   /** Enabled state. */
   enabled: boolean;
