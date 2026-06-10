@@ -23,6 +23,10 @@
   directly to one adapter profile.
 - Establish an `agents-sdk` authentication contract so future adapters can reuse
   the same auth lifecycle.
+- Let operators configure the upstream Codex model name that is passed to the
+  Codex SDK for a public profile.
+- Let operators import the current model catalog exposed by `agents-sdk` into
+  dashboard model profiles with one action.
 - Make dashboard copy Chinese-first while supporting an English locale switch.
 
 ## Scope
@@ -35,6 +39,10 @@
     concurrency limits.
   - Dashboard account pool, instance pool, routing, run monitoring, API key, and
     user-management improvements.
+  - Dashboard model-profile creation with an upstream model field saved as
+    `profile.config.model`.
+  - `agents-sdk` model catalog export and a core admin import API that creates
+    missing model profiles from that catalog.
   - Chinese-first dashboard i18n with `zh-CN` default and `en-US` fallback.
   - PrimeVue-based dashboard control surface, Vue Router hash-history page
     navigation, and existing-session restore on page load.
@@ -83,6 +91,17 @@
   them instead of waiting for the full login process to exit.
 - [x] Polling a Codex auth home that is simply not logged in keeps the account
   in `pending` state instead of recording an auth failure.
+- [x] New authenticated upstream instances start in `healthy` state, and
+  existing enabled/authenticated `unknown` instances are normalized to
+  `healthy`.
+- [x] `agents-sdk` exposes a provider-neutral model catalog for currently bundled
+  Codex models.
+- [x] Codex runs pass `profile.config.model` to the Codex SDK thread as the
+  requested model name.
+- [x] Core admin APIs can import missing `agents-sdk` model catalog entries as
+  adapter profiles while skipping profiles that already exist.
+- [x] Dashboard lets operators enter an upstream model name for a profile and
+  trigger one-click SDK model import from the Profiles page.
 - [x] Dashboard uses the installed PrimeVue component library for the main
   control surface instead of plain hand-rolled tables/forms.
 - [x] Dashboard navigation is backed by Vue Router and writes the current page

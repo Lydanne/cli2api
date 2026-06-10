@@ -40,6 +40,7 @@ export class CodexAdapter implements AgentAdapter {
 
       const codex = new Codex(this.createSdkOptions(input.profile));
       const thread = codex.startThread({
+        ...this.createThreadModelOption(input.profile),
         workingDirectory: input.profile.cwd,
         sandboxMode: "read-only",
         approvalPolicy: "never",
@@ -131,5 +132,10 @@ export class CodexAdapter implements AgentAdapter {
       return record.final_response;
     }
     return typeof result === "string" ? result : JSON.stringify(result);
+  }
+
+  private createThreadModelOption(profile: AdapterProfile): { model?: string } {
+    const model = profile.config?.model;
+    return typeof model === "string" && model.trim() ? { model } : {};
   }
 }

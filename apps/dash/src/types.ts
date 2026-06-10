@@ -29,6 +29,8 @@ export interface AdapterProfileView {
   cwd: string;
   /** Enabled state. */
   enabled: boolean;
+  /** Adapter-specific non-secret config. */
+  config?: Record<string, unknown>;
 }
 
 /** API key displayed in the dashboard. */

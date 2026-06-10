@@ -69,6 +69,7 @@ export interface DashboardState {
   routes: Ref<UpstreamRouteBindingView[]>;
   newProfileId: Ref<string>;
   newProfileName: Ref<string>;
+  newProfileModel: Ref<string>;
   newProfileType: Ref<"codex" | "mock">;
   newKeyName: Ref<string>;
   newKeyDailyLimit: Ref<number>;
@@ -107,6 +108,7 @@ export interface DashboardState {
   login: () => Promise<boolean>;
   refresh: (options?: { silent?: boolean }) => Promise<boolean>;
   createProfile: () => Promise<boolean>;
+  importAgentModels: () => Promise<boolean>;
   createKey: () => Promise<boolean>;
   createUser: () => Promise<boolean>;
   createRun: () => Promise<boolean>;
@@ -131,6 +133,7 @@ export interface DashboardState {
   accountName: (accountId: string) => string;
   instanceName: (instanceId: string | null | undefined) => string;
   profileName: (profileId: string) => string;
+  profileModel: (profile: AdapterProfileView) => string;
 }
 
 const dashboardStateKey: InjectionKey<DashboardState> = Symbol("dashboard-state");
@@ -152,6 +155,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
   const routes = ref<UpstreamRouteBindingView[]>([]);
   const newProfileId = ref("mock-default");
   const newProfileName = ref("");
+  const newProfileModel = ref("");
   const newProfileType = ref<"codex" | "mock">("mock");
   const newKeyName = ref("dev-key");
   const newKeyDailyLimit = ref(100);
@@ -289,12 +293,21 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
 
   async function createProfile(): Promise<boolean> {
     return action(async () => {
+      const model = newProfileModel.value.trim();
       await client.createProfile({
         id: newProfileId.value,
         type: newProfileType.value,
         name: newProfileName.value || newProfileId.value,
-        enabled: true
+        enabled: true,
+        config: model ? { model } : undefined
       });
+      await refresh();
+    });
+  }
+
+  async function importAgentModels(): Promise<boolean> {
+    return action(async () => {
+      await client.importAgentModels();
       await refresh();
     });
   }
@@ -510,6 +523,11 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     return profiles.value.find((profile) => profile.id === profileId)?.name ?? profileId;
   }
 
+  function profileModel(profile: AdapterProfileView): string {
+    const model = profile.config?.model;
+    return typeof model === "string" && model ? model : "-";
+  }
+
   return {
     locale,
     email,
@@ -526,6 +544,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     routes,
     newProfileId,
     newProfileName,
+    newProfileModel,
     newProfileType,
     newKeyName,
     newKeyDailyLimit,
@@ -564,6 +583,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     login,
     refresh,
     createProfile,
+    importAgentModels,
     createKey,
     createUser,
     createRun,
@@ -587,7 +607,8 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     statusSeverity,
     accountName,
     instanceName,
-    profileName
+    profileName,
+    profileModel
   };
 }
 

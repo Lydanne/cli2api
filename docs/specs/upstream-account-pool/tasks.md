@@ -45,11 +45,23 @@
 - [x] Capture Codex device-auth browser instructions from process output before
   the long-running login command exits.
 - [x] Treat Codex `Not logged in` status output as pending rather than failed.
+- [x] Mark new authenticated instances healthy and normalize old unknown
+  authenticated instances.
 - [x] Document Codex browser/device auth from the dashboard.
 - [x] Run build, unit, coverage, E2E, lint, and file-size checks.
 - [x] Verify dashboard language switching and auth flow with mocked Codex auth.
 - [x] Rebuild and redeploy Compose services after dashboard UI changes.
 - [x] Exclude workspace `node_modules` directories from Docker build context.
+
+## Phase 5: Codex Model Profile Import
+
+- [x] Add a provider-neutral model catalog export to `packages/agents-sdk`.
+- [x] Pass profile `config.model` to Codex SDK thread options.
+- [x] Add core admin endpoints for listing SDK models and importing missing
+  profile rows.
+- [x] Add dashboard model-name input, stored model display, and one-click import
+  action on the Profiles page.
+- [x] Cover SDK, core, dashboard state/API, and E2E flows with tests.
 
 ## Allowed Write Areas
 

@@ -146,6 +146,53 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(body.output_text).toContain("hello responses");
   });
 
+  it("imports bundled agent SDK models as adapter profiles", async () => {
+    const cookie = await harness.login();
+    const existing = await harness.app.handle(
+      new Request("http://localhost/api/admin/profiles", {
+        method: "POST",
+        headers: { cookie, "content-type": "application/json" },
+        body: JSON.stringify({
+          id: "gpt-5.5",
+          type: "codex",
+          name: "Already Imported",
+          enabled: true,
+          config: { model: "custom-existing" }
+        })
+      })
+    );
+    expect(existing.status).toBe(200);
+
+    const catalogResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/agent-models", {
+        headers: { cookie }
+      })
+    );
+    expect(catalogResponse.status).toBe(200);
+    expect(await catalogResponse.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "gpt-5.5", type: "codex", config: { model: "gpt-5.5" } })
+      ])
+    );
+
+    const importResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/profiles/import-agent-models", {
+        method: "POST",
+        headers: { cookie }
+      })
+    );
+    expect(importResponse.status).toBe(200);
+    expect(await importResponse.json()).toMatchObject({
+      created: [
+        { id: "gpt-5.4", type: "codex", config: { model: "gpt-5.4" } },
+        { id: "gpt-5.4-mini", type: "codex", config: { model: "gpt-5.4-mini" } }
+      ],
+      skipped: [{ id: "gpt-5.5" }]
+    });
+    expect(harness.services.profiles.require("gpt-5.4").config).toEqual({ model: "gpt-5.4" });
+    expect(harness.services.profiles.require("gpt-5.5").config).toEqual({ model: "custom-existing" });
+  });
+
   it("maps chat completions requests to runs and can return SSE frames", async () => {
     const cookie = await harness.login();
     const profile = await harness.createMockProfile(cookie, "mock-chat");

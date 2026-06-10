@@ -4,6 +4,7 @@ import { createDashboardState } from "./dashboard-state";
 import { isLocale } from "./i18n";
 import type {
   CreateApiKeyInput,
+  AgentModelView,
   CreateProfileInput,
   CreateRunInput,
   CreateUpstreamAccountInput,
@@ -27,6 +28,7 @@ import type {
 } from "../types";
 
 interface FakeResources {
+  agentModels: AgentModelView[];
   users: AdminUser[];
   profiles: AdapterProfileView[];
   keys: ApiKeyView[];
@@ -68,6 +70,7 @@ describe("dashboard state", () => {
     expect(state.instanceOptions.value[0]?.label).toContain("实例 1");
     expect(state.monthlyUsageByKey.value.get("key-1")?.totalTokens).toBe(30);
     expect(state.statusLabel("authenticated")).toBe("已认证");
+    expect(state.statusLabel("healthy")).toBe("健康");
     expect(state.statusSeverity("failed")).toBe("danger");
     expect(state.accountName("acct-1")).toBe("主账号");
     expect(state.instanceName("inst-1")).toBe("实例 1");
@@ -147,6 +150,36 @@ describe("dashboard state", () => {
     expect(resources.users).toHaveLength(0);
   });
 
+  it("stores upstream model config and imports SDK models", async () => {
+    const { api, resources } = createFakeApi();
+    const state = createDashboardState(api);
+
+    state.newProfileId.value = "codex-custom";
+    state.newProfileType.value = "codex";
+    state.newProfileName.value = "Custom Codex";
+    state.newProfileModel.value = "gpt-5.4-mini";
+    await expect(state.createProfile()).resolves.toBe(true);
+
+    expect(resources.profiles[0]).toMatchObject({
+      id: "codex-custom",
+      type: "codex",
+      config: { model: "gpt-5.4-mini" }
+    });
+    expect(state.profileModel(resources.profiles[0] as AdapterProfileView)).toBe("gpt-5.4-mini");
+
+    await expect(state.importAgentModels()).resolves.toBe(true);
+    expect(resources.profiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "gpt-5.5", config: { model: "gpt-5.5" } }),
+        expect.objectContaining({ id: "gpt-5.4", config: { model: "gpt-5.4" } }),
+        expect.objectContaining({ id: "gpt-5.4-mini", config: { model: "gpt-5.4-mini" } })
+      ])
+    );
+    const profileCount = resources.profiles.length;
+    await expect(state.importAgentModels()).resolves.toBe(true);
+    expect(resources.profiles).toHaveLength(profileCount);
+  });
+
   it("handles locale persistence and action errors", async () => {
     const localStorage = new Map<string, string>();
     vi.stubGlobal("window", {
@@ -176,6 +209,17 @@ describe("dashboard state", () => {
 
 function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
   const resources: FakeResources = {
+    agentModels: [
+      { id: "gpt-5.5", type: "codex", name: "GPT-5.5", source: "codex", config: { model: "gpt-5.5" } },
+      { id: "gpt-5.4", type: "codex", name: "GPT-5.4", source: "codex", config: { model: "gpt-5.4" } },
+      {
+        id: "gpt-5.4-mini",
+        type: "codex",
+        name: "GPT-5.4-Mini",
+        source: "codex",
+        config: { model: "gpt-5.4-mini" }
+      }
+    ],
     users: [],
     profiles: [],
     keys: [],
@@ -192,6 +236,28 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
       user: { id: "user-1", email: input.email, role: "admin" }
     })),
     users: vi.fn(async () => resources.users),
+    agentModels: vi.fn(async () => resources.agentModels),
+    importAgentModels: vi.fn(async () => {
+      const created: AdapterProfileView[] = [];
+      const skipped: AgentModelView[] = [];
+      for (const model of resources.agentModels) {
+        if (resources.profiles.some((profile) => profile.id === model.id)) {
+          skipped.push(model);
+          continue;
+        }
+        const profile = {
+          id: model.id,
+          type: model.type,
+          name: model.name,
+          cwd: `/runtime/profiles/${model.id}`,
+          enabled: true,
+          config: { ...model.config }
+        };
+        resources.profiles.push(profile);
+        created.push(profile);
+      }
+      return { created, skipped };
+    }),
     createUser: vi.fn(async (input) => {
       const user = { id: `user-${resources.users.length + 1}`, email: input.email, role: "admin", disabledAt: null };
       resources.users.push(user);
@@ -205,7 +271,8 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
         type: input.type,
         name: input.name,
         cwd: `/runtime/profiles/${input.id}`,
-        enabled: input.enabled
+        enabled: input.enabled,
+        config: input.config
       };
       resources.profiles.push(profile);
       return profile;

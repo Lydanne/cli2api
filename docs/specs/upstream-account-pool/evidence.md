@@ -14,6 +14,60 @@ Chinese-first dashboard work.
 
 ## Evidence Log
 
+- `node_modules/.pnpm/node_modules/.bin/codex debug models | jq ...`: returned
+  current bundled Codex CLI API-visible model slugs `gpt-5.5`, `gpt-5.4`, and
+  `gpt-5.4-mini`; only slug/display/config fields were copied into the SDK
+  catalog.
+- `pnpm vitest run packages/agents-sdk/src/index.spec.ts`: failed first because
+  `listAgentModels` was not exported and Codex thread options did not include
+  `model`; passed after adding the SDK model catalog and passing
+  `profile.config.model` to `startThread`.
+- `pnpm vitest run apps/core/src/core.spec.ts`: failed first because
+  `/api/admin/agent-models` returned 404; passed after adding model-catalog list
+  and profile-import admin endpoints.
+- `pnpm vitest run apps/dash/src/lib/api.spec.ts`: failed first because the
+  dashboard API facade lacked `agentModels` and `importAgentModels`; passed after
+  wiring both Eden calls.
+- `pnpm vitest run apps/dash/src/lib/dashboard-state.spec.ts`: failed first
+  because `newProfileModel` and the import action were missing; passed after
+  storing `config.model`, importing SDK models, and exposing `profileModel`.
+- `pnpm build`: passed for shared, agents-sdk, core, and dashboard after adding
+  model import. Vite reported the expected PrimeVue large-chunk split.
+- `pnpm test:e2e`: passed with 2 Playwright tests after adding Profiles-page SDK
+  import coverage. The only output warnings were `NO_COLOR` being ignored
+  because `FORCE_COLOR` was set.
+- `pnpm test`: passed with 11 test files and 58 tests.
+- `pnpm test:coverage`: passed; global coverage is 83% statements, 66.85%
+  branches, 88.98% functions, and 83.48% lines.
+- `pnpm lint`: passed.
+- `pnpm check:file-size`: all checked source files are <= 1300 lines.
+- `git diff --check`: passed.
+- `docker compose build api dash`: passed and rebuilt local API/Dashboard images
+  with the model import changes.
+- `docker compose up -d api dash`: recreated both services; the API container
+  reported healthy and the dashboard container started.
+- Browser verification against `http://127.0.0.1:5173/#/profiles` passed after
+  Compose restart: the Profiles page showed the upstream model input and SDK
+  import button, and importing rendered a `gpt-5.5 / GPT-5.5 / codex /
+  gpt-5.5` row.
+- `pnpm vitest run apps/core/src/upstream.spec.ts`: failed first because new
+  instances were still returned with `healthState: "unknown"` and seeded legacy
+  enabled/authenticated instances stayed `unknown`.
+- `pnpm vitest run apps/core/src/upstream.spec.ts`: passed after creating
+  instances as `healthy` and normalizing enabled, authenticated, no-error
+  legacy `unknown` instances to `healthy`.
+- `pnpm vitest run apps/dash/src/lib/dashboard-state.spec.ts`: failed first
+  because `healthy` did not have a Chinese status label and was rendered as the
+  raw value.
+- `pnpm vitest run apps/dash/src/lib/dashboard-state.spec.ts`: passed after
+  adding `healthy` and `degraded` labels to the dashboard i18n catalog.
+- `pnpm test:e2e`: failed first because the dashboard E2E still expected the
+  old `未知` health label, then failed again while the row rendered raw
+  `healthy`; passed after updating the E2E assertion and adding the missing
+  status-label translations.
+- Browser verification against `http://127.0.0.1:5173/#/instances` passed after
+  rebuilding and restarting Compose services: the existing `codex-inst-1` row
+  rendered `健康`.
 - `pnpm vitest run packages/agents-sdk/src/auth.spec.ts`: failed first because
   `CodexAuthProvider.startAuth` still called `run` and waited for process exit
   instead of returning after browser instructions were printed.
@@ -35,9 +89,9 @@ Chinese-first dashboard work.
 - `pnpm vitest run apps/core/src/deploy-script.spec.ts`: passed after adding
   `ca-certificates` to the runtime stage.
 - `pnpm build`: passed for shared, agents-sdk, core, and dash.
-- `pnpm test`: passed with 11 test files and 54 tests.
-- `pnpm test:coverage`: passed; global coverage is 82.46% statements, 66.01%
-  branches, 88.56% functions, and 82.98% lines.
+- `pnpm test`: passed with 11 test files and 55 tests.
+- `pnpm test:coverage`: passed; global coverage is 82.7% statements, 66.6%
+  branches, 88.59% functions, and 83.22% lines.
 - `pnpm test:e2e`: passed with 2 Playwright tests. The only output warnings
   were `NO_COLOR` being ignored because `FORCE_COLOR` was set.
 - `pnpm lint`: passed.

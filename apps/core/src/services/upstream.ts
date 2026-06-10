@@ -122,6 +122,7 @@ export class UpstreamService {
   ) {
     this.providers = new Map(authProviders.map((provider) => [provider.type, provider]));
     this.alignLegacyContainerAuthHomes();
+    this.normalizeHealthyInstances();
   }
 
   /** Creates an upstream account. */
@@ -230,7 +231,7 @@ export class UpstreamService {
       name: input.name,
       cwd: this.runtimeWorkspaces.instanceWorkspace(id),
       enabled: input.enabled === false ? 0 : 1,
-      healthState: "unknown",
+      healthState: "healthy",
       currentRuns: 0,
       maxConcurrentRuns: input.maxConcurrentRuns ?? 1,
       sandbox: "read-only",
@@ -533,6 +534,9 @@ export class UpstreamService {
       .set({ authState: state, lastAuthError: error, updatedAt: Date.now() })
       .where(eq(upstreamAccounts.id, accountId))
       .run();
+    if (state === "authenticated") {
+      this.normalizeHealthyInstances(accountId);
+    }
   }
 
   private occupyInstance(instanceId: string): void {
@@ -588,6 +592,30 @@ export class UpstreamService {
         .where(eq(upstreamAccounts.id, account.id))
         .run();
     }
+  }
+
+  private normalizeHealthyInstances(accountId?: string): void {
+    const accountFilter = accountId ? "AND id = ?" : "";
+    const statement = this.database.sqlite.prepare(
+      `UPDATE upstream_instances
+       SET health_state = 'healthy',
+           updated_at = ?
+       WHERE health_state = 'unknown'
+         AND enabled = 1
+         AND last_error IS NULL
+         AND account_id IN (
+           SELECT id
+           FROM upstream_accounts
+           WHERE auth_state = 'authenticated'
+             AND disabled_at IS NULL
+             ${accountFilter}
+         )`
+    );
+    if (accountId) {
+      statement.run(Date.now(), accountId);
+      return;
+    }
+    statement.run(Date.now());
   }
 }
 

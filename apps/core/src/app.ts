@@ -1,6 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { Elysia } from "elysia";
+import { listAgentModels } from "@cli2api/agents-sdk";
 import type { OpenAiModel } from "@cli2api/shared";
 import type { CoreDatabase } from "./db/client.js";
 import { errorResponse, jsonResponse, sseResponse } from "./http/responses.js";
@@ -75,6 +76,22 @@ export function createApp(context: AppContext) {
       try {
         requireAdmin(services, request);
         return services.profiles.list();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .get("/api/admin/agent-models", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return listAgentModels();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/profiles/import-agent-models", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.profiles.importAgentModels(listAgentModels()));
       } catch (error) {
         return errorResponse(error);
       }

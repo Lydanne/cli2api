@@ -88,12 +88,14 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("instance-concurrency").fill("2");
   await page.getByTestId("create-instance").click();
   await expect(page.getByText("mock-ui-inst")).toBeVisible();
-  await expect(page.getByText("未知")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "mock-ui-inst" }).filter({ hasText: "健康" })).toBeVisible();
 
   await page.getByTestId("nav-profiles").click();
   await page.getByTestId("profile-id").fill("mock-ui-e2e");
   await page.getByTestId("create-profile").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).first()).toBeVisible();
+  await page.getByTestId("import-agent-models").click();
+  await expect(page.getByRole("row").filter({ hasText: "gpt-5.5" }).filter({ hasText: "GPT-5.5" })).toBeVisible();
   await page.getByTestId("profile-id").fill("mock-delete-e2e");
   await page.getByTestId("create-profile").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" }).first()).toBeVisible();

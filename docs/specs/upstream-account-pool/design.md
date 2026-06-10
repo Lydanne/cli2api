@@ -12,6 +12,11 @@ Adapter profiles become external routing contracts. A downstream client selects
 a profile as a model. The scheduler maps that profile to one or more upstream
 instances and chooses an available instance for each run.
 
+For Codex profiles, `profile.id` remains the OpenAI-compatible model id exposed
+to downstream clients, while `profile.config.model` is the upstream Codex model
+name passed to the Codex SDK. When the dashboard imports SDK models, it creates
+profiles whose id and `config.model` both equal the SDK model slug.
+
 ## Agents SDK Auth Contract
 
 `packages/agents-sdk` owns provider-neutral authentication contracts:
@@ -49,6 +54,19 @@ Container deployments therefore use the locked workspace dependency instead of
 requiring a separate global Codex CLI install. Tests and custom deployments may
 still pass an explicit executable path through provider construction.
 
+## Agents SDK Model Catalog
+
+`packages/agents-sdk` also owns a provider-neutral model catalog:
+
+- `AgentModelDefinition`: model slug, display name, adapter type, source, and
+  adapter config.
+- `listAgentModels()`: returns catalog entries without exposing provider
+  prompts, credentials, or other large upstream metadata.
+
+The initial Codex catalog is extracted from the bundled Codex CLI's
+`codex debug models` output and stores only public slug/display fields. Core does
+not run provider network calls during import.
+
 ## Backend APIs
 
 Core will persist:
@@ -64,6 +82,14 @@ Core will persist:
 Admin APIs will expose account creation, auth start/poll/cancel, instance
 create/update/disable, routing assignment, health checks, and run inspection.
 
+Profile import APIs expose:
+
+- `GET /api/admin/agent-models`: lists the SDK model catalog visible to the
+  dashboard.
+- `POST /api/admin/profiles/import-agent-models`: creates one enabled adapter
+  profile per missing catalog entry, skips existing profile ids, and returns
+  both created and skipped entries.
+
 ## Scheduling
 
 The first scheduler is single-process and SQLite-backed. It filters instances by
@@ -72,8 +98,17 @@ concurrency. It chooses least-busy first, with stable id ordering as a tie
 breaker. If no instance is available, the API returns a stable
 `UPSTREAM_UNAVAILABLE` error.
 
+Creating an instance requires an authenticated account, so newly-created enabled
+instances start as `healthy`. Existing enabled instances left in `unknown` from
+earlier versions are normalized to `healthy` when their account is authenticated,
+which keeps the dashboard from showing a healthy executor as unknown. Explicit
+`degraded` and `disabled` states remain operator-controlled.
+
 Runs will store the selected `upstreamInstanceId`. Failure events include the
 instance id when available, and repeated failures can mark an instance degraded.
+When the selected profile includes `config.model`, the Codex adapter passes it
+as the SDK thread `model` option in addition to preserving the config object for
+Codex CLI config overrides.
 
 ## Dashboard
 
@@ -94,6 +129,9 @@ New operator surfaces:
   auth URL, enter or view user code when present, poll auth state, logout.
 - Instances: bind account, configure type/name/concurrency, enable/disable, and
   inspect health and recent errors.
+- Profiles: create public model profiles, enter the upstream Codex model name,
+  inspect stored upstream model config, delete unused profiles, and import all
+  missing SDK catalog models with one action.
 - Routes: bind external profiles to instance pools.
 - Runs: show selected instance, duration, status, error, and events.
 - API keys/users: richer create, revoke, disable, reset, and quota controls.

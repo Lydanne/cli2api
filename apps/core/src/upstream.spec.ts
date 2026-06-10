@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { openCoreDatabase, type CoreDatabase } from "./db/client.js";
 import { migrateDatabase } from "./db/migrate.js";
-import { upstreamAccounts } from "./db/schema.js";
+import { upstreamAccounts, upstreamInstances } from "./db/schema.js";
 import { createServices, type Services } from "./services/index.js";
 
 class FakeCodexAuthProvider implements AgentAuthProvider {
@@ -73,6 +73,7 @@ class FakeCodexAuthProvider implements AgentAuthProvider {
 
 interface UpstreamHarnessOptions {
   authHomeBase?: string;
+  seedUnknownAuthenticatedInstance?: boolean;
   seedLegacyContainerAccount?: boolean;
 }
 
@@ -102,6 +103,43 @@ async function createUpstreamHarness(options: UpstreamHarnessOptions = {}): Prom
         authHome: "/data/codex-homes/codex-main",
         disabledAt: null,
         lastAuthError: null,
+        createdAt: now,
+        updatedAt: now
+      })
+      .run();
+  }
+  if (options?.seedUnknownAuthenticatedInstance) {
+    const now = Date.now();
+    database.db
+      .insert(upstreamAccounts)
+      .values({
+        id: "acct-legacy-healthy",
+        providerType: "codex",
+        name: "历史认证账号",
+        authState: "authenticated",
+        authHome: join(authHomeBase, "acct-legacy-healthy"),
+        disabledAt: null,
+        lastAuthError: null,
+        createdAt: now,
+        updatedAt: now
+      })
+      .run();
+    database.db
+      .insert(upstreamInstances)
+      .values({
+        id: "inst-legacy-unknown",
+        accountId: "acct-legacy-healthy",
+        type: "codex",
+        name: "历史未知实例",
+        cwd: join(dir, "legacy-runtime"),
+        enabled: 1,
+        healthState: "unknown",
+        currentRuns: 0,
+        maxConcurrentRuns: 1,
+        sandbox: "read-only",
+        approvalPolicy: "never",
+        configJson: "{}",
+        lastError: null,
         createdAt: now,
         updatedAt: now
       })
@@ -373,7 +411,7 @@ describe("@cli2api/core upstream account pool", () => {
       accountId: "acct-codex-3",
       type: "codex",
       name: "Codex 实例 1",
-      healthState: "unknown",
+      healthState: "healthy",
       enabled: true,
       currentRuns: 0,
       maxConcurrentRuns: 3,
@@ -392,8 +430,28 @@ describe("@cli2api/core upstream account pool", () => {
 
     expect(listResponse.status).toBe(200);
     expect(await listResponse.json()).toMatchObject([
-      { id: "inst-codex-1", accountId: "acct-codex-3", enabled: true }
+      { id: "inst-codex-1", accountId: "acct-codex-3", enabled: true, healthState: "healthy" }
     ]);
+  });
+
+  it("normalizes existing unknown instances for authenticated accounts", async () => {
+    const legacyHarness = await createUpstreamHarness({ seedUnknownAuthenticatedInstance: true });
+    try {
+      expect(legacyHarness.services.upstream.listInstances()).toMatchObject([
+        {
+          id: "inst-legacy-unknown",
+          accountId: "acct-legacy-healthy",
+          enabled: true,
+          healthState: "healthy"
+        }
+      ]);
+      const stored = legacyHarness.database.sqlite
+        .prepare("SELECT health_state AS healthState FROM upstream_instances WHERE id = ?")
+        .get("inst-legacy-unknown") as { healthState: string } | undefined;
+      expect(stored?.healthState).toBe("healthy");
+    } finally {
+      await legacyHarness.close();
+    }
   });
 
   it("selects an available upstream instance when executing a matching run", async () => {

@@ -74,6 +74,28 @@ export interface CreateProfileInput {
   config?: Record<string, unknown>;
 }
 
+/** SDK model catalog entry displayed and imported by the dashboard. */
+export interface AgentModelView {
+  /** Public model slug. */
+  id: string;
+  /** Human-readable model display name. */
+  name: string;
+  /** Adapter implementation type. */
+  type: string;
+  /** Catalog source. */
+  source: string;
+  /** Adapter config to store on imported profiles. */
+  config: Record<string, unknown>;
+}
+
+/** Result returned after importing SDK models into profiles. */
+export interface ImportAgentModelsResult {
+  /** Profiles created during this import. */
+  created: AdapterProfileView[];
+  /** Catalog models skipped because the profile id already exists. */
+  skipped: AgentModelView[];
+}
+
 /** API key creation payload used by the dashboard. */
 export interface CreateApiKeyInput {
   /** API key display name. */
@@ -194,8 +216,12 @@ export interface DashboardApi {
   deleteUser(id: string): Promise<AdminUser>;
   /** Lists adapter profiles. */
   profiles(): Promise<AdapterProfileView[]>;
+  /** Lists model catalog entries exposed by the agents SDK. */
+  agentModels(): Promise<AgentModelView[]>;
   /** Creates an adapter profile. */
   createProfile(input: CreateProfileInput): Promise<AdapterProfileView>;
+  /** Imports all missing agents SDK model catalog entries as profiles. */
+  importAgentModels(): Promise<ImportAgentModelsResult>;
   /** Deletes an unused adapter profile. */
   deleteProfile(id: string): Promise<AdapterProfileView>;
   /** Lists API keys. */
@@ -274,9 +300,16 @@ interface AdminUsersClient {
 interface AdminProfilesClient {
   get(): Promise<TreatyResult<AdapterProfileView[]>>;
   post(input: CreateProfileInput): Promise<TreatyResult<AdapterProfileView>>;
+  "import-agent-models": {
+    post(): Promise<TreatyResult<ImportAgentModelsResult>>;
+  };
   (params: { id: string }): {
     delete(): Promise<TreatyResult<AdapterProfileView>>;
   };
+}
+
+interface AdminAgentModelsClient {
+  get(): Promise<TreatyResult<AgentModelView[]>>;
 }
 
 interface AdminRunsClient {
@@ -350,7 +383,9 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
     createUser: (input) => unwrap<AdminUser>(adminUsers.post(input)),
     deleteUser: (id) => unwrap<AdminUser>(adminUsers({ id }).delete()),
     profiles: () => unwrap<AdapterProfileView[]>(adminProfiles.get()),
+    agentModels: () => unwrap<AgentModelView[]>(agentModelsClient(client).get()),
     createProfile: (input) => unwrap<AdapterProfileView>(adminProfiles.post(input)),
+    importAgentModels: () => unwrap<ImportAgentModelsResult>(adminProfiles["import-agent-models"].post()),
     deleteProfile: (id) => unwrap<AdapterProfileView>(adminProfiles({ id }).delete()),
     apiKeys: () => unwrap<ApiKeyView[]>(adminApiKeys.get()),
     createApiKey: (input) =>
@@ -395,6 +430,10 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
 
 function upstreamAccountsClient(client: DashboardTreaty): AdminUpstreamAccountsClient {
   return client.api.admin.upstream.accounts as unknown as AdminUpstreamAccountsClient;
+}
+
+function agentModelsClient(client: DashboardTreaty): AdminAgentModelsClient {
+  return client.api.admin["agent-models"] as unknown as AdminAgentModelsClient;
 }
 
 function upstreamAuthSessionsClient(client: DashboardTreaty): AdminUpstreamAuthSessionsClient {

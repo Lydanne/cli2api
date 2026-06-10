@@ -5,6 +5,7 @@ import {
   CodexAdapter,
   MockAgentAdapter,
   collectAgentEvents,
+  listAgentModels,
   normalizeAdapterError
 } from "./index.js";
 
@@ -68,6 +69,23 @@ describe("@cli2api/agents-sdk", () => {
     expect(error.message).toBe("bad upstream");
   });
 
+  it("exposes the bundled Codex model catalog without provider internals", () => {
+    const models = listAgentModels();
+
+    expect(models).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "gpt-5.5",
+          type: "codex",
+          name: "GPT-5.5",
+          config: { model: "gpt-5.5" }
+        })
+      ])
+    );
+    expect(models.every((model) => model.source === "codex")).toBe(true);
+    expect(JSON.stringify(models)).not.toContain("base_instructions");
+  });
+
   it("builds Codex SDK options without request-controlled cwd overrides", () => {
     const adapter = new CodexAdapter();
     const options = adapter.createSdkOptions({
@@ -116,6 +134,7 @@ describe("@cli2api/agents-sdk", () => {
     ]);
     expect(codexSdkMock.startThreadOptions).toEqual([
       {
+        model: "gpt-5",
         workingDirectory: "/srv/cli2api/runtime-workspaces/instances/inst-1",
         sandboxMode: "read-only",
         approvalPolicy: "never",

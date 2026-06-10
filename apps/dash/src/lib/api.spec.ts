@@ -203,7 +203,15 @@ describe("dashboard Eden API facade", () => {
       })),
       {
         get: vi.fn(async () => treatyResponse([])),
-        post: vi.fn(async () => treatyResponse({ id: "profile-1", type: "mock" }))
+        post: vi.fn(async () => treatyResponse({ id: "profile-1", type: "mock" })),
+        "import-agent-models": {
+          post: vi.fn(async () =>
+            treatyResponse({
+              created: [{ id: "gpt-5.5", type: "codex", config: { model: "gpt-5.5" } }],
+              skipped: []
+            })
+          )
+        }
       }
     );
     const usersClient = Object.assign(
@@ -218,6 +226,9 @@ describe("dashboard Eden API facade", () => {
     const fakeClient = {
       api: {
         admin: {
+          "agent-models": {
+            get: vi.fn(async () => treatyResponse([{ id: "gpt-5.5", type: "codex", name: "GPT-5.5" }]))
+          },
           profiles: profilesClient,
           users: usersClient
         }
@@ -231,6 +242,11 @@ describe("dashboard Eden API facade", () => {
     await expect(api.deleteUser("user-2")).resolves.toMatchObject({ id: "user-2" });
     await expect(api.createProfile({ id: "profile-1", type: "mock", name: "profile", enabled: true })).resolves.toMatchObject({
       id: "profile-1"
+    });
+    await expect(api.agentModels()).resolves.toEqual([{ id: "gpt-5.5", type: "codex", name: "GPT-5.5" }]);
+    await expect(api.importAgentModels()).resolves.toMatchObject({
+      created: [{ id: "gpt-5.5", type: "codex" }],
+      skipped: []
     });
     await expect(api.deleteProfile("profile-1")).resolves.toMatchObject({ id: "profile-1" });
   });
