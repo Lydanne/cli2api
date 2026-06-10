@@ -64,3 +64,28 @@ Chinese-first dashboard work.
 - `pnpm lint`: passed.
 - `pnpm check:file-size`: all checked source files are <= 1300 lines.
 - `git diff --check`: passed.
+- `pnpm vitest run apps/core/src/upstream.spec.ts`: failed first because
+  account logout, instance update/disable, and route binding admin APIs returned
+  404.
+- `pnpm vitest run apps/core/src/upstream.spec.ts`: passed after adding logout,
+  instance update/disable, route binding CRUD, and scheduler route-binding
+  selection.
+- `pnpm vitest run apps/dash/src/lib/api.spec.ts`: failed first because the
+  dashboard facade did not expose logout, instance update/disable, route binding,
+  or user creation methods.
+- `pnpm vitest run apps/dash/src/lib/api.spec.ts`: passed after adding facade
+  methods and Treaty client mappings.
+- `pnpm test:e2e`: failed first after the dashboard route-management expansion
+  because the `Server` icon import was missing and the dashboard crashed after
+  login.
+- `pnpm test:e2e`: passed after restoring the `Server` icon import.
+- `pnpm build`: passed after adding route bindings and dashboard management
+  controls.
+- `pnpm test`: passed with 9 test files and 38 tests.
+- `pnpm test:coverage`: passed with statements 80.48%, branches 65.28%,
+  functions 87.21%, and lines 81.29%.
+- `pnpm test:e2e`: passed with 2 Playwright tests. The only output warnings were
+  `NO_COLOR` being ignored because `FORCE_COLOR` was set.
+- `pnpm lint`: passed.
+- `pnpm check:file-size`: all checked source files are <= 1300 lines.
+- `git diff --check`: passed.

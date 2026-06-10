@@ -1,7 +1,8 @@
 import type {
   UpstreamAccountResponse,
   UpstreamAuthSessionResponse,
-  UpstreamInstanceResponse
+  UpstreamInstanceResponse,
+  UpstreamRouteBindingResponse
 } from "@cli2api/shared";
 
 /** Admin user displayed in the dashboard. */
@@ -96,3 +97,6 @@ export type UpstreamAuthSessionView = UpstreamAuthSessionResponse;
 
 /** Upstream runnable instance displayed in the dashboard. */
 export type UpstreamInstanceView = UpstreamInstanceResponse;
+
+/** Upstream route binding displayed in the dashboard. */
+export type UpstreamRouteBindingView = UpstreamRouteBindingResponse;

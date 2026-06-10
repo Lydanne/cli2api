@@ -9,6 +9,7 @@ import type {
   UpstreamAccountView,
   UpstreamAuthSessionView,
   UpstreamInstanceView,
+  UpstreamRouteBindingView,
   UsageBucketView
 } from "../types";
 
@@ -47,6 +48,14 @@ export interface LoginInput {
 export interface LoginResult {
   /** Authenticated admin user. */
   user: Pick<AdminUser, "id" | "email" | "role">;
+}
+
+/** Admin user creation payload used by the dashboard. */
+export interface CreateUserInput {
+  /** Login email address. */
+  email: string;
+  /** Initial password. */
+  password: string;
 }
 
 /** Adapter profile creation payload used by the dashboard. */
@@ -137,12 +146,36 @@ export interface CreateUpstreamInstanceInput {
   config?: Record<string, unknown>;
 }
 
+/** Upstream instance update payload used by the dashboard. */
+export interface UpdateUpstreamInstanceInput {
+  /** Operator-facing instance name. */
+  name?: string;
+  /** Fixed working directory. */
+  cwd?: string;
+  /** Whether the scheduler can select this instance. */
+  enabled?: boolean;
+  /** Maximum concurrent runs. */
+  maxConcurrentRuns?: number;
+  /** Optional adapter config. */
+  config?: Record<string, unknown>;
+}
+
+/** Upstream route binding creation payload used by the dashboard. */
+export interface CreateUpstreamRouteInput {
+  /** Public adapter profile id selected by downstream clients. */
+  profileId: string;
+  /** Upstream instance id used when this profile is selected. */
+  instanceId: string;
+}
+
 /** Dashboard API facade backed by Elysia Eden Treaty. */
 export interface DashboardApi {
   /** Logs in an admin user through the session-cookie API. */
   login(input: LoginInput): Promise<LoginResult>;
   /** Lists dashboard users. */
   users(): Promise<AdminUser[]>;
+  /** Creates a dashboard admin user. */
+  createUser(input: CreateUserInput): Promise<AdminUser>;
   /** Lists adapter profiles. */
   profiles(): Promise<AdapterProfileView[]>;
   /** Creates an adapter profile. */
@@ -169,12 +202,24 @@ export interface DashboardApi {
   startUpstreamAuth(accountId: string, input: StartUpstreamAuthInput): Promise<UpstreamAuthSessionView>;
   /** Polls upstream account auth status. */
   pollUpstreamAuth(accountId: string): Promise<UpstreamAuthSessionView>;
+  /** Logs out an upstream account. */
+  logoutUpstreamAccount(accountId: string): Promise<UpstreamAuthSessionView>;
   /** Cancels an upstream auth session. */
   cancelUpstreamAuth(sessionId: string): Promise<UpstreamAuthSessionView>;
   /** Lists upstream runnable instances. */
   upstreamInstances(): Promise<UpstreamInstanceView[]>;
   /** Creates an upstream runnable instance. */
   createUpstreamInstance(input: CreateUpstreamInstanceInput): Promise<UpstreamInstanceView>;
+  /** Updates an upstream runnable instance. */
+  updateUpstreamInstance(instanceId: string, input: UpdateUpstreamInstanceInput): Promise<UpstreamInstanceView>;
+  /** Disables an upstream runnable instance. */
+  disableUpstreamInstance(instanceId: string): Promise<UpstreamInstanceView>;
+  /** Lists explicit upstream route bindings. */
+  upstreamRoutes(): Promise<UpstreamRouteBindingView[]>;
+  /** Creates an explicit upstream route binding. */
+  createUpstreamRoute(input: CreateUpstreamRouteInput): Promise<UpstreamRouteBindingView>;
+  /** Deletes an explicit upstream route binding. */
+  deleteUpstreamRoute(routeId: string): Promise<UpstreamRouteBindingView>;
 }
 
 interface TreatyResult<T> {
@@ -191,6 +236,11 @@ interface AdminApiKeysClient {
       post(): Promise<TreatyResult<RevokeApiKeyResult>>;
     };
   };
+}
+
+interface AdminUsersClient {
+  get(): Promise<TreatyResult<AdminUser[]>>;
+  post(input: CreateUserInput): Promise<TreatyResult<AdminUser>>;
 }
 
 interface AdminRunsClient {
@@ -214,6 +264,9 @@ interface AdminUpstreamAccountsClient {
         get(): Promise<TreatyResult<UpstreamAuthSessionView>>;
       };
     };
+    logout: {
+      post(): Promise<TreatyResult<UpstreamAuthSessionView>>;
+    };
   };
 }
 
@@ -228,6 +281,20 @@ interface AdminUpstreamAuthSessionsClient {
 interface AdminUpstreamInstancesClient {
   get(): Promise<TreatyResult<UpstreamInstanceView[]>>;
   post(input: CreateUpstreamInstanceInput): Promise<TreatyResult<UpstreamInstanceView>>;
+  (params: { id: string }): {
+    patch(input: UpdateUpstreamInstanceInput): Promise<TreatyResult<UpstreamInstanceView>>;
+    disable: {
+      post(): Promise<TreatyResult<UpstreamInstanceView>>;
+    };
+  };
+}
+
+interface AdminUpstreamRoutesClient {
+  get(): Promise<TreatyResult<UpstreamRouteBindingView[]>>;
+  post(input: CreateUpstreamRouteInput): Promise<TreatyResult<UpstreamRouteBindingView>>;
+  (params: { id: string }): {
+    delete(): Promise<TreatyResult<UpstreamRouteBindingView>>;
+  };
 }
 
 const defaultTreatyFactory: TreatyFactory = (baseUrl, config) => treaty<App>(baseUrl, config);
@@ -235,11 +302,13 @@ const defaultTreatyFactory: TreatyFactory = (baseUrl, config) => treaty<App>(bas
 /** Creates a dashboard API facade backed by Elysia Eden Treaty. */
 export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFactory = defaultTreatyFactory): DashboardApi {
   const client = factory(baseUrl, { fetch: { credentials: "include" } });
+  const adminUsers = client.api.admin.users as unknown as AdminUsersClient;
   const adminApiKeys = client.api.admin["api-keys"] as unknown as AdminApiKeysClient;
   const adminRuns = client.api.admin.runs as unknown as AdminRunsClient;
   return {
     login: (input) => unwrap<LoginResult>(client.api.admin.login.post(input) as Promise<TreatyResult<LoginResult>>),
-    users: () => unwrap<AdminUser[]>(client.api.admin.users.get() as Promise<TreatyResult<AdminUser[]>>),
+    users: () => unwrap<AdminUser[]>(adminUsers.get()),
+    createUser: (input) => unwrap<AdminUser>(adminUsers.post(input)),
     profiles: () =>
       unwrap<AdapterProfileView[]>(client.api.admin.profiles.get() as Promise<TreatyResult<AdapterProfileView[]>>),
     createProfile: (input) =>
@@ -265,10 +334,20 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
       unwrap<UpstreamAuthSessionView>(upstreamAccountsClient(client)({ id: accountId }).auth.start.post(input)),
     pollUpstreamAuth: (accountId) =>
       unwrap<UpstreamAuthSessionView>(upstreamAccountsClient(client)({ id: accountId }).auth.status.get()),
+    logoutUpstreamAccount: (accountId) =>
+      unwrap<UpstreamAuthSessionView>(upstreamAccountsClient(client)({ id: accountId }).logout.post()),
     cancelUpstreamAuth: (sessionId) =>
       unwrap<UpstreamAuthSessionView>(upstreamAuthSessionsClient(client)({ id: sessionId }).cancel.post()),
     upstreamInstances: () => unwrap<UpstreamInstanceView[]>(upstreamInstancesClient(client).get()),
-    createUpstreamInstance: (input) => unwrap<UpstreamInstanceView>(upstreamInstancesClient(client).post(input))
+    createUpstreamInstance: (input) => unwrap<UpstreamInstanceView>(upstreamInstancesClient(client).post(input)),
+    updateUpstreamInstance: (instanceId, input) =>
+      unwrap<UpstreamInstanceView>(upstreamInstancesClient(client)({ id: instanceId }).patch(input)),
+    disableUpstreamInstance: (instanceId) =>
+      unwrap<UpstreamInstanceView>(upstreamInstancesClient(client)({ id: instanceId }).disable.post()),
+    upstreamRoutes: () => unwrap<UpstreamRouteBindingView[]>(upstreamRoutesClient(client).get()),
+    createUpstreamRoute: (input) => unwrap<UpstreamRouteBindingView>(upstreamRoutesClient(client).post(input)),
+    deleteUpstreamRoute: (routeId) =>
+      unwrap<UpstreamRouteBindingView>(upstreamRoutesClient(client)({ id: routeId }).delete())
   };
 }
 
@@ -282,6 +361,10 @@ function upstreamAuthSessionsClient(client: DashboardTreaty): AdminUpstreamAuthS
 
 function upstreamInstancesClient(client: DashboardTreaty): AdminUpstreamInstancesClient {
   return client.api.admin.upstream.instances as unknown as AdminUpstreamInstancesClient;
+}
+
+function upstreamRoutesClient(client: DashboardTreaty): AdminUpstreamRoutesClient {
+  return client.api.admin.upstream.routes as unknown as AdminUpstreamRoutesClient;
 }
 
 async function unwrap<T>(responsePromise: Promise<TreatyResult<T>>): Promise<T> {

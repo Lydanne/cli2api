@@ -62,12 +62,16 @@
   alternate locale.
 - [x] Dashboard lets operators create Codex accounts, start browser/device auth,
   poll status, create instances, and inspect health/concurrency.
-- [ ] `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`, `pnpm lint`, and
+- [x] Core admin APIs support account logout, instance update/disable, and
+  explicit profile-to-instance route bindings.
+- [x] Scheduler honors explicit route bindings before falling back to type-based
+  instance selection.
+- [x] Dashboard exposes route binding, upstream logout/disable, API key quota,
+  and admin-user creation controls.
+- [x] `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`, `pnpm lint`, and
   `pnpm check:file-size` pass before release handoff.
 
 ## Open Questions
 
 - Whether the first production auth method should be only Codex device auth, or
   also expose API-key/access-token login from the first dashboard version.
-- Whether `CODEX_HOME` directories should live only under `/data/codex-homes` in
-  Compose or be configurable per deployment.

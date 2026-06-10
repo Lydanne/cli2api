@@ -1,6 +1,21 @@
 <script setup lang="ts">
 import type { AgentEvent } from "@cli2api/shared";
-import { Activity, Ban, Database, Eye, Globe2, KeyRound, Play, Server, Users } from "lucide-vue-next";
+import {
+  Activity,
+  Ban,
+  Database,
+  Eye,
+  GitBranch,
+  Globe2,
+  KeyRound,
+  LogOut,
+  Play,
+  Save,
+  Server,
+  Trash2,
+  UserPlus,
+  Users
+} from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { ApiError, createDashboardApi } from "./lib/api";
 import { summarizeOverview } from "./lib/overview";
@@ -12,6 +27,7 @@ import type {
   UpstreamAccountView,
   UpstreamAuthSessionView,
   UpstreamInstanceView,
+  UpstreamRouteBindingView,
   UsageBucketView
 } from "./types";
 
@@ -24,6 +40,7 @@ const messages = {
     runs: "运行记录",
     keys: "API 密钥",
     profiles: "路由配置",
+    routeBindings: "路由绑定",
     accounts: "上游账号",
     instances: "实例池",
     users: "用户",
@@ -36,13 +53,23 @@ const messages = {
     completed: "完成",
     createMockProfile: "创建 Mock 路由",
     createApiKey: "创建 API 密钥",
+    createUser: "创建用户",
     createRun: "运行",
     createAccount: "创建账号",
     startAuth: "网页认证",
     pollAuth: "刷新认证",
+    logout: "退出登录",
     createInstance: "创建实例",
+    save: "保存",
+    disableInstance: "停用实例",
+    createRoute: "绑定路由",
+    deleteRoute: "删除绑定",
     viewEvents: "查看事件",
     revoke: "吊销",
+    dailyLimit: "日运行",
+    rpmLimit: "每分钟",
+    concurrentLimit: "并发",
+    monthlyTokenLimit: "月 Token",
     events: "事件",
     enabled: "启用",
     disabled: "停用",
@@ -61,6 +88,7 @@ const messages = {
     runs: "Runs",
     keys: "API Keys",
     profiles: "Routes",
+    routeBindings: "Route Bindings",
     accounts: "Upstream Accounts",
     instances: "Instances",
     users: "Users",
@@ -73,13 +101,23 @@ const messages = {
     completed: "Completed",
     createMockProfile: "Create mock route",
     createApiKey: "Create API key",
+    createUser: "Create user",
     createRun: "Run",
     createAccount: "Create account",
     startAuth: "Browser auth",
     pollAuth: "Refresh auth",
+    logout: "Logout",
     createInstance: "Create instance",
+    save: "Save",
+    disableInstance: "Disable instance",
+    createRoute: "Bind route",
+    deleteRoute: "Delete binding",
     viewEvents: "View events",
     revoke: "Revoke",
+    dailyLimit: "Daily runs",
+    rpmLimit: "RPM",
+    concurrentLimit: "Concurrent",
+    monthlyTokenLimit: "Monthly tokens",
     events: "Events",
     enabled: "enabled",
     disabled: "disabled",
@@ -108,14 +146,21 @@ const runs = ref<RunView[]>([]);
 const usage = ref<UsageBucketView[]>([]);
 const accounts = ref<UpstreamAccountView[]>([]);
 const instances = ref<UpstreamInstanceView[]>([]);
+const routes = ref<UpstreamRouteBindingView[]>([]);
 const selectedTab = ref("overview");
 const newProfileId = ref("mock-default");
 const newKeyName = ref("dev-key");
+const newKeyDailyLimit = ref(100);
+const newKeyRpmLimit = ref(60);
+const newKeyConcurrentLimit = ref(2);
+const newKeyMonthlyTokenLimit = ref(1000000);
 const prompt = ref("hello from dashboard");
 const selectedProfile = ref("");
 const createdToken = ref("");
 const selectedRunId = ref("");
 const runEvents = ref<AgentEvent[]>([]);
+const newUserEmail = ref("ops@example.com");
+const newUserPassword = ref("change-me");
 const newAccountId = ref("codex-main");
 const newAccountName = ref("主 Codex 账号");
 const lastAuthSession = ref<UpstreamAuthSessionView | null>(null);
@@ -125,6 +170,8 @@ const selectedAccountId = ref("");
 const newInstanceType = ref("mock");
 const newInstanceCwd = ref("/workspace");
 const newInstanceConcurrency = ref(1);
+const selectedRouteProfile = ref("");
+const selectedRouteInstance = ref("");
 
 const navItems = computed(
   () =>
@@ -133,6 +180,7 @@ const navItems = computed(
       ["runs", Play, text("runs")],
       ["keys", KeyRound, text("keys")],
       ["profiles", Server, text("profiles")],
+      ["routeBindings", GitBranch, text("routeBindings")],
       ["accounts", Globe2, text("accounts")],
       ["instances", Database, text("instances")],
       ["users", Users, text("users")]
@@ -182,14 +230,15 @@ async function login() {
 
 async function refresh(options: { silent?: boolean } = {}) {
   await action(async () => {
-    const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows] = await Promise.all([
+    const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows, routeRows] = await Promise.all([
       client.users(),
       client.profiles(),
       client.apiKeys(),
       client.runs(),
       client.usage(),
       client.upstreamAccounts(),
-      client.upstreamInstances()
+      client.upstreamInstances(),
+      client.upstreamRoutes()
     ]);
     users.value = userRows;
     profiles.value = profileRows;
@@ -198,8 +247,11 @@ async function refresh(options: { silent?: boolean } = {}) {
     usage.value = usageRows;
     accounts.value = accountRows;
     instances.value = instanceRows;
+    routes.value = routeRows;
     selectedProfile.value = selectedProfile.value || profiles.value[0]?.id || "";
     selectedAccountId.value = selectedAccountId.value || accounts.value[0]?.id || "";
+    selectedRouteProfile.value = selectedRouteProfile.value || profiles.value[0]?.id || "";
+    selectedRouteInstance.value = selectedRouteInstance.value || instances.value[0]?.id || "";
   }, options);
 }
 
@@ -220,11 +272,19 @@ async function createKey() {
   await action(async () => {
     const created = await client.createApiKey({
       name: newKeyName.value,
-      dailyRunLimit: 100,
-      rpmLimit: 60,
-      maxConcurrentRuns: 2
+      dailyRunLimit: Number(newKeyDailyLimit.value),
+      rpmLimit: Number(newKeyRpmLimit.value),
+      maxConcurrentRuns: Number(newKeyConcurrentLimit.value),
+      monthlyTokenLimit: Number(newKeyMonthlyTokenLimit.value)
     });
     createdToken.value = created.token ?? "";
+    await refresh();
+  });
+}
+
+async function createUser() {
+  await action(async () => {
+    await client.createUser({ email: newUserEmail.value, password: newUserPassword.value });
     await refresh();
   });
 }
@@ -279,6 +339,13 @@ async function pollAuth(account: UpstreamAccountView) {
   });
 }
 
+async function logoutAccount(account: UpstreamAccountView) {
+  await action(async () => {
+    lastAuthSession.value = await client.logoutUpstreamAccount(account.id);
+    await refresh();
+  });
+}
+
 async function createInstance() {
   await action(async () => {
     await client.createUpstreamInstance({
@@ -290,6 +357,42 @@ async function createInstance() {
       enabled: true,
       maxConcurrentRuns: Number(newInstanceConcurrency.value)
     });
+    await refresh();
+  });
+}
+
+async function saveInstance(instance: UpstreamInstanceView) {
+  await action(async () => {
+    await client.updateUpstreamInstance(instance.id, {
+      name: instance.name,
+      cwd: instance.cwd,
+      enabled: instance.enabled,
+      maxConcurrentRuns: Number(instance.maxConcurrentRuns)
+    });
+    await refresh();
+  });
+}
+
+async function disableInstance(instance: UpstreamInstanceView) {
+  await action(async () => {
+    await client.disableUpstreamInstance(instance.id);
+    await refresh();
+  });
+}
+
+async function createRoute() {
+  await action(async () => {
+    await client.createUpstreamRoute({
+      profileId: selectedRouteProfile.value,
+      instanceId: selectedRouteInstance.value
+    });
+    await refresh();
+  });
+}
+
+async function deleteRoute(route: UpstreamRouteBindingView) {
+  await action(async () => {
+    await client.deleteUpstreamRoute(route.id);
     await refresh();
   });
 }
@@ -413,6 +516,40 @@ onMounted(async () => {
           </table>
         </div>
 
+        <div v-if="selectedTab === 'routeBindings'" class="mt-6 space-y-4">
+          <div class="rounded border bg-white p-4">
+            <div class="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <select v-model="selectedRouteProfile" class="rounded border px-3 py-2" data-testid="route-profile">
+                <option v-for="profile in profiles" :key="profile.id" :value="profile.id">{{ profile.id }}</option>
+              </select>
+              <select v-model="selectedRouteInstance" class="rounded border px-3 py-2" data-testid="route-instance">
+                <option v-for="instance in instances" :key="instance.id" :value="instance.id">{{ instance.name }}</option>
+              </select>
+              <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-route" @click="createRoute">
+                <GitBranch :size="14" class="inline" />
+                {{ text('createRoute') }}
+              </button>
+            </div>
+          </div>
+          <table class="w-full rounded border bg-white text-sm">
+            <tbody>
+              <tr v-for="route in routes" :key="route.id" class="border-t" data-testid="route-row">
+                <td class="p-3 font-medium">{{ route.profileId }}</td>
+                <td class="p-3 font-mono text-xs">{{ route.instanceId }}</td>
+                <td class="p-3 text-right">
+                  <button class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="deleteRoute(route)">
+                    <Trash2 :size="14" />
+                    {{ text('deleteRoute') }}
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="routes.length === 0">
+                <td class="p-3 text-slate-500" colspan="3">{{ text('noRows') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <div v-if="selectedTab === 'accounts'" class="mt-6 space-y-4">
           <div class="rounded border bg-white p-4">
             <div class="grid grid-cols-[180px_1fr_auto] gap-2">
@@ -444,6 +581,10 @@ onMounted(async () => {
                   </button>
                   <button class="rounded border border-slate-300 px-2 py-1 text-xs" @click="pollAuth(account)">
                     {{ text('pollAuth') }}
+                  </button>
+                  <button class="ml-2 inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="logoutAccount(account)">
+                    <LogOut :size="14" />
+                    {{ text('logout') }}
                   </button>
                 </td>
               </tr>
@@ -478,15 +619,33 @@ onMounted(async () => {
           <table class="w-full rounded border bg-white text-sm">
             <tbody>
               <tr v-for="instance in instances" :key="instance.id" class="border-t" data-testid="instance-row">
-                <td class="p-3 font-medium">{{ instance.name }}</td>
+                <td class="p-3">
+                  <input v-model="instance.name" class="w-full rounded border px-2 py-1 font-medium" />
+                </td>
                 <td class="p-3 font-mono text-xs">{{ instance.id }}</td>
                 <td class="p-3">{{ instance.type }}</td>
+                <td class="p-3">
+                  <input v-model="instance.cwd" class="w-full rounded border px-2 py-1" />
+                </td>
                 <td class="p-3">{{ instance.healthState }}</td>
-                <td class="p-3">{{ instance.currentRuns }} / {{ instance.maxConcurrentRuns }}</td>
+                <td class="p-3">
+                  {{ instance.currentRuns }} /
+                  <input v-model.number="instance.maxConcurrentRuns" class="w-16 rounded border px-2 py-1" min="1" type="number" />
+                </td>
                 <td class="p-3">{{ enabledText(instance.enabled) }}</td>
+                <td class="p-3 text-right">
+                  <button class="mr-2 inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="saveInstance(instance)">
+                    <Save :size="14" />
+                    {{ text('save') }}
+                  </button>
+                  <button class="inline-flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs" @click="disableInstance(instance)">
+                    <Ban :size="14" />
+                    {{ text('disableInstance') }}
+                  </button>
+                </td>
               </tr>
               <tr v-if="instances.length === 0">
-                <td class="p-3 text-slate-500" colspan="6">{{ text('noRows') }}</td>
+                <td class="p-3 text-slate-500" colspan="8">{{ text('noRows') }}</td>
               </tr>
             </tbody>
           </table>
@@ -494,8 +653,12 @@ onMounted(async () => {
 
         <div v-if="selectedTab === 'keys'" class="mt-6 space-y-4">
           <div class="rounded border bg-white p-4">
-            <div class="flex gap-2">
+            <div class="grid grid-cols-[1fr_110px_110px_110px_140px_auto] gap-2">
               <input v-model="newKeyName" class="rounded border px-3 py-2" data-testid="key-name" />
+              <input v-model.number="newKeyDailyLimit" class="rounded border px-3 py-2" :aria-label="text('dailyLimit')" type="number" />
+              <input v-model.number="newKeyRpmLimit" class="rounded border px-3 py-2" :aria-label="text('rpmLimit')" type="number" />
+              <input v-model.number="newKeyConcurrentLimit" class="rounded border px-3 py-2" :aria-label="text('concurrentLimit')" type="number" />
+              <input v-model.number="newKeyMonthlyTokenLimit" class="rounded border px-3 py-2" :aria-label="text('monthlyTokenLimit')" type="number" />
               <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-key" @click="createKey">
                 {{ text('createApiKey') }}
               </button>
@@ -571,6 +734,14 @@ onMounted(async () => {
         </div>
 
         <div v-if="selectedTab === 'users'" class="mt-6 rounded border bg-white">
+          <div class="grid grid-cols-[1fr_1fr_auto] gap-2 border-b p-4">
+            <input v-model="newUserEmail" class="rounded border px-3 py-2" data-testid="user-email" :placeholder="text('email')" />
+            <input v-model="newUserPassword" class="rounded border px-3 py-2" data-testid="user-password" :placeholder="text('password')" />
+            <button class="rounded bg-slate-900 px-3 py-2 text-white" data-testid="create-user" @click="createUser">
+              <UserPlus :size="14" class="inline" />
+              {{ text('createUser') }}
+            </button>
+          </div>
           <div v-for="user in users" :key="user.id" class="flex justify-between border-t p-3 text-sm">
             <span>{{ user.email }}</span>
             <span>{{ user.role }}</span>

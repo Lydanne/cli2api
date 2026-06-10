@@ -119,12 +119,21 @@ const statements = [
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS upstream_route_bindings (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    instance_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
   "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
   "CREATE INDEX IF NOT EXISTS idx_runs_api_key ON runs(api_key_id)",
   "CREATE INDEX IF NOT EXISTS idx_run_events_run ON run_events(run_id, seq)",
   "CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys(key_prefix)",
   "CREATE INDEX IF NOT EXISTS idx_upstream_auth_sessions_account ON upstream_auth_sessions(account_id)",
-  "CREATE INDEX IF NOT EXISTS idx_upstream_instances_account ON upstream_instances(account_id)"
+  "CREATE INDEX IF NOT EXISTS idx_upstream_instances_account ON upstream_instances(account_id)",
+  "CREATE INDEX IF NOT EXISTS idx_upstream_route_bindings_profile ON upstream_route_bindings(profile_id)",
+  "CREATE INDEX IF NOT EXISTS idx_upstream_route_bindings_instance ON upstream_route_bindings(instance_id)"
 ];
 
 /** Applies the MVP SQLite schema. */

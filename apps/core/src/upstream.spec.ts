@@ -19,6 +19,8 @@ class FakeCodexAuthProvider implements AgentAuthProvider {
 
   public started: StartAuthInput[] = [];
 
+  public loggedOut: RuntimeAuthInput[] = [];
+
   public async startAuth(input: StartAuthInput): Promise<AuthSession> {
     this.started.push(input);
     return {
@@ -55,6 +57,7 @@ class FakeCodexAuthProvider implements AgentAuthProvider {
   }
 
   public async logout(input: RuntimeAuthInput): Promise<AuthSession> {
+    this.loggedOut.push(input);
     return {
       id: "auth-logout-1",
       providerType: "codex",
@@ -225,6 +228,54 @@ describe("@cli2api/core upstream account pool", () => {
     });
   });
 
+  it("logs out accounts and disables upstream instances", async () => {
+    await createAuthenticatedAccount("acct-admin-ops");
+    const instance = await createInstance("inst-admin-ops", "acct-admin-ops", { maxConcurrentRuns: 2 });
+
+    const logoutResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/accounts/acct-admin-ops/logout", {
+        method: "POST",
+        headers: { cookie: harness.cookie }
+      })
+    );
+
+    expect(logoutResponse.status).toBe(200);
+    expect(await logoutResponse.json()).toMatchObject({
+      accountId: "acct-admin-ops",
+      state: "pending"
+    });
+    expect(harness.provider.loggedOut[0]?.authHome).toBe("/data/codex-homes/acct-admin-ops");
+
+    const updateResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/instances/${instance.id}`, {
+        method: "PATCH",
+        headers: { cookie: harness.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ name: "disabled admin instance", maxConcurrentRuns: 4 })
+      })
+    );
+
+    expect(updateResponse.status).toBe(200);
+    expect(await updateResponse.json()).toMatchObject({
+      id: instance.id,
+      name: "disabled admin instance",
+      maxConcurrentRuns: 4
+    });
+
+    const disableResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/instances/${instance.id}/disable`, {
+        method: "POST",
+        headers: { cookie: harness.cookie }
+      })
+    );
+
+    expect(disableResponse.status).toBe(200);
+    expect(await disableResponse.json()).toMatchObject({
+      id: instance.id,
+      enabled: false,
+      healthState: "disabled"
+    });
+  });
+
   it("creates and lists upstream instances bound to authenticated accounts", async () => {
     await harness.app.handle(
       new Request("http://localhost/api/admin/upstream/accounts", {
@@ -335,6 +386,59 @@ describe("@cli2api/core upstream account pool", () => {
     expect(await runResponse.json()).toMatchObject({
       error: { code: "UPSTREAM_UNAVAILABLE" }
     });
+  });
+
+  it("honors explicit profile to upstream instance route bindings", async () => {
+    await createAuthenticatedAccount("acct-route-a");
+    await createAuthenticatedAccount("acct-route-z");
+    await createInstance("aaa-route-inst", "acct-route-a", { maxConcurrentRuns: 2 });
+    const boundInstance = await createInstance("zzz-route-inst", "acct-route-z", { maxConcurrentRuns: 2 });
+    const profile = await createProfile("mock-explicit-route");
+    const key = await createApiKey("route-key");
+
+    const routeResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/routes", {
+        method: "POST",
+        headers: { cookie: harness.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ profileId: profile.id, instanceId: boundInstance.id })
+      })
+    );
+
+    expect(routeResponse.status).toBe(200);
+    const route = (await routeResponse.json()) as { id: string };
+
+    const listResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/routes", {
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(await listResponse.json()).toMatchObject([
+      { profileId: profile.id, instanceId: boundInstance.id }
+    ]);
+
+    const runResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "explicit route", profileId: profile.id })
+      })
+    );
+
+    expect(runResponse.status).toBe(200);
+    expect(await runResponse.json()).toMatchObject({
+      upstreamInstanceId: boundInstance.id
+    });
+
+    const deleteResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/routes/${route.id}`, {
+        method: "DELETE",
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(deleteResponse.status).toBe(200);
   });
 
   async function createAuthenticatedAccount(id: string): Promise<void> {

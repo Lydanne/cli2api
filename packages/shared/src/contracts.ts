@@ -183,3 +183,17 @@ export interface UpstreamInstanceResponse {
   /** Last update timestamp in milliseconds. */
   updatedAt: number;
 }
+
+/** Explicit route binding from one public profile to one upstream instance. */
+export interface UpstreamRouteBindingResponse {
+  /** Stable route binding id. */
+  id: string;
+  /** Public adapter profile id selected by downstream clients. */
+  profileId: string;
+  /** Upstream instance id selected when this profile is used. */
+  instanceId: string;
+  /** Creation timestamp in milliseconds. */
+  createdAt: number;
+  /** Last update timestamp in milliseconds. */
+  updatedAt: number;
+}

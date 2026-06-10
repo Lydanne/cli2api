@@ -17,7 +17,7 @@
 - [x] Add admin APIs for account creation, auth start/status/cancel, and
   instance create/list.
 - [x] Add scheduler service and record `upstreamInstanceId` on runs.
-- [ ] Add logout, instance update/disable, and explicit route-assignment APIs.
+- [x] Add logout, instance update/disable, and explicit route-assignment APIs.
 
 ## Phase 3: Dashboard Chinese-first Operations UI
 
@@ -25,8 +25,8 @@
 - [x] Replace MVP English copy with Chinese primary labels.
 - [x] Add upstream account auth flow pages.
 - [x] Add instance pool page.
-- [ ] Add route management page.
-- [ ] Expand API keys and users pages for production operations.
+- [x] Add route management page.
+- [x] Expand API keys and users pages for production operations.
 
 ## Phase 4: Deployment And Evidence
 

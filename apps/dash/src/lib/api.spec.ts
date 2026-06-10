@@ -108,6 +108,9 @@ describe("dashboard Eden API facade", () => {
           status: {
             get: vi.fn(async () => treatyResponse({ id: "session-1", state: "authenticated" }))
           }
+        },
+        logout: {
+          post: vi.fn(async () => treatyResponse({ id: "session-logout", state: "pending" }))
         }
       })),
       {
@@ -120,17 +123,35 @@ describe("dashboard Eden API facade", () => {
         post: vi.fn(async () => treatyResponse({ id: "session-1", state: "canceled" }))
       }
     }));
-    const instancesClient = {
-      get: vi.fn(async () => treatyResponse([{ id: "instance-1", accountId: "account-1" }])),
-      post: vi.fn(async () => treatyResponse({ id: "instance-1", accountId: "account-1" }))
-    };
+    const instancesClient = Object.assign(
+      vi.fn(() => ({
+        patch: vi.fn(async () => treatyResponse({ id: "instance-1", name: "更新实例" })),
+        disable: {
+          post: vi.fn(async () => treatyResponse({ id: "instance-1", enabled: false }))
+        }
+      })),
+      {
+        get: vi.fn(async () => treatyResponse([{ id: "instance-1", accountId: "account-1" }])),
+        post: vi.fn(async () => treatyResponse({ id: "instance-1", accountId: "account-1" }))
+      }
+    );
+    const routesClient = Object.assign(
+      vi.fn(() => ({
+        delete: vi.fn(async () => treatyResponse({ id: "route-1", profileId: "profile-1" }))
+      })),
+      {
+        get: vi.fn(async () => treatyResponse([{ id: "route-1", profileId: "profile-1", instanceId: "instance-1" }])),
+        post: vi.fn(async () => treatyResponse({ id: "route-1", profileId: "profile-1", instanceId: "instance-1" }))
+      }
+    );
     const fakeClient = {
       api: {
         admin: {
           upstream: {
             accounts: accountClient,
             "auth-sessions": sessionClient,
-            instances: instancesClient
+            instances: instancesClient,
+            routes: routesClient
           }
         }
       }
@@ -160,5 +181,31 @@ describe("dashboard Eden API facade", () => {
       })
     ).resolves.toMatchObject({ id: "instance-1" });
     await expect(api.upstreamInstances()).resolves.toEqual([{ id: "instance-1", accountId: "account-1" }]);
+    await expect(api.logoutUpstreamAccount("account-1")).resolves.toMatchObject({ state: "pending" });
+    await expect(api.updateUpstreamInstance("instance-1", { name: "更新实例" })).resolves.toMatchObject({ name: "更新实例" });
+    await expect(api.disableUpstreamInstance("instance-1")).resolves.toMatchObject({ enabled: false });
+    await expect(api.upstreamRoutes()).resolves.toEqual([{ id: "route-1", profileId: "profile-1", instanceId: "instance-1" }]);
+    await expect(api.createUpstreamRoute({ profileId: "profile-1", instanceId: "instance-1" })).resolves.toMatchObject({
+      id: "route-1"
+    });
+    await expect(api.deleteUpstreamRoute("route-1")).resolves.toMatchObject({ id: "route-1" });
+  });
+
+  it("creates admin users through the facade", async () => {
+    const fakeClient = {
+      api: {
+        admin: {
+          users: {
+            get: vi.fn(async () => treatyResponse([])),
+            post: vi.fn(async () => treatyResponse({ id: "user-2", email: "ops@example.com", role: "admin" }))
+          }
+        }
+      }
+    } as unknown as DashboardTreaty;
+    const api = createDashboardApi("", () => fakeClient);
+
+    await expect(api.createUser({ email: "ops@example.com", password: "change-me" })).resolves.toMatchObject({
+      email: "ops@example.com"
+    });
   });
 });

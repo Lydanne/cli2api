@@ -11,11 +11,18 @@ import {
   type UpstreamAuthSessionResponse,
   type UpstreamAuthState,
   type UpstreamHealthState,
-  type UpstreamInstanceResponse
+  type UpstreamInstanceResponse,
+  type UpstreamRouteBindingResponse
 } from "@cli2api/shared";
 import { asc, eq } from "drizzle-orm";
 import type { CoreDatabase } from "../db/client.js";
-import { upstreamAccounts, upstreamAuthSessions, upstreamInstances } from "../db/schema.js";
+import {
+  adapterProfiles,
+  upstreamAccounts,
+  upstreamAuthSessions,
+  upstreamInstances,
+  upstreamRouteBindings
+} from "../db/schema.js";
 
 /** Upstream account creation payload accepted by admin APIs. */
 export interface CreateUpstreamAccountInput {
@@ -57,6 +64,36 @@ export interface CreateUpstreamInstanceInput {
   approvalPolicy?: UpstreamInstanceResponse["approvalPolicy"];
   /** Adapter-specific non-secret config. */
   config?: Record<string, unknown>;
+}
+
+/** Upstream instance update payload accepted by admin APIs. */
+export interface UpdateUpstreamInstanceInput {
+  /** Operator-facing display name. */
+  name?: string;
+  /** Fixed working directory. */
+  cwd?: string;
+  /** Whether the scheduler may select this instance. */
+  enabled?: boolean;
+  /** Current health state. */
+  healthState?: UpstreamHealthState;
+  /** Maximum concurrent runs. */
+  maxConcurrentRuns?: number;
+  /** Optional sandbox policy. */
+  sandbox?: UpstreamInstanceResponse["sandbox"];
+  /** Optional approval policy. */
+  approvalPolicy?: UpstreamInstanceResponse["approvalPolicy"];
+  /** Adapter-specific non-secret config. */
+  config?: Record<string, unknown>;
+  /** Last non-secret error. */
+  lastError?: string | null;
+}
+
+/** Explicit route binding creation payload accepted by admin APIs. */
+export interface CreateUpstreamRouteBindingInput {
+  /** Public profile id selected by downstream clients. */
+  profileId: string;
+  /** Upstream instance id that should run this profile. */
+  instanceId: string;
 }
 
 /** Runtime upstream selection returned to run execution. */
@@ -134,6 +171,17 @@ export class UpstreamService {
     return this.persistAuthSession(session);
   }
 
+  /** Logs out one upstream account through its auth provider. */
+  public async logoutAccount(accountId: string): Promise<UpstreamAuthSessionResponse> {
+    const account = this.requireAccount(accountId);
+    const provider = this.requireProvider(account.providerType);
+    const session = await provider.logout({
+      accountId: account.id,
+      authHome: account.authHome
+    });
+    return this.persistAuthSession(session);
+  }
+
   /** Marks an auth session as canceled. */
   public cancelAuthSession(sessionId: string): UpstreamAuthSessionResponse {
     const row = this.database.db
@@ -194,10 +242,96 @@ export class UpstreamService {
       .map(toInstance);
   }
 
+  /** Updates one runnable upstream instance. */
+  public updateInstance(instanceId: string, input: UpdateUpstreamInstanceInput): UpstreamInstanceResponse {
+    this.requireInstance(instanceId);
+    const update: Partial<typeof upstreamInstances.$inferInsert> = {
+      updatedAt: Date.now()
+    };
+    if (input.name !== undefined) update.name = input.name;
+    if (input.cwd !== undefined) update.cwd = input.cwd;
+    if (input.enabled !== undefined) {
+      update.enabled = input.enabled ? 1 : 0;
+      if (!input.enabled && input.healthState === undefined) {
+        update.healthState = "disabled";
+      }
+    }
+    if (input.healthState !== undefined) update.healthState = input.healthState;
+    if (input.maxConcurrentRuns !== undefined) update.maxConcurrentRuns = input.maxConcurrentRuns;
+    if (input.sandbox !== undefined) update.sandbox = input.sandbox;
+    if (input.approvalPolicy !== undefined) update.approvalPolicy = input.approvalPolicy;
+    if (input.config !== undefined) update.configJson = stringifyJson(input.config);
+    if (input.lastError !== undefined) update.lastError = input.lastError;
+
+    this.database.db.update(upstreamInstances).set(update).where(eq(upstreamInstances.id, instanceId)).run();
+    return this.requireInstance(instanceId);
+  }
+
+  /** Disables one runnable upstream instance. */
+  public disableInstance(instanceId: string): UpstreamInstanceResponse {
+    return this.updateInstance(instanceId, { enabled: false, healthState: "disabled" });
+  }
+
+  /** Lists explicit profile-to-instance route bindings. */
+  public listRouteBindings(): UpstreamRouteBindingResponse[] {
+    return this.database.db
+      .select()
+      .from(upstreamRouteBindings)
+      .orderBy(asc(upstreamRouteBindings.createdAt))
+      .all()
+      .map(toRouteBinding);
+  }
+
+  /** Creates one explicit profile-to-instance route binding. */
+  public createRouteBinding(input: CreateUpstreamRouteBindingInput): UpstreamRouteBindingResponse {
+    const profile = this.requireProfile(input.profileId);
+    const instance = this.requireInstance(input.instanceId);
+    if (profile.type !== instance.type) {
+      throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "route profile type must match instance type", 400);
+    }
+    const now = Date.now();
+    const row = {
+      id: randomUUID(),
+      profileId: input.profileId,
+      instanceId: input.instanceId,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.database.db.insert(upstreamRouteBindings).values(row).run();
+    return toRouteBinding(row);
+  }
+
+  /** Deletes one explicit profile-to-instance route binding. */
+  public deleteRouteBinding(bindingId: string): UpstreamRouteBindingResponse {
+    const row = this.database.db
+      .select()
+      .from(upstreamRouteBindings)
+      .where(eq(upstreamRouteBindings.id, bindingId))
+      .get();
+    if (!row) {
+      throw createCli2ApiError("UPSTREAM_NOT_FOUND" as ErrorCode, `Route binding not found: ${bindingId}`, 404);
+    }
+    this.database.db.delete(upstreamRouteBindings).where(eq(upstreamRouteBindings.id, bindingId)).run();
+    return toRouteBinding(row);
+  }
+
   /** Selects and occupies an upstream instance matching a profile, if any exist. */
   public selectForProfile(profile: AdapterProfile): UpstreamSelection | null {
-    const matchingInstances = this.listInstances().filter((instance) => instance.type === profile.type && instance.enabled);
+    const routedInstanceIds = new Set(
+      this.listRouteBindings()
+        .filter((binding) => binding.profileId === profile.id)
+        .map((binding) => binding.instanceId)
+    );
+    const matchingInstances = this.listInstances().filter(
+      (instance) =>
+        instance.type === profile.type &&
+        instance.enabled &&
+        (routedInstanceIds.size === 0 || routedInstanceIds.has(instance.id))
+    );
     if (matchingInstances.length === 0) {
+      if (routedInstanceIds.size > 0) {
+        throw createCli2ApiError("UPSTREAM_UNAVAILABLE" as ErrorCode, "No available upstream instances", 503);
+      }
       return null;
     }
 
@@ -260,6 +394,30 @@ export class UpstreamService {
       .where(eq(upstreamAccounts.id, accountId))
       .get();
     return row ? toAccount(row) : null;
+  }
+
+  private requireInstance(instanceId: string): UpstreamInstanceResponse {
+    const row = this.database.db
+      .select()
+      .from(upstreamInstances)
+      .where(eq(upstreamInstances.id, instanceId))
+      .get();
+    if (!row) {
+      throw createCli2ApiError("UPSTREAM_NOT_FOUND" as ErrorCode, `Upstream instance not found: ${instanceId}`, 404);
+    }
+    return toInstance(row);
+  }
+
+  private requireProfile(profileId: string): typeof adapterProfiles.$inferSelect {
+    const row = this.database.db
+      .select()
+      .from(adapterProfiles)
+      .where(eq(adapterProfiles.id, profileId))
+      .get();
+    if (!row || row.enabled !== 1) {
+      throw createCli2ApiError(ErrorCode.PROFILE_NOT_FOUND, `Profile not found: ${profileId}`, 404);
+    }
+    return row;
   }
 
   private requireAuthSession(sessionId: string): UpstreamAuthSessionResponse {
@@ -396,6 +554,16 @@ function toInstance(row: typeof upstreamInstances.$inferSelect): UpstreamInstanc
     approvalPolicy: row.approvalPolicy as UpstreamInstanceResponse["approvalPolicy"],
     config: parseJsonObject(row.configJson, {}),
     lastError: row.lastError,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+function toRouteBinding(row: typeof upstreamRouteBindings.$inferSelect): UpstreamRouteBindingResponse {
+  return {
+    id: row.id,
+    profileId: row.profileId,
+    instanceId: row.instanceId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   };

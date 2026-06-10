@@ -113,6 +113,14 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .post("/api/admin/upstream/accounts/:id/logout", async ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(await services.upstream.logoutAccount(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .post("/api/admin/upstream/auth-sessions/:id/cancel", ({ params, request }) => {
       try {
         requireAdmin(services, request);
@@ -134,6 +142,48 @@ export function createApp(context: AppContext) {
         requireAdmin(services, request);
         const body = (await request.json()) as Parameters<typeof services.upstream.createInstance>[0];
         return jsonResponse(services.upstream.createInstance(body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .patch("/api/admin/upstream/instances/:id", async ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        const body = (await request.json()) as Parameters<typeof services.upstream.updateInstance>[1];
+        return jsonResponse(services.upstream.updateInstance(params.id, body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/upstream/instances/:id/disable", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.upstream.disableInstance(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .get("/api/admin/upstream/routes", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return services.upstream.listRouteBindings();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .post("/api/admin/upstream/routes", async ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        const body = (await request.json()) as Parameters<typeof services.upstream.createRouteBinding>[0];
+        return jsonResponse(services.upstream.createRouteBinding(body));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .delete("/api/admin/upstream/routes/:id", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.upstream.deleteRouteBinding(params.id));
       } catch (error) {
         return errorResponse(error);
       }

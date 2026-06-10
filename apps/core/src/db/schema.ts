@@ -137,6 +137,15 @@ export const upstreamInstances = sqliteTable("upstream_instances", {
   updatedAt: integer("updated_at").notNull()
 });
 
+/** Explicit binding from one public profile to one upstream instance. */
+export const upstreamRouteBindings = sqliteTable("upstream_route_bindings", {
+  id: text("id").primaryKey(),
+  profileId: text("profile_id").notNull(),
+  instanceId: text("instance_id").notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull()
+});
+
 /** Drizzle schema object used when creating typed database clients. */
 export const schema = {
   users,
@@ -148,5 +157,6 @@ export const schema = {
   usageBuckets,
   upstreamAccounts,
   upstreamAuthSessions,
-  upstreamInstances
+  upstreamInstances,
+  upstreamRouteBindings
 };
