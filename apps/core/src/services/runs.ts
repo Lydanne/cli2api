@@ -45,7 +45,8 @@ export class RunService {
       }
       throw error;
     }
-    const selection = this.upstream?.selectForProfile(profile) ?? null;
+    const selection =
+      this.upstream?.selectForProfile(profile, createSessionAffinity(key.id, profile.id, request)) ?? null;
     const runtimeProfile = selection?.profile ?? profile;
 
     const runId = randomUUID();
@@ -239,4 +240,31 @@ export class RunService {
       timestamp: now
     });
   }
+}
+
+function createSessionAffinity(
+  apiKeyId: string,
+  profileId: string,
+  request: CreateRunRequest
+): {
+  apiKeyId: string;
+  profileId: string;
+  userId: string;
+  sessionId: string;
+} {
+  return {
+    apiKeyId,
+    profileId,
+    userId: normalizeIdentity(request.user ?? request.metadata?.user),
+    sessionId: normalizeIdentity(
+      request.sessionId ??
+        request.conversationId ??
+        request.metadata?.sessionId ??
+        request.metadata?.conversationId
+    )
+  };
+}
+
+function normalizeIdentity(value: unknown): string {
+  return typeof value === "string" && value.trim() ? value.trim() : "default";
 }

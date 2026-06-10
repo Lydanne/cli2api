@@ -1,6 +1,14 @@
 import type { AgentEvent } from "@cli2api/shared";
-import { computed, inject, provide, ref, type ComputedRef, type InjectionKey, type Ref } from "vue";
+import { computed, inject, provide, ref, watch, type ComputedRef, type InjectionKey, type Ref } from "vue";
 import { ApiError, createDashboardApi, type DashboardApi } from "./api";
+import {
+  isThemeMode,
+  resolveThemeMode,
+  syncDocumentThemeClass,
+  themeModeOptions,
+  type ResolvedThemeMode,
+  type ThemeMode
+} from "./dashboard-theme";
 import { isLocale, messages, type Locale, type MessageKey } from "./i18n";
 import { summarizeOverview } from "./overview";
 import type {
@@ -11,6 +19,7 @@ import type {
   UpstreamAccountView,
   UpstreamAuthSessionView,
   UpstreamInstanceView,
+  UpstreamRunSessionView,
   UpstreamRouteBindingView,
   UsageBucketView
 } from "../types";
@@ -46,6 +55,8 @@ export interface OperationsSummary {
   availableSlots: number;
   /** Enabled profiles covered by at least one route binding. */
   routedProfiles: number;
+  /** Automatically-created upstream run sessions. */
+  activeSessions: number;
   /** Month-to-date run count. */
   monthlyRuns: number;
   /** Month-to-date token count. */
@@ -55,6 +66,8 @@ export interface OperationsSummary {
 /** Shared dashboard state and actions provided to route pages. */
 export interface DashboardState {
   locale: Ref<Locale>;
+  themeMode: Ref<ThemeMode>;
+  resolvedThemeMode: ComputedRef<ResolvedThemeMode>;
   email: Ref<string>;
   password: Ref<string>;
   loggedIn: Ref<boolean>;
@@ -67,6 +80,7 @@ export interface DashboardState {
   accounts: Ref<UpstreamAccountView[]>;
   instances: Ref<UpstreamInstanceView[]>;
   routes: Ref<UpstreamRouteBindingView[]>;
+  runSessions: Ref<UpstreamRunSessionView[]>;
   newProfileId: Ref<string>;
   newProfileName: Ref<string>;
   newProfileModel: Ref<string>;
@@ -97,6 +111,7 @@ export interface DashboardState {
   profileOptions: ComputedRef<SelectOption[]>;
   accountOptions: ComputedRef<SelectOption[]>;
   instanceOptions: ComputedRef<SelectOption[]>;
+  themeOptions: ComputedRef<Array<SelectOption & { value: ThemeMode }>>;
   profileTypeOptions: SelectOption[];
   instanceTypeOptions: SelectOption[];
   summary: ComputedRef<OperationsSummary>;
@@ -105,6 +120,7 @@ export interface DashboardState {
   text: (key: MessageKey) => string;
   statusLabel: (value: boolean | number | string | null | undefined) => string;
   setLocale: (value: Locale) => void;
+  setThemeMode: (value: ThemeMode) => void;
   login: () => Promise<boolean>;
   refresh: (options?: { silent?: boolean }) => Promise<boolean>;
   createProfile: () => Promise<boolean>;
@@ -123,6 +139,7 @@ export interface DashboardState {
   disableInstance: (instance: UpstreamInstanceView) => Promise<boolean>;
   createRoute: () => Promise<boolean>;
   deleteRoute: (route: UpstreamRouteBindingView) => Promise<boolean>;
+  deleteRunSession: (session: UpstreamRunSessionView) => Promise<boolean>;
   deleteProfile: (profile: AdapterProfileView) => Promise<boolean>;
   deleteKey: (key: ApiKeyView) => Promise<boolean>;
   deleteAccount: (account: UpstreamAccountView) => Promise<boolean>;
@@ -141,6 +158,8 @@ const dashboardStateKey: InjectionKey<DashboardState> = Symbol("dashboard-state"
 /** Creates the shared dashboard state object. */
 export function createDashboardState(client: DashboardApi = createDashboardApi()): DashboardState {
   const locale = ref<Locale>(readInitialLocale());
+  const themeMode = ref<ThemeMode>(readInitialThemeMode());
+  const systemPrefersDark = ref(readSystemPrefersDark());
   const email = ref("admin@example.com");
   const password = ref("password");
   const loggedIn = ref(false);
@@ -153,6 +172,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
   const accounts = ref<UpstreamAccountView[]>([]);
   const instances = ref<UpstreamInstanceView[]>([]);
   const routes = ref<UpstreamRouteBindingView[]>([]);
+  const runSessions = ref<UpstreamRunSessionView[]>([]);
   const newProfileId = ref("mock-default");
   const newProfileName = ref("");
   const newProfileModel = ref("");
@@ -196,6 +216,10 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
   const instanceOptions = computed(() =>
     instances.value.map((instance) => ({ label: `${instance.name} · ${instance.id}`, value: instance.id }))
   );
+  const themeOptions = computed<Array<SelectOption & { value: ThemeMode }>>(() =>
+    themeModeOptions.map((option) => ({ label: text(themeModeLabelKey(option.value)), value: option.value }))
+  );
+  const resolvedThemeMode = computed(() => resolveThemeMode(themeMode.value, systemPrefersDark.value));
   const monthlyUsageByKey = computed(() => {
     const buckets = new Map<string, UsageBucketView>();
     for (const bucket of usage.value) {
@@ -228,6 +252,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
         0
       ),
       routedProfiles: profiles.value.filter((profile) => profile.enabled && routedProfileIds.has(profile.id)).length,
+      activeSessions: runSessions.value.length,
       monthlyRuns: monthlyBuckets.reduce((total, bucket) => total + bucket.runCount, 0),
       monthlyTokens: monthlyBuckets.reduce((total, bucket) => total + bucket.totalTokens, 0)
     };
@@ -256,6 +281,14 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     window.localStorage.setItem("cli2api.locale", value);
   }
 
+  function setThemeMode(value: ThemeMode): void {
+    themeMode.value = value;
+    window.localStorage.setItem("cli2api.theme", value);
+  }
+
+  bindSystemThemePreference(systemPrefersDark);
+  bindDocumentThemeClass(resolvedThemeMode);
+
   async function login(): Promise<boolean> {
     return action(async () => {
       await client.login({ email: email.value, password: password.value });
@@ -266,7 +299,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
 
   async function refresh(options: { silent?: boolean } = {}): Promise<boolean> {
     return action(async () => {
-      const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows, routeRows] = await Promise.all([
+      const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows, routeRows, sessionRows] = await Promise.all([
         client.users(),
         client.profiles(),
         client.apiKeys(),
@@ -274,7 +307,8 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
         client.usage(),
         client.upstreamAccounts(),
         client.upstreamInstances(),
-        client.upstreamRoutes()
+        client.upstreamRoutes(),
+        client.upstreamRunSessions()
       ]);
       users.value = userRows;
       profiles.value = profileRows;
@@ -284,6 +318,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
       accounts.value = accountRows;
       instances.value = instanceRows;
       routes.value = routeRows;
+      runSessions.value = sessionRows;
       selectedProfile.value = selectedProfile.value || profiles.value[0]?.id || "";
       selectedAccountId.value = selectedAccountId.value || accounts.value[0]?.id || "";
       selectedRouteProfile.value = selectedRouteProfile.value || profiles.value[0]?.id || "";
@@ -442,6 +477,13 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     });
   }
 
+  async function deleteRunSession(session: UpstreamRunSessionView): Promise<boolean> {
+    return action(async () => {
+      await client.deleteUpstreamRunSession(session.id);
+      await refresh();
+    });
+  }
+
   async function deleteProfile(profile: AdapterProfileView): Promise<boolean> {
     return action(async () => {
       await client.deleteProfile(profile.id);
@@ -530,6 +572,8 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
 
   return {
     locale,
+    themeMode,
+    resolvedThemeMode,
     email,
     password,
     loggedIn,
@@ -542,6 +586,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     accounts,
     instances,
     routes,
+    runSessions,
     newProfileId,
     newProfileName,
     newProfileModel,
@@ -572,6 +617,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     profileOptions,
     accountOptions,
     instanceOptions,
+    themeOptions,
     profileTypeOptions,
     instanceTypeOptions,
     summary,
@@ -580,6 +626,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     text,
     statusLabel,
     setLocale,
+    setThemeMode,
     login,
     refresh,
     createProfile,
@@ -598,6 +645,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     disableInstance,
     createRoute,
     deleteRoute,
+    deleteRunSession,
     deleteProfile,
     deleteKey,
     deleteAccount,
@@ -632,4 +680,40 @@ function readInitialLocale(): Locale {
   }
   const stored = window.localStorage.getItem("cli2api.locale");
   return stored && isLocale(stored) ? stored : "zh-CN";
+}
+
+function readInitialThemeMode(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "system";
+  }
+  const stored = window.localStorage.getItem("cli2api.theme");
+  return stored && isThemeMode(stored) ? stored : "system";
+}
+
+function readSystemPrefersDark(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches === true;
+}
+
+function bindSystemThemePreference(systemPrefersDark: Ref<boolean>): void {
+  if (typeof window === "undefined" || !window.matchMedia) {
+    return;
+  }
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  systemPrefersDark.value = media.matches;
+  media.addEventListener?.("change", (event) => {
+    systemPrefersDark.value = event.matches;
+  });
+}
+
+function bindDocumentThemeClass(resolvedThemeMode: ComputedRef<ResolvedThemeMode>): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  watch(resolvedThemeMode, (mode) => syncDocumentThemeClass(document.documentElement, mode), { flush: "sync", immediate: true });
+}
+
+function themeModeLabelKey(mode: ThemeMode): MessageKey {
+  if (mode === "dark") return "themeDark";
+  if (mode === "light") return "themeLight";
+  return "themeSystem";
 }

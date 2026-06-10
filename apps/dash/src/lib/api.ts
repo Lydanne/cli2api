@@ -9,6 +9,7 @@ import type {
   UpstreamAccountView,
   UpstreamAuthSessionView,
   UpstreamInstanceView,
+  UpstreamRunSessionView,
   UpstreamRouteBindingView,
   UsageBucketView
 } from "../types";
@@ -270,6 +271,10 @@ export interface DashboardApi {
   createUpstreamRoute(input: CreateUpstreamRouteInput): Promise<UpstreamRouteBindingView>;
   /** Deletes an explicit upstream route binding. */
   deleteUpstreamRoute(routeId: string): Promise<UpstreamRouteBindingView>;
+  /** Lists automatically-created upstream run sessions. */
+  upstreamRunSessions(): Promise<UpstreamRunSessionView[]>;
+  /** Resets one automatically-created upstream run session. */
+  deleteUpstreamRunSession(sessionId: string): Promise<UpstreamRunSessionView>;
 }
 
 interface TreatyResult<T> {
@@ -368,6 +373,13 @@ interface AdminUpstreamRoutesClient {
   };
 }
 
+interface AdminUpstreamRunSessionsClient {
+  get(): Promise<TreatyResult<UpstreamRunSessionView[]>>;
+  (params: { id: string }): {
+    delete(): Promise<TreatyResult<UpstreamRunSessionView>>;
+  };
+}
+
 const defaultTreatyFactory: TreatyFactory = (baseUrl, config) => treaty<App>(baseUrl, config);
 
 /** Creates a dashboard API facade backed by Elysia Eden Treaty. */
@@ -424,7 +436,10 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
     upstreamRoutes: () => unwrap<UpstreamRouteBindingView[]>(upstreamRoutesClient(client).get()),
     createUpstreamRoute: (input) => unwrap<UpstreamRouteBindingView>(upstreamRoutesClient(client).post(input)),
     deleteUpstreamRoute: (routeId) =>
-      unwrap<UpstreamRouteBindingView>(upstreamRoutesClient(client)({ id: routeId }).delete())
+      unwrap<UpstreamRouteBindingView>(upstreamRoutesClient(client)({ id: routeId }).delete()),
+    upstreamRunSessions: () => unwrap<UpstreamRunSessionView[]>(upstreamRunSessionsClient(client).get()),
+    deleteUpstreamRunSession: (sessionId) =>
+      unwrap<UpstreamRunSessionView>(upstreamRunSessionsClient(client)({ id: sessionId }).delete())
   };
 }
 
@@ -446,6 +461,10 @@ function upstreamInstancesClient(client: DashboardTreaty): AdminUpstreamInstance
 
 function upstreamRoutesClient(client: DashboardTreaty): AdminUpstreamRoutesClient {
   return client.api.admin.upstream.routes as unknown as AdminUpstreamRoutesClient;
+}
+
+function upstreamRunSessionsClient(client: DashboardTreaty): AdminUpstreamRunSessionsClient {
+  return client.api.admin.upstream["run-sessions"] as unknown as AdminUpstreamRunSessionsClient;
 }
 
 async function unwrap<T>(responsePromise: Promise<TreatyResult<T>>): Promise<T> {

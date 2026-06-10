@@ -482,6 +482,229 @@ describe("@cli2api/core upstream account pool", () => {
     ]);
   });
 
+  it("auto-creates run sessions and reuses the preferred instance per user session", async () => {
+    await createAuthenticatedAccount("acct-session-a");
+    await createAuthenticatedAccount("acct-session-b");
+    await createInstance("inst-session-a", "acct-session-a", { maxConcurrentRuns: 2 });
+    await createInstance("inst-session-b", "acct-session-b", { maxConcurrentRuns: 2 });
+    const profile = await createProfile("mock-session-affinity");
+    const key = await createApiKey("session-key");
+
+    const firstRun = await createRun(key.token, {
+      prompt: "first session run",
+      profileId: profile.id,
+      user: "learner-1",
+      metadata: { sessionId: "chat-a" }
+    });
+    const secondRun = await createRun(key.token, {
+      prompt: "second session run",
+      profileId: profile.id,
+      user: "learner-1",
+      metadata: { sessionId: "chat-a" }
+    });
+
+    expect(secondRun.upstreamInstanceId).toBe(firstRun.upstreamInstanceId);
+
+    await createRun(key.token, {
+      prompt: "same user different session",
+      profileId: profile.id,
+      user: "learner-1",
+      metadata: { sessionId: "chat-b" }
+    });
+
+    const listResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/run-sessions", {
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(listResponse.status).toBe(200);
+    const sessions = (await listResponse.json()) as Array<{
+      id: string;
+      profileId: string;
+      userId: string;
+      sessionId: string;
+      upstreamInstanceId: string;
+      runCount: number;
+    }>;
+    expect(sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          profileId: profile.id,
+          userId: "learner-1",
+          sessionId: "chat-a",
+          upstreamInstanceId: firstRun.upstreamInstanceId,
+          runCount: 2
+        }),
+        expect.objectContaining({
+          profileId: profile.id,
+          userId: "learner-1",
+          sessionId: "chat-b",
+          runCount: 1
+        })
+      ])
+    );
+
+    const chatASession = sessions.find((session) => session.sessionId === "chat-a");
+    expect(chatASession).toBeTruthy();
+    const deleteResponse = await harness.app.handle(
+      new Request(`http://localhost/api/admin/upstream/run-sessions/${String(chatASession?.id)}`, {
+        method: "DELETE",
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(deleteResponse.status).toBe(200);
+
+    await createRun(key.token, {
+      prompt: "recreated session run",
+      profileId: profile.id,
+      user: "learner-1",
+      metadata: { sessionId: "chat-a" }
+    });
+    const recreatedSessionsResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/run-sessions", {
+        headers: { cookie: harness.cookie }
+      })
+    );
+    const recreatedSessions = (await recreatedSessionsResponse.json()) as Array<{ sessionId: string; runCount: number }>;
+    expect(recreatedSessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sessionId: "chat-a",
+          runCount: 1
+        })
+      ])
+    );
+  });
+
+  it("uses OpenAI-compatible user and metadata conversation id for session affinity", async () => {
+    await createAuthenticatedAccount("acct-openai-session");
+    await createInstance("inst-openai-session", "acct-openai-session", { maxConcurrentRuns: 2 });
+    const profile = await createProfile("mock-openai-session");
+    const key = await createApiKey("openai-session-key");
+
+    const response = await harness.app.handle(
+      new Request("http://localhost/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          model: profile.id,
+          user: "learner-openai",
+          metadata: { conversationId: "conversation-openai" },
+          messages: [{ role: "user", content: "hello session" }]
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const listResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/run-sessions", {
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(await listResponse.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          profileId: profile.id,
+          userId: "learner-openai",
+          sessionId: "conversation-openai",
+          upstreamInstanceId: "inst-openai-session",
+          runCount: 1
+        })
+      ])
+    );
+  });
+
+  it("rebinds a session when the pinned upstream instance becomes unhealthy", async () => {
+    await createAuthenticatedAccount("acct-rebind-a");
+    await createAuthenticatedAccount("acct-rebind-b");
+    await createInstance("inst-rebind-a", "acct-rebind-a", { maxConcurrentRuns: 1 });
+    await createInstance("inst-rebind-b", "acct-rebind-b", { maxConcurrentRuns: 1 });
+    const profile = await createProfile("mock-session-rebind");
+    const key = await createApiKey("rebind-key");
+
+    const firstRun = await createRun(key.token, {
+      prompt: "create pinned session",
+      profileId: profile.id,
+      user: "learner-rebind",
+      metadata: { sessionId: "chat-rebind" }
+    });
+    expect(firstRun.upstreamInstanceId).toBeTruthy();
+    harness.database.sqlite
+      .prepare("UPDATE upstream_instances SET health_state = 'degraded' WHERE id = ?")
+      .run(firstRun.upstreamInstanceId);
+
+    const reboundRun = await createRun(key.token, {
+      prompt: "rebound session",
+      profileId: profile.id,
+      user: "learner-rebind",
+      metadata: { sessionId: "chat-rebind" }
+    });
+
+    expect(reboundRun.upstreamInstanceId).not.toBe(firstRun.upstreamInstanceId);
+    const sessionsResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/run-sessions", {
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(await sessionsResponse.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "learner-rebind",
+          sessionId: "chat-rebind",
+          upstreamInstanceId: reboundRun.upstreamInstanceId,
+          runCount: 2
+        })
+      ])
+    );
+  });
+
+  it("temporarily overflows a full pinned session without moving the pin", async () => {
+    await createAuthenticatedAccount("acct-overflow-a");
+    await createAuthenticatedAccount("acct-overflow-b");
+    await createInstance("inst-overflow-a", "acct-overflow-a", { maxConcurrentRuns: 1 });
+    await createInstance("inst-overflow-b", "acct-overflow-b", { maxConcurrentRuns: 1 });
+    const profile = await createProfile("mock-session-overflow");
+    const key = await createApiKey("overflow-key");
+
+    const firstRun = await createRun(key.token, {
+      prompt: "create overflow pin",
+      profileId: profile.id,
+      user: "learner-overflow",
+      metadata: { sessionId: "chat-overflow" }
+    });
+    expect(firstRun.upstreamInstanceId).toBeTruthy();
+    harness.database.sqlite
+      .prepare("UPDATE upstream_instances SET current_runs = max_concurrent_runs WHERE id = ?")
+      .run(firstRun.upstreamInstanceId);
+
+    const overflowRun = await createRun(key.token, {
+      prompt: "overflow pinned session",
+      profileId: profile.id,
+      user: "learner-overflow",
+      metadata: { sessionId: "chat-overflow" }
+    });
+
+    expect(overflowRun.upstreamInstanceId).not.toBe(firstRun.upstreamInstanceId);
+    const sessionsResponse = await harness.app.handle(
+      new Request("http://localhost/api/admin/upstream/run-sessions", {
+        headers: { cookie: harness.cookie }
+      })
+    );
+    expect(await sessionsResponse.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "learner-overflow",
+          sessionId: "chat-overflow",
+          upstreamInstanceId: firstRun.upstreamInstanceId,
+          runCount: 2
+        })
+      ])
+    );
+  });
+
   it("ignores instance workspace and policy override attempts", async () => {
     await createAuthenticatedAccount("acct-policy-override");
     const instance = await createInstance("inst-policy-override", "acct-policy-override", { maxConcurrentRuns: 1 });
@@ -710,5 +933,28 @@ describe("@cli2api/core upstream account pool", () => {
     );
     expect(response.status).toBe(200);
     return (await response.json()) as { token: string };
+  }
+
+  async function createRun(
+    token: string,
+    body: {
+      prompt: string;
+      profileId: string;
+      user?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<{ upstreamInstanceId: string | null }> {
+    const response = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(body)
+      })
+    );
+    expect(response.status).toBe(200);
+    return (await response.json()) as { upstreamInstanceId: string | null };
   }
 });

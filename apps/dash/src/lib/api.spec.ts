@@ -148,6 +148,14 @@ describe("dashboard Eden API facade", () => {
         post: vi.fn(async () => treatyResponse({ id: "route-1", profileId: "profile-1", instanceId: "instance-1" }))
       }
     );
+    const runSessionsClient = Object.assign(
+      vi.fn(() => ({
+        delete: vi.fn(async () => treatyResponse({ id: "session-1", userId: "learner-1" }))
+      })),
+      {
+        get: vi.fn(async () => treatyResponse([{ id: "session-1", userId: "learner-1", sessionId: "chat-a" }]))
+      }
+    );
     const fakeClient = {
       api: {
         admin: {
@@ -155,7 +163,8 @@ describe("dashboard Eden API facade", () => {
             accounts: accountClient,
             "auth-sessions": sessionClient,
             instances: instancesClient,
-            routes: routesClient
+            routes: routesClient,
+            "run-sessions": runSessionsClient
           }
         }
       }
@@ -194,6 +203,8 @@ describe("dashboard Eden API facade", () => {
       id: "route-1"
     });
     await expect(api.deleteUpstreamRoute("route-1")).resolves.toMatchObject({ id: "route-1" });
+    await expect(api.upstreamRunSessions()).resolves.toEqual([{ id: "session-1", userId: "learner-1", sessionId: "chat-a" }]);
+    await expect(api.deleteUpstreamRunSession("session-1")).resolves.toMatchObject({ id: "session-1" });
   });
 
   it("creates and deletes admin users and profiles through the facade", async () => {

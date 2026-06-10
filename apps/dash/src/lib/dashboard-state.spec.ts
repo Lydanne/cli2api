@@ -23,6 +23,7 @@ import type {
   UpstreamAccountView,
   UpstreamAuthSessionView,
   UpstreamInstanceView,
+  UpstreamRunSessionView,
   UpstreamRouteBindingView,
   UsageBucketView
 } from "../types";
@@ -37,6 +38,7 @@ interface FakeResources {
   accounts: UpstreamAccountView[];
   instances: UpstreamInstanceView[];
   routes: UpstreamRouteBindingView[];
+  runSessions: UpstreamRunSessionView[];
   events: AgentEvent[];
 }
 
@@ -63,6 +65,7 @@ describe("dashboard state", () => {
       monthlyRuns: 2,
       monthlyTokens: 30,
       routedProfiles: 1,
+      activeSessions: 1,
       runningRuns: 1
     });
     expect(state.profileOptions.value[0]?.label).toContain("mock-main");
@@ -123,8 +126,11 @@ describe("dashboard state", () => {
     state.prompt.value = "hello";
     await expect(state.createRun()).resolves.toBe(true);
     expect(resources.runs[0]).toMatchObject({ prompt: "hello", status: "completed" });
+    expect(resources.runSessions).toHaveLength(1);
     await expect(state.loadRunEvents(resources.runs[0] as RunView)).resolves.toBe(true);
     expect(state.formattedRunEvents.value).toContain("run.completed");
+    await expect(state.deleteRunSession(resources.runSessions[0] as UpstreamRunSessionView)).resolves.toBe(true);
+    expect(resources.runSessions).toHaveLength(0);
 
     await expect(state.revokeKey(resources.keys[0] as ApiKeyView)).resolves.toBe(true);
     expect(resources.keys[0]?.enabled).toBe(0);
@@ -182,11 +188,16 @@ describe("dashboard state", () => {
 
   it("handles locale persistence and action errors", async () => {
     const localStorage = new Map<string, string>();
+    const toggle = vi.fn();
     vi.stubGlobal("window", {
       localStorage: {
         getItem: (key: string) => localStorage.get(key) ?? null,
         setItem: (key: string, value: string) => localStorage.set(key, value)
-      }
+      },
+      matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    });
+    vi.stubGlobal("document", {
+      documentElement: { classList: { toggle } }
     });
     const { api } = createFakeApi();
     const state = createDashboardState(api);
@@ -196,6 +207,13 @@ describe("dashboard state", () => {
     state.setLocale("en-US");
     expect(localStorage.get("cli2api.locale")).toBe("en-US");
     expect(state.text("overview")).toBe("Overview");
+    expect(state.themeMode.value).toBe("system");
+    expect(state.resolvedThemeMode.value).toBe("light");
+    state.setThemeMode("dark");
+    expect(localStorage.get("cli2api.theme")).toBe("dark");
+    expect(toggle).toHaveBeenLastCalledWith("dark", true);
+    state.setThemeMode("light");
+    expect(toggle).toHaveBeenLastCalledWith("dark", false);
     expect(state.enabledText(0)).toBe("Disabled");
     expect(state.statusLabel(false)).toBe("Disabled");
     expect(state.statusLabel("custom-state")).toBe("custom-state");
@@ -228,6 +246,7 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
     accounts: [],
     instances: [],
     routes: [],
+    runSessions: [],
     events: [{ type: "run.completed", runId: "run-1", output: "ok" }]
   };
 
@@ -316,6 +335,18 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
         upstreamInstanceId: resources.instances[0]?.id ?? null
       };
       resources.runs.push(run);
+      resources.runSessions.push({
+        id: `session-${resources.runSessions.length + 1}`,
+        apiKeyId: "key-1",
+        profileId: input.profileId,
+        userId: "default",
+        sessionId: "default",
+        upstreamInstanceId: resources.instances[0]?.id ?? "inst-1",
+        runCount: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        lastUsedAt: 1
+      });
       return run;
     }),
     runEvents: vi.fn(async () => resources.events),
@@ -370,6 +401,8 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
     }),
     deleteUpstreamInstance: vi.fn(async (instanceId: string) => removeById(resources.instances, instanceId)),
     upstreamRoutes: vi.fn(async () => resources.routes),
+    upstreamRunSessions: vi.fn(async () => resources.runSessions),
+    deleteUpstreamRunSession: vi.fn(async (sessionId: string) => removeById(resources.runSessions, sessionId)),
     createUpstreamRoute: vi.fn(async (input: CreateUpstreamRouteInput) => {
       const route = {
         id: `route-${resources.routes.length + 1}`,
@@ -457,6 +490,18 @@ function seedResources(resources: FakeResources): void {
   resources.instances[0].currentRuns = 1;
   resources.instances[0].healthState = "healthy";
   resources.routes.push({ id: "route-1", profileId: "mock-main", instanceId: "inst-1", createdAt: 1, updatedAt: 1 });
+  resources.runSessions.push({
+    id: "session-1",
+    apiKeyId: "key-1",
+    profileId: "mock-main",
+    userId: "learner-1",
+    sessionId: "chat-a",
+    upstreamInstanceId: "inst-1",
+    runCount: 2,
+    createdAt: 1,
+    updatedAt: 1,
+    lastUsedAt: 1
+  });
 }
 
 function createAccount(id: string, name: string, authState: UpstreamAccountView["authState"]): UpstreamAccountView {

@@ -2,6 +2,7 @@ import type {
   UpstreamAccountResponse,
   UpstreamAuthSessionResponse,
   UpstreamInstanceResponse,
+  UpstreamRunSessionResponse,
   UpstreamRouteBindingResponse
 } from "@cli2api/shared";
 
@@ -104,3 +105,6 @@ export type UpstreamInstanceView = UpstreamInstanceResponse;
 
 /** Upstream route binding displayed in the dashboard. */
 export type UpstreamRouteBindingView = UpstreamRouteBindingResponse;
+
+/** Automatically-created upstream run session displayed in the dashboard. */
+export type UpstreamRunSessionView = UpstreamRunSessionResponse;

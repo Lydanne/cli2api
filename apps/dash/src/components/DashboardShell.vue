@@ -12,16 +12,18 @@ import {
 } from "lucide-vue-next";
 import Button from "primevue/button";
 import Message from "primevue/message";
+import Select from "primevue/select";
 import Toolbar from "primevue/toolbar";
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { localeOptions, type Locale } from "../lib/i18n";
 import { useDashboardState } from "../lib/dashboard-state";
+import type { ThemeMode } from "../lib/dashboard-theme";
 import { dashboardTabRoutes, type DashboardRouteName } from "../router";
 
 const route = useRoute();
 const router = useRouter();
-const { error, locale, refresh, setLocale, text, summary } = useDashboardState();
+const { error, locale, refresh, setLocale, setThemeMode, text, themeMode, themeOptions, summary } = useDashboardState();
 
 const navItems = computed(
   () =>
@@ -30,7 +32,7 @@ const navItems = computed(
       ["runs", Play, text("runs")],
       ["keys", KeyRound, text("keys")],
       ["profiles", Server, text("profiles")],
-      ["routeBindings", GitBranch, text("routeBindings")],
+      ["sessions", GitBranch, text("sessions")],
       ["accounts", Globe2, text("accounts")],
       ["instances", Database, text("instances")],
       ["users", Users, text("users")]
@@ -49,14 +51,14 @@ function isDashboardRouteName(value: unknown): value is DashboardRouteName {
 </script>
 
 <template>
-  <section class="grid min-h-screen grid-cols-1 lg:grid-cols-[248px_1fr]">
-    <aside class="border-b border-slate-200 bg-white px-4 py-4 lg:border-b-0 lg:border-r">
+  <section class="app-shell grid grid-cols-1 lg:grid-cols-[248px_1fr]">
+    <aside class="app-sidebar border-b px-4 py-4 lg:border-b-0 lg:border-r">
       <div class="flex items-center justify-between gap-3 lg:block">
         <div class="px-1">
           <h1 class="text-xl font-semibold tracking-normal">cli2api</h1>
-          <p class="mt-1 text-xs text-slate-500">{{ text("subtitle") }}</p>
+          <p class="app-muted mt-1 text-xs">{{ text("subtitle") }}</p>
         </div>
-        <div class="hidden rounded border border-slate-200 px-2 py-1 text-xs text-slate-500 sm:block lg:mt-4">
+        <div class="app-shell-badge hidden rounded px-2 py-1 text-xs sm:block lg:mt-4">
           {{ text("availableSlots") }} {{ summary.availableSlots }}
         </div>
       </div>
@@ -66,7 +68,7 @@ function isDashboardRouteName(value: unknown): value is DashboardRouteName {
           v-for="item in navItems"
           :key="item[0]"
           class="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition"
-          :class="selectedRoute === item[0] ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'"
+          :class="selectedRoute === item[0] ? 'app-nav-button-active' : 'app-nav-button'"
           :data-testid="`nav-${item[0]}`"
           type="button"
           @click="navigate(item[0])"
@@ -77,31 +79,40 @@ function isDashboardRouteName(value: unknown): value is DashboardRouteName {
       </nav>
     </aside>
 
-    <section class="min-w-0 p-4 sm:p-6">
-      <Toolbar class="mb-5 border border-slate-200 bg-white shadow-sm">
+    <section class="app-content min-w-0 p-4 sm:p-6">
+      <Toolbar class="app-toolbar mb-5">
         <template #start>
           <div>
             <h2 class="text-2xl font-semibold tracking-normal">{{ currentTitle }}</h2>
-            <p class="text-sm text-slate-500">
+            <p class="app-muted text-sm">
               {{ text("downstreamKeys") }} {{ summary.activeApiKeys }} /
               {{ text("accountPoolHealth") }} {{ summary.authenticatedAccounts }} /
-              {{ text("activeRoutes") }} {{ summary.routedProfiles }}
+              {{ text("activeSessions") }} {{ summary.activeSessions }}
             </p>
           </div>
         </template>
         <template #end>
-          <div class="flex items-center gap-2">
-            <select
-              :value="locale"
-              class="min-h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <Select
+              :modelValue="locale"
+              class="app-control-select w-32 text-sm"
               data-testid="locale-switch"
+              optionLabel="label"
+              optionValue="value"
+              :options="localeOptions"
               :aria-label="text('language')"
-              @change="setLocale(($event.target as HTMLSelectElement).value as Locale)"
-            >
-              <option v-for="option in localeOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
+              @update:modelValue="setLocale($event as Locale)"
+            />
+            <Select
+              :modelValue="themeMode"
+              class="app-control-select w-36 text-sm"
+              data-testid="theme-switch"
+              optionLabel="label"
+              optionValue="value"
+              :options="themeOptions"
+              :aria-label="text('theme')"
+              @update:modelValue="setThemeMode($event as ThemeMode)"
+            />
             <Button outlined size="small" @click="refresh()">
               <RefreshCw :size="15" />
               <span class="ml-2">{{ text("refresh") }}</span>

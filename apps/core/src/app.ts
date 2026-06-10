@@ -238,6 +238,22 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .get("/api/admin/upstream/run-sessions", ({ request }) => {
+      try {
+        requireAdmin(services, request);
+        return services.upstream.listRunSessions();
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
+    .delete("/api/admin/upstream/run-sessions/:id", ({ params, request }) => {
+      try {
+        requireAdmin(services, request);
+        return jsonResponse(services.upstream.deleteRunSession(params.id));
+      } catch (error) {
+        return errorResponse(error);
+      }
+    })
     .get("/api/admin/api-keys", ({ request }) => {
       try {
         requireAdmin(services, request);
@@ -315,11 +331,21 @@ export function createApp(context: AppContext) {
     .post("/api/runs", async ({ request }) => {
       try {
         const key = requireApiKey(services, request);
-        const body = (await request.json()) as { prompt?: string; profileId?: string; metadata?: Record<string, unknown> };
+        const body = (await request.json()) as {
+          prompt?: string;
+          profileId?: string;
+          user?: string;
+          sessionId?: string;
+          conversationId?: string;
+          metadata?: Record<string, unknown>;
+        };
         return jsonResponse(
           await services.runs.createAndExecute(key, {
             prompt: String(body.prompt ?? ""),
             profileId: body.profileId,
+            user: body.user,
+            sessionId: body.sessionId,
+            conversationId: body.conversationId,
             metadata: body.metadata
           })
         );
@@ -358,10 +384,22 @@ export function createApp(context: AppContext) {
     .post("/v1/responses", async ({ request }) => {
       try {
         const key = requireApiKey(services, request);
-        const body = (await request.json()) as { model?: string; input?: unknown; stream?: boolean };
+        const body = (await request.json()) as {
+          model?: string;
+          input?: unknown;
+          stream?: boolean;
+          user?: string;
+          sessionId?: string;
+          conversationId?: string;
+          metadata?: Record<string, unknown>;
+        };
         const run = await services.runs.createAndExecute(key, {
           prompt: responsesPrompt(body.input),
-          profileId: body.model
+          profileId: body.model,
+          user: body.user,
+          sessionId: body.sessionId,
+          conversationId: body.conversationId,
+          metadata: body.metadata
         });
         return body.stream ? sseResponse([{ type: "response.output_text.delta", delta: run.output ?? "" }]) : toResponsesPayload(run);
       } catch (error) {
@@ -371,10 +409,22 @@ export function createApp(context: AppContext) {
     .post("/v1/chat/completions", async ({ request }) => {
       try {
         const key = requireApiKey(services, request);
-        const body = (await request.json()) as { model?: string; messages?: unknown; stream?: boolean };
+        const body = (await request.json()) as {
+          model?: string;
+          messages?: unknown;
+          stream?: boolean;
+          user?: string;
+          sessionId?: string;
+          conversationId?: string;
+          metadata?: Record<string, unknown>;
+        };
         const run = await services.runs.createAndExecute(key, {
           prompt: chatPrompt(body.messages),
-          profileId: body.model
+          profileId: body.model,
+          user: body.user,
+          sessionId: body.sessionId,
+          conversationId: body.conversationId,
+          metadata: body.metadata
         });
         return body.stream ? sseResponse([{ choices: [{ delta: { content: run.output ?? "" } }] }]) : toChatPayload(run);
       } catch (error) {

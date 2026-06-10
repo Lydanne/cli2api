@@ -6,7 +6,7 @@ export const dashboardTabRoutes = {
   runs: "/runs",
   keys: "/api-keys",
   profiles: "/profiles",
-  routeBindings: "/route-bindings",
+  sessions: "/sessions",
   accounts: "/upstream-accounts",
   instances: "/instances",
   users: "/users"
@@ -20,7 +20,7 @@ const routeComponents: Record<DashboardRouteName, NonNullable<RouteRecordRaw["co
   runs: () => import("./pages/RunsPage.vue"),
   keys: () => import("./pages/ApiKeysPage.vue"),
   profiles: () => import("./pages/ProfilesPage.vue"),
-  routeBindings: () => import("./pages/RouteBindingsPage.vue"),
+  sessions: () => import("./pages/SessionsPage.vue"),
   accounts: () => import("./pages/AccountsPage.vue"),
   instances: () => import("./pages/InstancesPage.vue"),
   users: () => import("./pages/UsersPage.vue")
@@ -28,6 +28,7 @@ const routeComponents: Record<DashboardRouteName, NonNullable<RouteRecordRaw["co
 
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: dashboardTabRoutes.overview },
+  { path: "/route-bindings", redirect: dashboardTabRoutes.sessions },
   ...Object.entries(dashboardTabRoutes).map(([name, path]) => ({
     path,
     name,

@@ -7,8 +7,9 @@ describe("dashboard router", () => {
   it("defines dashboard pages for Vue Router navigation", () => {
     const router = createDashboardRouter(createMemoryHistory());
 
-    expect(dashboardTabRoutes.routeBindings).toBe("/route-bindings");
-    expect(router.resolve({ name: "routeBindings" }).href).toBe("/route-bindings");
+    expect(dashboardTabRoutes.sessions).toBe("/sessions");
+    expect(router.resolve({ name: "sessions" }).href).toBe("/sessions");
+    expect(router.resolve("/route-bindings").matched[0]?.redirect).toBe("/sessions");
     expect(router.resolve({ name: "accounts" }).href).toBe("/upstream-accounts");
   });
 

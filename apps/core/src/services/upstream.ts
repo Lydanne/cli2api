@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { AgentAuthProvider, AuthSession } from "@cli2api/agents-sdk";
@@ -13,7 +13,8 @@ import {
   type UpstreamAuthState,
   type UpstreamHealthState,
   type UpstreamInstanceResponse,
-  type UpstreamRouteBindingResponse
+  type UpstreamRouteBindingResponse,
+  type UpstreamRunSessionResponse
 } from "@cli2api/shared";
 import { asc, eq } from "drizzle-orm";
 import type { CoreDatabase } from "../db/client.js";
@@ -22,6 +23,7 @@ import {
   upstreamAccounts,
   upstreamAuthSessions,
   upstreamInstances,
+  upstreamRunSessions,
   upstreamRouteBindings,
   runs
 } from "../db/schema.js";
@@ -107,6 +109,23 @@ export interface UpstreamSelection {
   instanceId: string;
   /** Adapter profile with instance-owned runtime settings applied. */
   profile: AdapterProfile;
+}
+
+/** Normalized downstream session identity used for upstream instance affinity. */
+export interface UpstreamSessionAffinityInput {
+  /** Downstream API key id. */
+  apiKeyId: string;
+  /** Public profile id. */
+  profileId: string;
+  /** Normalized downstream user id. */
+  userId: string;
+  /** Normalized downstream session id. */
+  sessionId: string;
+}
+
+interface UpstreamCandidate {
+  instance: UpstreamInstanceResponse;
+  account: UpstreamAccountResponse;
 }
 
 /** Service that manages upstream accounts, auth sessions, and runnable instances. */
@@ -329,6 +348,30 @@ export class UpstreamService {
       .map(toRouteBinding);
   }
 
+  /** Lists automatically-created upstream run sessions. */
+  public listRunSessions(): UpstreamRunSessionResponse[] {
+    return this.database.db
+      .select()
+      .from(upstreamRunSessions)
+      .orderBy(asc(upstreamRunSessions.lastUsedAt))
+      .all()
+      .map(toRunSession);
+  }
+
+  /** Deletes one automatic run session affinity record. */
+  public deleteRunSession(sessionId: string): UpstreamRunSessionResponse {
+    const row = this.database.db
+      .select()
+      .from(upstreamRunSessions)
+      .where(eq(upstreamRunSessions.id, sessionId))
+      .get();
+    if (!row) {
+      throw createCli2ApiError("UPSTREAM_NOT_FOUND" as ErrorCode, `Run session not found: ${sessionId}`, 404);
+    }
+    this.database.db.delete(upstreamRunSessions).where(eq(upstreamRunSessions.id, sessionId)).run();
+    return toRunSession(row);
+  }
+
   /** Creates one explicit profile-to-instance route binding. */
   public createRouteBinding(input: CreateUpstreamRouteBindingInput): UpstreamRouteBindingResponse {
     const profile = this.requireProfile(input.profileId);
@@ -363,7 +406,7 @@ export class UpstreamService {
   }
 
   /** Selects and occupies an upstream instance matching a profile, if any exist. */
-  public selectForProfile(profile: AdapterProfile): UpstreamSelection | null {
+  public selectForProfile(profile: AdapterProfile, affinity?: UpstreamSessionAffinityInput): UpstreamSelection | null {
     const routedInstanceIds = new Set(
       this.listRouteBindings()
         .filter((binding) => binding.profileId === profile.id)
@@ -382,19 +425,132 @@ export class UpstreamService {
       return null;
     }
 
-    const candidates = matchingInstances
-      .map((instance) => ({ instance, account: this.findAccount(instance.accountId) }))
-      .filter(({ account }) => account?.authState === "authenticated" && !account.disabledAt)
-      .filter(({ instance }) => ["unknown", "healthy"].includes(instance.healthState))
-      .filter(({ instance }) => instance.currentRuns < instance.maxConcurrentRuns)
-      .sort((left, right) => left.instance.currentRuns - right.instance.currentRuns || left.instance.id.localeCompare(right.instance.id));
-
-    const selected = candidates[0];
-    if (!selected?.account) {
+    const healthyCandidates: UpstreamCandidate[] = [];
+    for (const instance of matchingInstances) {
+      const account = this.findAccount(instance.accountId);
+      if (
+        account?.authState === "authenticated" &&
+        !account.disabledAt &&
+        ["unknown", "healthy"].includes(instance.healthState)
+      ) {
+        healthyCandidates.push({ instance, account });
+      }
+    }
+    const availableCandidates = healthyCandidates.filter(
+      ({ instance }) => instance.currentRuns < instance.maxConcurrentRuns
+    );
+    const runSession = affinity ? this.findRunSession(affinity) : null;
+    const pinned = runSession
+      ? healthyCandidates.find(({ instance }) => instance.id === runSession.upstreamInstanceId)
+      : undefined;
+    const pinnedHasCapacity = pinned
+      ? pinned.instance.currentRuns < pinned.instance.maxConcurrentRuns
+      : false;
+    const selected = pinnedHasCapacity ? pinned : this.pickCandidate(availableCandidates, affinity);
+    if (!selected) {
       throw createCli2ApiError("UPSTREAM_UNAVAILABLE" as ErrorCode, "No available upstream instances", 503);
     }
 
+    if (affinity) {
+      this.touchRunSession(
+        affinity,
+        pinned && !pinnedHasCapacity ? pinned.instance.id : selected.instance.id,
+        runSession
+      );
+    }
     this.occupyInstance(selected.instance.id);
+    return this.toSelection(profile, selected);
+  }
+
+  /** Releases one occupied upstream instance after a run finishes. */
+  public releaseInstance(instanceId: string): void {
+    this.database.sqlite
+      .prepare(
+        `UPDATE upstream_instances
+         SET current_runs = CASE WHEN current_runs > 0 THEN current_runs - 1 ELSE 0 END,
+             updated_at = ?
+         WHERE id = ?`
+      )
+      .run(Date.now(), instanceId);
+  }
+
+  private findRunSession(affinity: UpstreamSessionAffinityInput): UpstreamRunSessionResponse | null {
+    const row = this.database.sqlite
+      .prepare(
+        `SELECT id,
+                api_key_id AS apiKeyId,
+                profile_id AS profileId,
+                user_id AS userId,
+                session_id AS sessionId,
+                upstream_instance_id AS upstreamInstanceId,
+                run_count AS runCount,
+                created_at AS createdAt,
+                updated_at AS updatedAt,
+                last_used_at AS lastUsedAt
+         FROM upstream_run_sessions
+         WHERE api_key_id = ?
+           AND profile_id = ?
+           AND user_id = ?
+           AND session_id = ?`
+      )
+      .get(affinity.apiKeyId, affinity.profileId, affinity.userId, affinity.sessionId) as
+      | UpstreamRunSessionResponse
+      | undefined;
+    return row ?? null;
+  }
+
+  private touchRunSession(
+    affinity: UpstreamSessionAffinityInput,
+    upstreamInstanceId: string,
+    existing: UpstreamRunSessionResponse | null
+  ): void {
+    const now = Date.now();
+    if (existing) {
+      this.database.sqlite
+        .prepare(
+          `UPDATE upstream_run_sessions
+           SET upstream_instance_id = ?,
+               run_count = run_count + 1,
+               updated_at = ?,
+               last_used_at = ?
+           WHERE id = ?`
+        )
+        .run(upstreamInstanceId, now, now, existing.id);
+      return;
+    }
+    this.database.db
+      .insert(upstreamRunSessions)
+      .values({
+        id: randomUUID(),
+        apiKeyId: affinity.apiKeyId,
+        profileId: affinity.profileId,
+        userId: affinity.userId,
+        sessionId: affinity.sessionId,
+        upstreamInstanceId,
+        runCount: 1,
+        createdAt: now,
+        updatedAt: now,
+        lastUsedAt: now
+      })
+      .run();
+  }
+
+  private pickCandidate(candidates: UpstreamCandidate[], affinity?: UpstreamSessionAffinityInput): UpstreamCandidate | null {
+    if (candidates.length === 0) {
+      return null;
+    }
+    if (!affinity) {
+      return [...candidates].sort(
+        (left, right) => left.instance.currentRuns - right.instance.currentRuns || left.instance.id.localeCompare(right.instance.id)
+      )[0] as UpstreamCandidate;
+    }
+    return [...candidates].sort((left, right) => {
+      const scoreDelta = sessionScore(affinity, right.instance.id) - sessionScore(affinity, left.instance.id);
+      return scoreDelta || left.instance.id.localeCompare(right.instance.id);
+    })[0] as UpstreamCandidate;
+  }
+
+  private toSelection(profile: AdapterProfile, selected: UpstreamCandidate): UpstreamSelection {
     return {
       instanceId: selected.instance.id,
       profile: {
@@ -408,18 +564,6 @@ export class UpstreamService {
         config: { ...profile.config, ...selected.instance.config }
       }
     };
-  }
-
-  /** Releases one occupied upstream instance after a run finishes. */
-  public releaseInstance(instanceId: string): void {
-    this.database.sqlite
-      .prepare(
-        `UPDATE upstream_instances
-         SET current_runs = CASE WHEN current_runs > 0 THEN current_runs - 1 ELSE 0 END,
-             updated_at = ?
-         WHERE id = ?`
-      )
-      .run(Date.now(), instanceId);
   }
 
   private requireAccount(accountId: string): UpstreamAccountResponse {
@@ -686,4 +830,26 @@ function toRouteBinding(row: typeof upstreamRouteBindings.$inferSelect): Upstrea
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   };
+}
+
+function toRunSession(row: typeof upstreamRunSessions.$inferSelect): UpstreamRunSessionResponse {
+  return {
+    id: row.id,
+    apiKeyId: row.apiKeyId,
+    profileId: row.profileId,
+    userId: row.userId,
+    sessionId: row.sessionId,
+    upstreamInstanceId: row.upstreamInstanceId,
+    runCount: row.runCount,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    lastUsedAt: row.lastUsedAt
+  };
+}
+
+function sessionScore(affinity: UpstreamSessionAffinityInput, instanceId: string): number {
+  const hash = createHash("sha256")
+    .update(`${affinity.apiKeyId}:${affinity.profileId}:${affinity.userId}:${affinity.sessionId}:${instanceId}`)
+    .digest();
+  return hash.readUInt32BE(0);
 }

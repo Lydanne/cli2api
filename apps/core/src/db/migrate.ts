@@ -126,6 +126,18 @@ const statements = [
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS upstream_run_sessions (
+    id TEXT PRIMARY KEY,
+    api_key_id TEXT NOT NULL,
+    profile_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    upstream_instance_id TEXT NOT NULL,
+    run_count INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_used_at INTEGER NOT NULL
+  )`,
   "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
   "CREATE INDEX IF NOT EXISTS idx_runs_api_key ON runs(api_key_id)",
   "CREATE INDEX IF NOT EXISTS idx_run_events_run ON run_events(run_id, seq)",
@@ -133,7 +145,10 @@ const statements = [
   "CREATE INDEX IF NOT EXISTS idx_upstream_auth_sessions_account ON upstream_auth_sessions(account_id)",
   "CREATE INDEX IF NOT EXISTS idx_upstream_instances_account ON upstream_instances(account_id)",
   "CREATE INDEX IF NOT EXISTS idx_upstream_route_bindings_profile ON upstream_route_bindings(profile_id)",
-  "CREATE INDEX IF NOT EXISTS idx_upstream_route_bindings_instance ON upstream_route_bindings(instance_id)"
+  "CREATE INDEX IF NOT EXISTS idx_upstream_route_bindings_instance ON upstream_route_bindings(instance_id)",
+  "CREATE INDEX IF NOT EXISTS idx_upstream_run_sessions_instance ON upstream_run_sessions(upstream_instance_id)",
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_upstream_run_sessions_scope
+   ON upstream_run_sessions(api_key_id, profile_id, user_id, session_id)`
 ];
 
 /** Applies the MVP SQLite schema. */

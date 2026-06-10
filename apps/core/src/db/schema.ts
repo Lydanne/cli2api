@@ -146,6 +146,20 @@ export const upstreamRouteBindings = sqliteTable("upstream_route_bindings", {
   updatedAt: integer("updated_at").notNull()
 });
 
+/** Automatically-created session affinity from downstream callers to upstream instances. */
+export const upstreamRunSessions = sqliteTable("upstream_run_sessions", {
+  id: text("id").primaryKey(),
+  apiKeyId: text("api_key_id").notNull(),
+  profileId: text("profile_id").notNull(),
+  userId: text("user_id").notNull(),
+  sessionId: text("session_id").notNull(),
+  upstreamInstanceId: text("upstream_instance_id").notNull(),
+  runCount: integer("run_count").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+  lastUsedAt: integer("last_used_at").notNull()
+});
+
 /** Drizzle schema object used when creating typed database clients. */
 export const schema = {
   users,
@@ -158,5 +172,6 @@ export const schema = {
   upstreamAccounts,
   upstreamAuthSessions,
   upstreamInstances,
-  upstreamRouteBindings
+  upstreamRouteBindings,
+  upstreamRunSessions
 };

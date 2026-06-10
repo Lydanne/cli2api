@@ -29,6 +29,12 @@ export interface CreateRunRequest {
   prompt: string;
   /** Optional adapter profile id. Defaults to the API key's default or first enabled profile. */
   profileId?: string;
+  /** Optional downstream user id used for automatic upstream session affinity. */
+  user?: string;
+  /** Optional downstream session id used for automatic upstream session affinity. */
+  sessionId?: string;
+  /** Optional conversation id alias used when `sessionId` is not supplied. */
+  conversationId?: string;
   /** Optional metadata recorded with the run. */
   metadata?: Record<string, unknown>;
 }
@@ -196,4 +202,28 @@ export interface UpstreamRouteBindingResponse {
   createdAt: number;
   /** Last update timestamp in milliseconds. */
   updatedAt: number;
+}
+
+/** Automatically-created upstream run session affinity record. */
+export interface UpstreamRunSessionResponse {
+  /** Stable session affinity row id. */
+  id: string;
+  /** Downstream API key id that owns this session. */
+  apiKeyId: string;
+  /** Public adapter profile id selected by downstream clients. */
+  profileId: string;
+  /** Normalized downstream user id. */
+  userId: string;
+  /** Normalized downstream session id. */
+  sessionId: string;
+  /** Preferred upstream instance id for this session. */
+  upstreamInstanceId: string;
+  /** Number of runs observed for this session affinity. */
+  runCount: number;
+  /** Creation timestamp in milliseconds. */
+  createdAt: number;
+  /** Last update timestamp in milliseconds. */
+  updatedAt: number;
+  /** Last time a run used this session affinity. */
+  lastUsedAt: number;
 }

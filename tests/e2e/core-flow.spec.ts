@@ -58,9 +58,17 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("login-password").fill("password");
   await page.getByTestId("login-submit").click();
   await expect(page.getByRole("heading", { name: "概览" })).toBeVisible();
-  await page.getByTestId("locale-switch").selectOption("en-US");
+  await page.getByTestId("theme-switch").click();
+  await page.getByRole("option", { name: "暗色" }).click();
+  await expect(page.locator("html")).toHaveClass(/dark/u);
+  await page.getByTestId("theme-switch").click();
+  await page.getByRole("option", { name: "亮色" }).click();
+  await expect(page.locator("html")).not.toHaveClass(/dark/u);
+  await page.getByTestId("locale-switch").click();
+  await page.getByRole("option", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
-  await page.getByTestId("locale-switch").selectOption("zh-CN");
+  await page.getByTestId("locale-switch").click();
+  await page.getByRole("option", { name: "中文" }).click();
   await expect(page.getByRole("heading", { name: "概览" })).toBeVisible();
 
   await page.getByTestId("nav-accounts").click();
@@ -102,17 +110,10 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("delete-profile-mock-delete-e2e").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" })).toHaveCount(0);
 
-  await page.getByTestId("nav-routeBindings").click();
-  await expect(page).toHaveURL(/#\/route-bindings$/u);
-  await page.getByTestId("route-profile").click();
-  await page.getByRole("option", { name: "mock-ui-e2e" }).click();
-  await page.getByTestId("route-instance").click();
-  await page.getByRole("option", { name: "UI Mock 实例" }).click();
-  await page.getByTestId("create-route").click();
-  await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).filter({ hasText: "mock-ui-inst" })).toBeVisible();
+  await page.goto("/#/route-bindings");
+  await expect(page).toHaveURL(/#\/sessions$/u);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "调度规则" })).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).filter({ hasText: "mock-ui-inst" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "会话管理" })).toBeVisible();
 
   await page.getByTestId("nav-keys").click();
   await page.getByTestId("key-name").fill("ui-e2e-key");
@@ -130,8 +131,14 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByText("mock-ui-inst")).toBeVisible();
   await page.getByRole("button", { name: "查看事件" }).last().click();
   await expect(page.getByTestId("run-events")).toContainText("run.completed");
-
   const runId = (await page.getByTestId("run-id").last().textContent())?.trim() ?? "";
+
+  await page.getByTestId("nav-sessions").click();
+  await expect(page.getByRole("heading", { name: "会话管理" })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "default" }).filter({ hasText: "UI Mock 实例" })).toBeVisible();
+  await page.getByRole("button", { name: "重置会话" }).click();
+  await expect(page.getByRole("row").filter({ hasText: "default" }).filter({ hasText: "UI Mock 实例" })).toHaveCount(0);
+
   const events = await request.get(`/api/runs/${runId}/events`, {
     headers: { authorization: `Bearer ${token}` }
   });
