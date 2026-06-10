@@ -1,5 +1,22 @@
 # Model Serving Sandbox Evidence
 
+## 2026-06-10 Read-only Text Serving Update
+
+- `pnpm --filter @cli2api/agents-sdk test`: first failed as expected because
+  the Codex adapter passed ignored `sandbox` plus profile-provided
+  `approvalPolicy`; after implementation it passed with 2 files and 8 tests.
+- `pnpm test apps/core/src/core.spec.ts apps/core/src/upstream.spec.ts`: first
+  failed as expected because profiles and upstream instances still normalized to
+  `workspace-write`; after implementation it passed with 2 files and 20 tests.
+- `pnpm test`: passed with 11 test files and 49 tests.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm test:coverage`: passed; global coverage is 85.15% statements, 67.35%
+  branches, 91.04% functions, and 85.62% lines.
+- `pnpm lint`: passed with zero warnings.
+- `pnpm check:file-size`: passed; all checked source files are <= 1300 lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests. The API E2E now verifies
+  profile policy is `read-only` with `approvalPolicy=never`.
+
 ## 2026-06-10 CLI2API Home Update
 
 - `pnpm build`: passed for shared, agents-sdk, core, and dash after deriving

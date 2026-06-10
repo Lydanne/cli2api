@@ -41,8 +41,9 @@ export class CodexAdapter implements AgentAdapter {
       const codex = new Codex(this.createSdkOptions(input.profile));
       const thread = codex.startThread({
         workingDirectory: input.profile.cwd,
-        sandbox: input.profile.sandbox,
-        approvalPolicy: input.profile.approvalPolicy
+        sandboxMode: "read-only",
+        approvalPolicy: "never",
+        skipGitRepoCheck: true
       });
 
       if (thread.runStreamed) {

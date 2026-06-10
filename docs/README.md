@@ -25,7 +25,7 @@ optional `~/.cli2api/.env` before applying process environment overrides.
 
 ## MVP Scope
 
-- Base-model style API through `/v1/responses` and `/v1/chat/completions`.
+- Minimal text-model API through `/v1/responses` and `/v1/chat/completions`.
 - Multi-user downstream API keys with quotas.
 - Public model profiles routed to service-owned upstream account capacity.
 - Sub2API-style management dashboard for operators.

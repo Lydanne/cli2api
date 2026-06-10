@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorCode } from "@cli2api/shared";
 import {
   AdapterRegistry,
@@ -8,7 +8,32 @@ import {
   normalizeAdapterError
 } from "./index.js";
 
+const codexSdkMock = vi.hoisted(() => ({
+  constructorOptions: [] as unknown[],
+  startThreadOptions: [] as Array<Record<string, unknown> | undefined>
+}));
+
+vi.mock("@openai/codex-sdk", () => ({
+  Codex: class {
+    public constructor(options?: unknown) {
+      codexSdkMock.constructorOptions.push(options);
+    }
+
+    public startThread(options?: Record<string, unknown>) {
+      codexSdkMock.startThreadOptions.push(options);
+      return {
+        run: async () => ({ finalResponse: "codex text" })
+      };
+    }
+  }
+}));
+
 describe("@cli2api/agents-sdk", () => {
+  beforeEach(() => {
+    codexSdkMock.constructorOptions.length = 0;
+    codexSdkMock.startThreadOptions.length = 0;
+  });
+
   it("collects events from the mock adapter", async () => {
     const adapter = new MockAgentAdapter();
     const events = await collectAgentEvents(
@@ -57,5 +82,47 @@ describe("@cli2api/agents-sdk", () => {
 
     expect(options.env).toEqual({ CODEX_API_KEY: "test" });
     expect(options.config).toEqual({ model: "gpt-5" });
+  });
+
+  it("starts Codex in read-only text-serving mode", async () => {
+    const adapter = new CodexAdapter();
+    const events = await collectAgentEvents(
+      adapter.run({
+        runId: "run_codex_readonly",
+        prompt: "reply only",
+        profile: {
+          id: "codex-default",
+          type: "codex",
+          name: "Codex",
+          cwd: "/srv/cli2api/runtime-workspaces/instances/inst-1",
+          enabled: true,
+          sandbox: "workspace-write",
+          approvalPolicy: "on-request",
+          env: { CODEX_HOME: "/srv/cli2api/codex-homes/account-1" },
+          config: { model: "gpt-5" }
+        }
+      })
+    );
+
+    expect(events.at(-1)).toMatchObject({
+      type: "run.completed",
+      output: "codex text"
+    });
+    expect(codexSdkMock.constructorOptions).toEqual([
+      {
+        env: { CODEX_HOME: "/srv/cli2api/codex-homes/account-1" },
+        config: { model: "gpt-5" }
+      }
+    ]);
+    expect(codexSdkMock.startThreadOptions).toEqual([
+      {
+        workingDirectory: "/srv/cli2api/runtime-workspaces/instances/inst-1",
+        sandboxMode: "read-only",
+        approvalPolicy: "never",
+        skipGitRepoCheck: true
+      }
+    ]);
+    expect(codexSdkMock.startThreadOptions[0]).not.toHaveProperty("sandbox");
+    expect(codexSdkMock.startThreadOptions[0]).not.toHaveProperty("additionalDirectories");
   });
 });

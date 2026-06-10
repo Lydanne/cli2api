@@ -224,7 +224,7 @@ export class UpstreamService {
       healthState: "unknown",
       currentRuns: 0,
       maxConcurrentRuns: input.maxConcurrentRuns ?? 1,
-      sandbox: "workspace-write",
+      sandbox: "read-only",
       approvalPolicy: "never",
       configJson: stringifyJson(input.config ?? {}),
       lastError: null,
@@ -449,7 +449,7 @@ export class UpstreamService {
     return {
       ...toInstance(row),
       cwd: this.runtimeWorkspaces.instanceWorkspace(row.id),
-      sandbox: "workspace-write",
+      sandbox: "read-only",
       approvalPolicy: "never"
     };
   }

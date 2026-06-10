@@ -49,7 +49,7 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(run.output).toContain("hello from native");
     const storedProfile = harness.services.profiles.require(profile.id);
     expect(storedProfile).toMatchObject({
-      sandbox: "workspace-write",
+      sandbox: "read-only",
       approvalPolicy: "never"
     });
     expect(storedProfile.cwd.startsWith(join(harness.runtimeWorkspaceBase, "profiles"))).toBe(true);

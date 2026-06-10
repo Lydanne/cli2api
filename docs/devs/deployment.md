@@ -83,8 +83,7 @@ click `刷新认证` until the account becomes `authenticated`.
 
 After authentication, open `实例池`, bind the account, set the concurrency limit,
 and create an instance. The API service assigns a service-owned runtime
-workspace automatically and runs Codex with `workspace-write` plus
-`approvalPolicy=never`, so SDK-based tools can write scratch files without
-touching host project directories. Runs that target a matching model profile are
-scheduled onto enabled, authenticated instances and record the selected
-`upstreamInstanceId`.
+workspace automatically and runs Codex with `read-only` plus
+`approvalPolicy=never`, so downstream prompts cannot create files in the service
+workspace. Runs that target a matching model profile are scheduled onto enabled,
+authenticated instances and record the selected `upstreamInstanceId`.

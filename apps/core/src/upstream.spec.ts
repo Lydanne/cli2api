@@ -328,7 +328,7 @@ describe("@cli2api/core upstream account pool", () => {
       enabled: true,
       currentRuns: 0,
       maxConcurrentRuns: 3,
-      sandbox: "workspace-write",
+      sandbox: "read-only",
       approvalPolicy: "never",
       config: { model: "gpt-5" }
     });
@@ -396,7 +396,7 @@ describe("@cli2api/core upstream account pool", () => {
     const body = (await updateResponse.json()) as { cwd: string };
     expect(body).toMatchObject({
       id: instance.id,
-      sandbox: "workspace-write",
+      sandbox: "read-only",
       approvalPolicy: "never",
       maxConcurrentRuns: 2
     });
