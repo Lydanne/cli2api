@@ -1,3 +1,5 @@
+export * from "./auth.js";
+export * from "./codex-auth-provider.js";
 export * from "./codex-adapter.js";
 export * from "./collect.js";
 export * from "./errors.js";
