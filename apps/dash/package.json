@@ -1,0 +1,21 @@
+{
+  "name": "@cli2api/dash",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@primevue/themes": "^4.5.4",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "lucide-vue-next": "^0.560.0",
+    "primevue": "^4.5.5",
+    "vue": "^3.5.35"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "tailwindcss": "^4.1.18"
+  }
+}
