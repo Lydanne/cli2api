@@ -1,0 +1,598 @@
+import type { AgentEvent } from "@cli2api/shared";
+import { computed, inject, provide, ref, type ComputedRef, type InjectionKey, type Ref } from "vue";
+import { ApiError, createDashboardApi, type DashboardApi } from "./api";
+import { isLocale, messages, type Locale, type MessageKey } from "./i18n";
+import { summarizeOverview } from "./overview";
+import type {
+  AdapterProfileView,
+  AdminUser,
+  ApiKeyView,
+  RunView,
+  UpstreamAccountView,
+  UpstreamAuthSessionView,
+  UpstreamInstanceView,
+  UpstreamRouteBindingView,
+  UsageBucketView
+} from "../types";
+
+/** PrimeVue status severity names used by Tag components. */
+export type StatusSeverity = "success" | "info" | "warn" | "danger" | "secondary";
+
+/** Option shape consumed by PrimeVue Select controls. */
+export interface SelectOption {
+  /** Human label. */
+  label: string;
+  /** Stable value. */
+  value: string;
+}
+
+/** Dashboard overview metrics derived from raw API resources. */
+export interface OperationsSummary {
+  /** Enabled external profiles. */
+  enabledProfiles: number;
+  /** Active downstream keys. */
+  activeApiKeys: number;
+  /** Running runs. */
+  runningRuns: number;
+  /** Failed runs. */
+  failedRuns: number;
+  /** Completed runs. */
+  completedRuns: number;
+  /** Authenticated upstream accounts. */
+  authenticatedAccounts: number;
+  /** Runnable instances that still have capacity. */
+  availableInstances: number;
+  /** Available concurrent slots across enabled instances. */
+  availableSlots: number;
+  /** Enabled profiles covered by at least one route binding. */
+  routedProfiles: number;
+  /** Month-to-date run count. */
+  monthlyRuns: number;
+  /** Month-to-date token count. */
+  monthlyTokens: number;
+}
+
+/** Shared dashboard state and actions provided to route pages. */
+export interface DashboardState {
+  locale: Ref<Locale>;
+  email: Ref<string>;
+  password: Ref<string>;
+  loggedIn: Ref<boolean>;
+  error: Ref<string>;
+  users: Ref<AdminUser[]>;
+  profiles: Ref<AdapterProfileView[]>;
+  keys: Ref<ApiKeyView[]>;
+  runs: Ref<RunView[]>;
+  usage: Ref<UsageBucketView[]>;
+  accounts: Ref<UpstreamAccountView[]>;
+  instances: Ref<UpstreamInstanceView[]>;
+  routes: Ref<UpstreamRouteBindingView[]>;
+  newProfileId: Ref<string>;
+  newProfileName: Ref<string>;
+  newProfileType: Ref<"codex" | "mock">;
+  newProfileCwd: Ref<string>;
+  newKeyName: Ref<string>;
+  newKeyDailyLimit: Ref<number>;
+  newKeyRpmLimit: Ref<number>;
+  newKeyConcurrentLimit: Ref<number>;
+  newKeyMonthlyTokenLimit: Ref<number>;
+  prompt: Ref<string>;
+  selectedProfile: Ref<string>;
+  createdToken: Ref<string>;
+  selectedRunId: Ref<string>;
+  runEvents: Ref<AgentEvent[]>;
+  newUserEmail: Ref<string>;
+  newUserPassword: Ref<string>;
+  newAccountId: Ref<string>;
+  newAccountName: Ref<string>;
+  lastAuthSession: Ref<UpstreamAuthSessionView | null>;
+  newInstanceId: Ref<string>;
+  newInstanceName: Ref<string>;
+  selectedAccountId: Ref<string>;
+  newInstanceType: Ref<string>;
+  newInstanceCwd: Ref<string>;
+  newInstanceConcurrency: Ref<number>;
+  newInstanceSandbox: Ref<"read-only" | "workspace-write" | "danger-full-access" | "">;
+  newInstanceApprovalPolicy: Ref<"untrusted" | "on-request" | "never" | "">;
+  selectedRouteProfile: Ref<string>;
+  selectedRouteInstance: Ref<string>;
+  profileOptions: ComputedRef<SelectOption[]>;
+  accountOptions: ComputedRef<SelectOption[]>;
+  instanceOptions: ComputedRef<SelectOption[]>;
+  profileTypeOptions: SelectOption[];
+  instanceTypeOptions: SelectOption[];
+  sandboxOptions: SelectOption[];
+  approvalPolicyOptions: SelectOption[];
+  summary: ComputedRef<OperationsSummary>;
+  monthlyUsageByKey: ComputedRef<Map<string, UsageBucketView>>;
+  formattedRunEvents: ComputedRef<string>;
+  text: (key: MessageKey) => string;
+  statusLabel: (value: boolean | number | string | null | undefined) => string;
+  setLocale: (value: Locale) => void;
+  login: () => Promise<boolean>;
+  refresh: (options?: { silent?: boolean }) => Promise<boolean>;
+  createProfile: () => Promise<boolean>;
+  createKey: () => Promise<boolean>;
+  createUser: () => Promise<boolean>;
+  createRun: () => Promise<boolean>;
+  loadRunEvents: (run: RunView) => Promise<boolean>;
+  revokeKey: (key: ApiKeyView) => Promise<boolean>;
+  createAccount: () => Promise<boolean>;
+  startAuth: (account: UpstreamAccountView) => Promise<boolean>;
+  pollAuth: (account: UpstreamAccountView) => Promise<boolean>;
+  logoutAccount: (account: UpstreamAccountView) => Promise<boolean>;
+  createInstance: () => Promise<boolean>;
+  saveInstance: (instance: UpstreamInstanceView) => Promise<boolean>;
+  disableInstance: (instance: UpstreamInstanceView) => Promise<boolean>;
+  createRoute: () => Promise<boolean>;
+  deleteRoute: (route: UpstreamRouteBindingView) => Promise<boolean>;
+  enabledText: (value: boolean | number) => string;
+  statusSeverity: (value: boolean | number | string | null | undefined) => StatusSeverity;
+  accountName: (accountId: string) => string;
+  instanceName: (instanceId: string | null | undefined) => string;
+  profileName: (profileId: string) => string;
+}
+
+const dashboardStateKey: InjectionKey<DashboardState> = Symbol("dashboard-state");
+
+/** Creates the shared dashboard state object. */
+export function createDashboardState(client: DashboardApi = createDashboardApi()): DashboardState {
+  const locale = ref<Locale>(readInitialLocale());
+  const email = ref("admin@example.com");
+  const password = ref("password");
+  const loggedIn = ref(false);
+  const error = ref("");
+  const users = ref<AdminUser[]>([]);
+  const profiles = ref<AdapterProfileView[]>([]);
+  const keys = ref<ApiKeyView[]>([]);
+  const runs = ref<RunView[]>([]);
+  const usage = ref<UsageBucketView[]>([]);
+  const accounts = ref<UpstreamAccountView[]>([]);
+  const instances = ref<UpstreamInstanceView[]>([]);
+  const routes = ref<UpstreamRouteBindingView[]>([]);
+  const newProfileId = ref("mock-default");
+  const newProfileName = ref("");
+  const newProfileType = ref<"codex" | "mock">("mock");
+  const newProfileCwd = ref("/workspace");
+  const newKeyName = ref("dev-key");
+  const newKeyDailyLimit = ref(100);
+  const newKeyRpmLimit = ref(60);
+  const newKeyConcurrentLimit = ref(2);
+  const newKeyMonthlyTokenLimit = ref(1000000);
+  const prompt = ref("hello from dashboard");
+  const selectedProfile = ref("");
+  const createdToken = ref("");
+  const selectedRunId = ref("");
+  const runEvents = ref<AgentEvent[]>([]);
+  const newUserEmail = ref("ops@example.com");
+  const newUserPassword = ref("change-me");
+  const newAccountId = ref("codex-main");
+  const newAccountName = ref("主 Codex 账号");
+  const lastAuthSession = ref<UpstreamAuthSessionView | null>(null);
+  const newInstanceId = ref("codex-inst-1");
+  const newInstanceName = ref("Codex 实例 1");
+  const selectedAccountId = ref("");
+  const newInstanceType = ref("mock");
+  const newInstanceCwd = ref("/workspace");
+  const newInstanceConcurrency = ref(1);
+  const newInstanceSandbox = ref<"read-only" | "workspace-write" | "danger-full-access" | "">("workspace-write");
+  const newInstanceApprovalPolicy = ref<"untrusted" | "on-request" | "never" | "">("on-request");
+  const selectedRouteProfile = ref("");
+  const selectedRouteInstance = ref("");
+
+  const profileTypeOptions = [
+    { label: "mock", value: "mock" },
+    { label: "codex", value: "codex" }
+  ];
+  const instanceTypeOptions = [
+    { label: "mock", value: "mock" },
+    { label: "codex", value: "codex" }
+  ];
+  const sandboxOptions = [
+    { label: "read-only", value: "read-only" },
+    { label: "workspace-write", value: "workspace-write" },
+    { label: "danger-full-access", value: "danger-full-access" }
+  ];
+  const approvalPolicyOptions = [
+    { label: "untrusted", value: "untrusted" },
+    { label: "on-request", value: "on-request" },
+    { label: "never", value: "never" }
+  ];
+
+  const profileOptions = computed(() =>
+    profiles.value.map((profile) => ({ label: `${profile.id} · ${profile.type}`, value: profile.id }))
+  );
+  const accountOptions = computed(() => accounts.value.map((account) => ({ label: account.name, value: account.id })));
+  const instanceOptions = computed(() =>
+    instances.value.map((instance) => ({ label: `${instance.name} · ${instance.id}`, value: instance.id }))
+  );
+  const monthlyUsageByKey = computed(() => {
+    const buckets = new Map<string, UsageBucketView>();
+    for (const bucket of usage.value) {
+      if (bucket.bucketType === "month") {
+        buckets.set(bucket.apiKeyId, bucket);
+      }
+    }
+    return buckets;
+  });
+  const summary = computed<OperationsSummary>(() => {
+    const base = summarizeOverview({
+      profiles: profiles.value,
+      apiKeys: keys.value,
+      runs: runs.value
+    });
+    const routedProfileIds = new Set(routes.value.map((route) => route.profileId));
+    const availableInstances = instances.value.filter(
+      (instance) =>
+        instance.enabled &&
+        ["unknown", "healthy"].includes(instance.healthState) &&
+        instance.currentRuns < instance.maxConcurrentRuns
+    );
+    const monthlyBuckets = [...monthlyUsageByKey.value.values()];
+    return {
+      ...base,
+      authenticatedAccounts: accounts.value.filter((account) => account.authState === "authenticated" && !account.disabledAt).length,
+      availableInstances: availableInstances.length,
+      availableSlots: availableInstances.reduce(
+        (total, instance) => total + Math.max(instance.maxConcurrentRuns - instance.currentRuns, 0),
+        0
+      ),
+      routedProfiles: profiles.value.filter((profile) => profile.enabled && routedProfileIds.has(profile.id)).length,
+      monthlyRuns: monthlyBuckets.reduce((total, bucket) => total + bucket.runCount, 0),
+      monthlyTokens: monthlyBuckets.reduce((total, bucket) => total + bucket.totalTokens, 0)
+    };
+  });
+  const formattedRunEvents = computed(() => runEvents.value.map((event) => JSON.stringify(event, null, 2)).join("\n\n"));
+
+  function text(key: MessageKey): string {
+    return messages[locale.value][key] ?? messages["zh-CN"][key];
+  }
+
+  function statusLabel(value: boolean | number | string | null | undefined): string {
+    if (value === true || value === 1) return text("enabled");
+    if (value === false || value === 0) return text("disabled");
+    if (value === null || value === undefined || value === "") return "-";
+    return statusMessage(String(value));
+  }
+
+  function statusMessage(value: string): string {
+    return Object.prototype.hasOwnProperty.call(messages[locale.value], value)
+      ? messages[locale.value][value as MessageKey]
+      : value;
+  }
+
+  function setLocale(value: Locale): void {
+    locale.value = value;
+    window.localStorage.setItem("cli2api.locale", value);
+  }
+
+  async function login(): Promise<boolean> {
+    return action(async () => {
+      await client.login({ email: email.value, password: password.value });
+      loggedIn.value = true;
+      await refresh();
+    });
+  }
+
+  async function refresh(options: { silent?: boolean } = {}): Promise<boolean> {
+    return action(async () => {
+      const [userRows, profileRows, keyRows, runRows, usageRows, accountRows, instanceRows, routeRows] = await Promise.all([
+        client.users(),
+        client.profiles(),
+        client.apiKeys(),
+        client.runs(),
+        client.usage(),
+        client.upstreamAccounts(),
+        client.upstreamInstances(),
+        client.upstreamRoutes()
+      ]);
+      users.value = userRows;
+      profiles.value = profileRows;
+      keys.value = keyRows;
+      runs.value = runRows;
+      usage.value = usageRows;
+      accounts.value = accountRows;
+      instances.value = instanceRows;
+      routes.value = routeRows;
+      selectedProfile.value = selectedProfile.value || profiles.value[0]?.id || "";
+      selectedAccountId.value = selectedAccountId.value || accounts.value[0]?.id || "";
+      selectedRouteProfile.value = selectedRouteProfile.value || profiles.value[0]?.id || "";
+      selectedRouteInstance.value = selectedRouteInstance.value || instances.value[0]?.id || "";
+    }, options);
+  }
+
+  async function createProfile(): Promise<boolean> {
+    return action(async () => {
+      await client.createProfile({
+        id: newProfileId.value,
+        type: newProfileType.value,
+        name: newProfileName.value || newProfileId.value,
+        cwd: newProfileCwd.value,
+        enabled: true
+      });
+      await refresh();
+    });
+  }
+
+  async function createKey(): Promise<boolean> {
+    return action(async () => {
+      const created = await client.createApiKey({
+        name: newKeyName.value,
+        dailyRunLimit: Number(newKeyDailyLimit.value),
+        rpmLimit: Number(newKeyRpmLimit.value),
+        maxConcurrentRuns: Number(newKeyConcurrentLimit.value),
+        monthlyTokenLimit: Number(newKeyMonthlyTokenLimit.value)
+      });
+      createdToken.value = created.token ?? "";
+      await refresh();
+    });
+  }
+
+  async function createUser(): Promise<boolean> {
+    return action(async () => {
+      await client.createUser({ email: newUserEmail.value, password: newUserPassword.value });
+      await refresh();
+    });
+  }
+
+  async function createRun(): Promise<boolean> {
+    return action(async () => {
+      if (!createdToken.value) {
+        throw new Error(text("createKeyFirst"));
+      }
+      await client.createRun(createdToken.value, { prompt: prompt.value, profileId: selectedProfile.value });
+      await refresh();
+    });
+  }
+
+  async function loadRunEvents(run: RunView): Promise<boolean> {
+    return action(async () => {
+      selectedRunId.value = run.id;
+      runEvents.value = await client.runEvents(run.id);
+    });
+  }
+
+  async function revokeKey(key: ApiKeyView): Promise<boolean> {
+    return action(async () => {
+      await client.revokeApiKey(key.id);
+      await refresh();
+    });
+  }
+
+  async function createAccount(): Promise<boolean> {
+    return action(async () => {
+      const account = await client.createUpstreamAccount({
+        id: newAccountId.value,
+        providerType: "codex",
+        name: newAccountName.value
+      });
+      selectedAccountId.value = account.id;
+      await refresh();
+    });
+  }
+
+  async function startAuth(account: UpstreamAccountView): Promise<boolean> {
+    return action(async () => {
+      lastAuthSession.value = await client.startUpstreamAuth(account.id, { method: "device" });
+      await refresh();
+    });
+  }
+
+  async function pollAuth(account: UpstreamAccountView): Promise<boolean> {
+    return action(async () => {
+      lastAuthSession.value = await client.pollUpstreamAuth(account.id);
+      await refresh();
+    });
+  }
+
+  async function logoutAccount(account: UpstreamAccountView): Promise<boolean> {
+    return action(async () => {
+      lastAuthSession.value = await client.logoutUpstreamAccount(account.id);
+      await refresh();
+    });
+  }
+
+  async function createInstance(): Promise<boolean> {
+    return action(async () => {
+      await client.createUpstreamInstance({
+        id: newInstanceId.value,
+        accountId: selectedAccountId.value,
+        type: newInstanceType.value,
+        name: newInstanceName.value,
+        cwd: newInstanceCwd.value,
+        enabled: true,
+        maxConcurrentRuns: Number(newInstanceConcurrency.value),
+        sandbox: newInstanceSandbox.value || undefined,
+        approvalPolicy: newInstanceApprovalPolicy.value || undefined
+      });
+      await refresh();
+    });
+  }
+
+  async function saveInstance(instance: UpstreamInstanceView): Promise<boolean> {
+    return action(async () => {
+      await client.updateUpstreamInstance(instance.id, {
+        name: instance.name,
+        cwd: instance.cwd,
+        enabled: instance.enabled,
+        maxConcurrentRuns: Number(instance.maxConcurrentRuns),
+        sandbox: instance.sandbox ?? undefined,
+        approvalPolicy: instance.approvalPolicy ?? undefined,
+        config: instance.config
+      });
+      await refresh();
+    });
+  }
+
+  async function disableInstance(instance: UpstreamInstanceView): Promise<boolean> {
+    return action(async () => {
+      await client.disableUpstreamInstance(instance.id);
+      await refresh();
+    });
+  }
+
+  async function createRoute(): Promise<boolean> {
+    return action(async () => {
+      await client.createUpstreamRoute({
+        profileId: selectedRouteProfile.value,
+        instanceId: selectedRouteInstance.value
+      });
+      await refresh();
+    });
+  }
+
+  async function deleteRoute(route: UpstreamRouteBindingView): Promise<boolean> {
+    return action(async () => {
+      await client.deleteUpstreamRoute(route.id);
+      await refresh();
+    });
+  }
+
+  async function action(work: () => Promise<void>, options: { silent?: boolean } = {}): Promise<boolean> {
+    error.value = "";
+    try {
+      await work();
+      return true;
+    } catch (cause) {
+      if (!options.silent) {
+        error.value = cause instanceof ApiError || cause instanceof Error ? cause.message : "Request failed";
+      }
+      return false;
+    }
+  }
+
+  function enabledText(value: boolean | number): string {
+    return value ? text("enabled") : text("disabled");
+  }
+
+  function statusSeverity(value: boolean | number | string | null | undefined): StatusSeverity {
+    if (value === true || value === 1 || value === "completed" || value === "authenticated" || value === "healthy") {
+      return "success";
+    }
+    if (value === "running" || value === "waiting_for_browser" || value === "unknown") {
+      return "info";
+    }
+    if (value === "pending") {
+      return "warn";
+    }
+    if (value === false || value === 0 || value === "failed" || value === "degraded" || value === "disabled") {
+      return "danger";
+    }
+    return "secondary";
+  }
+
+  function accountName(accountId: string): string {
+    return accounts.value.find((account) => account.id === accountId)?.name ?? accountId;
+  }
+
+  function instanceName(instanceId: string | null | undefined): string {
+    if (!instanceId) return "-";
+    return instances.value.find((instance) => instance.id === instanceId)?.name ?? instanceId;
+  }
+
+  function profileName(profileId: string): string {
+    return profiles.value.find((profile) => profile.id === profileId)?.name ?? profileId;
+  }
+
+  return {
+    locale,
+    email,
+    password,
+    loggedIn,
+    error,
+    users,
+    profiles,
+    keys,
+    runs,
+    usage,
+    accounts,
+    instances,
+    routes,
+    newProfileId,
+    newProfileName,
+    newProfileType,
+    newProfileCwd,
+    newKeyName,
+    newKeyDailyLimit,
+    newKeyRpmLimit,
+    newKeyConcurrentLimit,
+    newKeyMonthlyTokenLimit,
+    prompt,
+    selectedProfile,
+    createdToken,
+    selectedRunId,
+    runEvents,
+    newUserEmail,
+    newUserPassword,
+    newAccountId,
+    newAccountName,
+    lastAuthSession,
+    newInstanceId,
+    newInstanceName,
+    selectedAccountId,
+    newInstanceType,
+    newInstanceCwd,
+    newInstanceConcurrency,
+    newInstanceSandbox,
+    newInstanceApprovalPolicy,
+    selectedRouteProfile,
+    selectedRouteInstance,
+    profileOptions,
+    accountOptions,
+    instanceOptions,
+    profileTypeOptions,
+    instanceTypeOptions,
+    sandboxOptions,
+    approvalPolicyOptions,
+    summary,
+    monthlyUsageByKey,
+    formattedRunEvents,
+    text,
+    statusLabel,
+    setLocale,
+    login,
+    refresh,
+    createProfile,
+    createKey,
+    createUser,
+    createRun,
+    loadRunEvents,
+    revokeKey,
+    createAccount,
+    startAuth,
+    pollAuth,
+    logoutAccount,
+    createInstance,
+    saveInstance,
+    disableInstance,
+    createRoute,
+    deleteRoute,
+    enabledText,
+    statusSeverity,
+    accountName,
+    instanceName,
+    profileName
+  };
+}
+
+/** Provides shared dashboard state to route components. */
+export function provideDashboardState(state: DashboardState): void {
+  provide(dashboardStateKey, state);
+}
+
+/** Reads shared dashboard state from the current component tree. */
+export function useDashboardState(): DashboardState {
+  const state = inject(dashboardStateKey);
+  if (!state) {
+    throw new Error("Dashboard state was not provided");
+  }
+  return state;
+}
+
+function readInitialLocale(): Locale {
+  if (typeof window === "undefined") {
+    return "zh-CN";
+  }
+  const stored = window.localStorage.getItem("cli2api.locale");
+  return stored && isLocale(stored) ? stored : "zh-CN";
+}

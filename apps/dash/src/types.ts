@@ -13,6 +13,8 @@ export interface AdminUser {
   email: string;
   /** User role. */
   role: string;
+  /** Disabled timestamp, or null/undefined when enabled. */
+  disabledAt?: number | null;
 }
 
 /** Adapter profile displayed in the dashboard. */

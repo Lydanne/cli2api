@@ -1,0 +1,85 @@
+# Dashboard Product Design
+
+## Product Shape
+
+The dashboard is an operations console, not a demo page. Its primary workflow is
+the managed serving path:
+
+1. Downstream clients authenticate with API keys.
+2. External model/profile ids define what clients can request.
+3. Upstream provider accounts hold private Codex authentication state.
+4. Runnable instances bind accounts to working directories, sandbox policy,
+   approval policy, and concurrency.
+5. Route bindings connect public profiles to one or more upstream instances.
+6. Runs prove the path and expose events, selected instance, errors, and usage.
+
+This means navigation should follow the operating sequence while still keeping
+high-frequency inspection surfaces close to the top: overview, runs, API keys,
+profiles, route bindings, upstream accounts, instances, users.
+
+## Information Architecture
+
+- Overview: health and capacity across the whole serving path.
+- Runs: request validation, selected route/instance, output, and stored events.
+- API keys: downstream access, quotas, usage, and revocation.
+- Profiles: public model ids and adapter/runtime defaults.
+- Route bindings: profile-to-instance routing and coverage gaps.
+- Upstream accounts: Codex account creation, browser/device auth, polling, and
+  logout.
+- Instances: execution slots, account binding, cwd, sandbox/approval policy,
+  health, and concurrency.
+- Users: dashboard administrators.
+
+## Interaction Rules
+
+- Chinese is the primary locale. English is a secondary operator preference,
+  stored in local storage.
+- Vue Router owns page navigation. Hash history is used so direct links and
+  refreshes work behind Vite, core static serving, and Nginx without server
+  rewrite coupling.
+- The application shell owns login, session restore, refresh, locale switching,
+  and error display. Pages only own their domain forms and tables.
+- Route pages are real Vue Router components, not conditional blocks in one
+  large component.
+- The first login against an empty database creates the administrator account;
+  later logins use the stored password hash.
+
+## Dashboard State
+
+The browser keeps a single dashboard state object with:
+
+- Raw API resources: users, profiles, API keys, runs, usage buckets, accounts,
+  instances, and route bindings.
+- Derived product metrics: authenticated accounts, available instance slots,
+  route coverage, active keys, failures, and monthly usage.
+- Domain actions: create/revoke key, create profile, create account, start/poll
+  auth, create/update/disable instance, create/delete route binding, create run,
+  and load run events.
+
+Shared state avoids each route re-fetching independently and keeps refresh
+semantics predictable after route changes.
+
+## UI System
+
+PrimeVue carries form controls, tables, tags, cards, messages, and buttons.
+Tailwind is used only for layout and spacing. The visual direction is dense,
+quiet, and operational:
+
+- No marketing hero or decorative background.
+- Page headers are compact and action-oriented.
+- Tables preserve stable columns for repeated inspection.
+- Cards are only used for metrics or framed management surfaces.
+- Raw ids remain visible where operators need them, but Chinese labels lead the
+  interface.
+
+## Development Slice
+
+The first slice converts the current MVP dashboard into this structure without
+changing backend contracts:
+
+- Add this design document.
+- Extract dashboard i18n and shared state.
+- Replace `App.vue` tab conditionals with a dashboard shell and Vue Router page
+  components.
+- Keep existing E2E `data-testid` hooks while improving page hierarchy.
+- Keep Compose deployment behavior and verify the dashboard build.

@@ -142,6 +142,10 @@ export interface CreateUpstreamInstanceInput {
   enabled: boolean;
   /** Maximum concurrent runs. */
   maxConcurrentRuns: number;
+  /** Optional sandbox policy. */
+  sandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  /** Optional approval policy. */
+  approvalPolicy?: "untrusted" | "on-request" | "never";
   /** Optional adapter config. */
   config?: Record<string, unknown>;
 }
@@ -156,6 +160,10 @@ export interface UpdateUpstreamInstanceInput {
   enabled?: boolean;
   /** Maximum concurrent runs. */
   maxConcurrentRuns?: number;
+  /** Optional sandbox policy. */
+  sandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  /** Optional approval policy. */
+  approvalPolicy?: "untrusted" | "on-request" | "never";
   /** Optional adapter config. */
   config?: Record<string, unknown>;
 }

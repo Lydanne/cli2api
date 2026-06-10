@@ -15,9 +15,15 @@ export const dashboardTabRoutes = {
 /** Dashboard route name used by navigation and page selection. */
 export type DashboardRouteName = keyof typeof dashboardTabRoutes;
 
-const dashboardRouteView = {
-  name: "DashboardRouteView",
-  render: () => null
+const routeComponents: Record<DashboardRouteName, NonNullable<RouteRecordRaw["component"]>> = {
+  overview: () => import("./pages/OverviewPage.vue"),
+  runs: () => import("./pages/RunsPage.vue"),
+  keys: () => import("./pages/ApiKeysPage.vue"),
+  profiles: () => import("./pages/ProfilesPage.vue"),
+  routeBindings: () => import("./pages/RouteBindingsPage.vue"),
+  accounts: () => import("./pages/AccountsPage.vue"),
+  instances: () => import("./pages/InstancesPage.vue"),
+  users: () => import("./pages/UsersPage.vue")
 };
 
 const routes: RouteRecordRaw[] = [
@@ -25,7 +31,7 @@ const routes: RouteRecordRaw[] = [
   ...Object.entries(dashboardTabRoutes).map(([name, path]) => ({
     path,
     name,
-    component: dashboardRouteView
+    component: routeComponents[name as DashboardRouteName]
   }))
 ];
 

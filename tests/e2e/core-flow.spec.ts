@@ -62,12 +62,12 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("account-id").fill("codex-ui-e2e");
   await page.getByTestId("account-name").fill("UI Codex 账号");
   await page.getByTestId("create-account").click();
-  await expect(page.getByText("codex-ui-e2e")).toBeVisible();
-  await expect(page.getByText("pending")).toBeVisible();
+  await expect(page.getByText("codex-ui-e2e", { exact: true })).toBeVisible();
+  await expect(page.getByText("待认证")).toBeVisible();
   await page.getByTestId("auth-codex-ui-e2e").click();
   await expect(page.getByText("E2E-1234")).toBeVisible();
   await page.getByTestId("poll-codex-ui-e2e").click();
-  await expect(page.getByText("authenticated")).toBeVisible();
+  await expect(page.getByText("已认证")).toBeVisible();
 
   await page.getByTestId("nav-instances").click();
   await page.getByTestId("instance-account").click();
@@ -78,12 +78,12 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("instance-concurrency").fill("2");
   await page.getByTestId("create-instance").click();
   await expect(page.getByText("mock-ui-inst")).toBeVisible();
-  await expect(page.getByText("unknown")).toBeVisible();
+  await expect(page.getByText("未知")).toBeVisible();
 
   await page.getByTestId("nav-profiles").click();
   await page.getByTestId("profile-id").fill("mock-ui-e2e");
   await page.getByTestId("create-profile").click();
-  await expect(page.getByText("mock-ui-e2e")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).first()).toBeVisible();
 
   await page.getByTestId("nav-routeBindings").click();
   await expect(page).toHaveURL(/#\/route-bindings$/u);
@@ -92,12 +92,10 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("route-instance").click();
   await page.getByRole("option", { name: "UI Mock 实例" }).click();
   await page.getByTestId("create-route").click();
-  await expect(page.getByText("mock-ui-e2e")).toBeVisible();
-  await expect(page.getByText("mock-ui-inst")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).filter({ hasText: "mock-ui-inst" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "路由绑定" })).toBeVisible();
-  await expect(page.getByText("mock-ui-e2e")).toBeVisible();
-  await expect(page.getByText("mock-ui-inst")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).filter({ hasText: "mock-ui-inst" })).toBeVisible();
 
   await page.getByTestId("nav-keys").click();
   await page.getByTestId("key-name").fill("ui-e2e-key");
@@ -111,7 +109,7 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("run-prompt").fill("hello dashboard e2e");
   await page.getByTestId("run-submit").click();
   await expect(page.getByRole("cell", { name: "hello dashboard e2e", exact: true })).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: "hello dashboard e2e" }).getByText("completed")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "hello dashboard e2e" }).getByText("完成")).toBeVisible();
   await expect(page.getByText("mock-ui-inst")).toBeVisible();
   await page.getByRole("button", { name: "查看事件" }).last().click();
   await expect(page.getByTestId("run-events")).toContainText("run.completed");
