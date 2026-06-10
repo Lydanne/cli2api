@@ -8,6 +8,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cli2api/core": "workspace:*",
+    "@elysia/eden": "^1.4.10",
     "@primevue/themes": "^4.5.4",
     "@vitejs/plugin-vue": "^6.0.3",
     "lucide-vue-next": "^0.560.0",

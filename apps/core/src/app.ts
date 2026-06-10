@@ -190,6 +190,9 @@ export function createApp(context: AppContext) {
     });
 }
 
+/** Elysia application type consumed by Eden Treaty clients. */
+export type App = ReturnType<typeof createApp>;
+
 async function serveDashboardFile(relativePath: string): Promise<Response> {
   for (const root of dashboardRoots()) {
     const path = resolve(root, relativePath);

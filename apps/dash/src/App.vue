@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Activity, KeyRound, Play, Server, Users } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
-import { ApiClient, ApiError } from "./lib/api.js";
+import { ApiError, createDashboardApi } from "./lib/api.js";
 import { summarizeOverview } from "./lib/overview.js";
 import type { AdapterProfileView, ApiKeyView, AdminUser, RunView } from "./types.js";
 
-const client = new ApiClient("");
+const client = createDashboardApi();
 const email = ref("admin@example.com");
 const password = ref("password");
 const loggedIn = ref(false);
@@ -31,7 +31,7 @@ const summary = computed(() =>
 
 async function login() {
   await action(async () => {
-    await client.post("/api/admin/login", { email: email.value, password: password.value });
+    await client.login({ email: email.value, password: password.value });
     loggedIn.value = true;
     await refresh();
   });
@@ -40,10 +40,10 @@ async function login() {
 async function refresh(options: { silent?: boolean } = {}) {
   await action(async () => {
     const [userRows, profileRows, keyRows, runRows] = await Promise.all([
-      client.get<AdminUser[]>("/api/admin/users"),
-      client.get<AdapterProfileView[]>("/api/admin/profiles"),
-      client.get<ApiKeyView[]>("/api/admin/api-keys"),
-      client.get<RunView[]>("/api/admin/runs")
+      client.users(),
+      client.profiles(),
+      client.apiKeys(),
+      client.runs()
     ]);
     users.value = userRows;
     profiles.value = profileRows;
@@ -55,7 +55,7 @@ async function refresh(options: { silent?: boolean } = {}) {
 
 async function createProfile() {
   await action(async () => {
-    await client.post("/api/admin/profiles", {
+    await client.createProfile({
       id: newProfileId.value,
       type: "mock",
       name: newProfileId.value,
@@ -68,7 +68,7 @@ async function createProfile() {
 
 async function createKey() {
   await action(async () => {
-    const created = await client.post<ApiKeyView>("/api/admin/api-keys", {
+    const created = await client.createApiKey({
       name: newKeyName.value,
       dailyRunLimit: 100,
       rpmLimit: 60,
@@ -84,18 +84,7 @@ async function createRun() {
     if (!createdToken.value) {
       throw new Error("Create an API key first.");
     }
-    const response = await fetch("/api/runs", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${createdToken.value}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ prompt: prompt.value, profileId: selectedProfile.value })
-    });
-    if (!response.ok) {
-      const body = await response.json();
-      throw new Error(body.error?.message ?? response.statusText);
-    }
+    await client.createRun(createdToken.value, { prompt: prompt.value, profileId: selectedProfile.value });
     await refresh();
   });
 }

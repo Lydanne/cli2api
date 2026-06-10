@@ -1,54 +1,73 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiClient, ApiError } from "./api.js";
+import { ApiError, createDashboardApi, type DashboardTreaty } from "./api.js";
 
-describe("dashboard ApiClient", () => {
-  it("sends JSON requests and returns parsed responses", async () => {
-    const fetcher = vi.fn(async () => Response.json({ ok: true }));
-    const client = new ApiClient("/api", fetcher);
+function treatyResponse<T>(data: T) {
+  return {
+    data,
+    error: null,
+    response: new Response(),
+    status: 200,
+    headers: {}
+  };
+}
 
-    await expect(client.post("/admin/profiles", { id: "mock" })).resolves.toEqual({ ok: true });
-    expect(fetcher).toHaveBeenCalledWith("/api/admin/profiles", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: "mock" })
+function treatyError(status: number, value: unknown) {
+  return {
+    data: null,
+    error: { status, value },
+    response: new Response(null, { status }),
+    status,
+    headers: {}
+  };
+}
+
+describe("dashboard Eden API facade", () => {
+  it("creates an Eden Treaty client and returns admin users", async () => {
+    const fakeClient = {
+      api: {
+        admin: {
+          users: {
+            get: vi.fn(async () =>
+              treatyResponse([{ id: "user-1", email: "admin@example.com", role: "admin", disabledAt: null }])
+            )
+          }
+        }
+      }
+    } as unknown as DashboardTreaty;
+    const factory = vi.fn(() => fakeClient);
+
+    const api = createDashboardApi("/control", factory);
+
+    await expect(api.users()).resolves.toEqual([
+      { id: "user-1", email: "admin@example.com", role: "admin", disabledAt: null }
+    ]);
+    expect(factory).toHaveBeenCalledWith("/control", {
+      fetch: { credentials: "include" }
     });
+    expect(fakeClient.api.admin.users.get).toHaveBeenCalledWith();
   });
 
-  it("throws stable API errors", async () => {
-    const fetcher = vi.fn(async () =>
-      Response.json({ error: { code: "AUTH_FAILED", message: "no" } }, { status: 401 })
-    );
-    const client = new ApiClient("/api", fetcher);
+  it("normalizes Eden errors to ApiError", async () => {
+    const fakeClient = {
+      api: {
+        admin: {
+          users: {
+            get: vi.fn(async () =>
+              treatyError(401, {
+                error: { code: "AUTH_FAILED", message: "Missing admin session" }
+              })
+            )
+          }
+        }
+      }
+    } as unknown as DashboardTreaty;
+    const api = createDashboardApi("", () => fakeClient);
 
-    await expect(client.get("/admin/users")).rejects.toMatchObject({
+    await expect(api.users()).rejects.toMatchObject({
       code: "AUTH_FAILED",
+      message: "Missing admin session",
       status: 401
     });
     expect(ApiError).toBeDefined();
-  });
-
-  it("keeps the default browser fetch bound to globalThis", async () => {
-    const previous = globalThis.fetch;
-    const calls: Array<RequestInfo | URL> = [];
-    globalThis.fetch = function strictFetch(
-      this: unknown,
-      input: RequestInfo | URL,
-      _init?: RequestInit
-    ): Promise<Response> {
-      if (this !== globalThis) {
-        throw new TypeError("Illegal invocation");
-      }
-      calls.push(input);
-      return Promise.resolve(Response.json({ ok: true }));
-    } as typeof fetch;
-
-    try {
-      const client = new ApiClient("");
-      await expect(client.get("/api/health")).resolves.toEqual({ ok: true });
-      expect(calls).toEqual(["/api/health"]);
-    } finally {
-      globalThis.fetch = previous;
-    }
   });
 });
