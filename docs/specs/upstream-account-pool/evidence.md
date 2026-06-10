@@ -14,6 +14,46 @@ Chinese-first dashboard work.
 
 ## Evidence Log
 
+- `pnpm vitest run packages/agents-sdk/src/auth.spec.ts`: failed first because
+  `CodexAuthProvider.startAuth` still called `run` and waited for process exit
+  instead of returning after browser instructions were printed.
+- `pnpm vitest run packages/agents-sdk/src/auth.spec.ts`: failed again because
+  the user-code parser accepted explanatory text from Codex's real device-auth
+  output; passed after stripping ANSI and extracting only uppercase device-code
+  tokens after explicit code prompts.
+- `pnpm vitest run packages/agents-sdk/src/auth.spec.ts`: failed first for
+  unauthenticated status because `Not logged in` was recorded as `failed`, then
+  failed again because the authenticated detector matched the nested `logged in`
+  phrase; passed after giving unauthenticated output priority and returning
+  `pending`.
+- `pnpm vitest run apps/core/src/upstream.spec.ts`: failed first because the
+  upstream account row existed but the per-account auth home directory did not.
+- `pnpm vitest run apps/core/src/upstream.spec.ts`: passed after creating auth
+  homes during account creation and before auth/status/logout provider calls.
+- `pnpm vitest run apps/core/src/deploy-script.spec.ts`: failed first because
+  the API runtime Docker stage did not install `ca-certificates`.
+- `pnpm vitest run apps/core/src/deploy-script.spec.ts`: passed after adding
+  `ca-certificates` to the runtime stage.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm test`: passed with 11 test files and 54 tests.
+- `pnpm test:coverage`: passed; global coverage is 82.46% statements, 66.01%
+  branches, 88.56% functions, and 82.98% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests. The only output warnings
+  were `NO_COLOR` being ignored because `FORCE_COLOR` was set.
+- `pnpm lint`: passed.
+- `pnpm check:file-size`: all checked source files are <= 1300 lines.
+- `git diff --check`: passed.
+- `docker compose build api`: passed and rebuilt `cli2api-api:local`; runtime
+  stage installed `ca-certificates` and updated the system trust store.
+- `docker run --rm --entrypoint sh cli2api-api:local -c 'test -f
+  /etc/ssl/certs/ca-certificates.crt ...'`: passed, confirming the runtime image
+  contains the system CA bundle.
+- `docker run --rm --entrypoint sh cli2api-api:local -c '... codex
+  --version'`: passed, returning `codex-cli 0.139.0`.
+- `docker run --rm --entrypoint sh cli2api-api:local -c '... codex login
+  --device-auth ... grep -q "https://auth.openai.com/codex/device"'`: passed,
+  confirming the rebuilt runtime can reach OpenAI device auth and print browser
+  instructions. The one-time device code was not recorded.
 - `pnpm --filter @cli2api/agents-sdk test`: failed first because the default
   Codex auth executable was the bare `codex` command, which is not present on the
   Compose API image `PATH`.

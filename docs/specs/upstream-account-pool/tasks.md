@@ -38,6 +38,13 @@
 - [x] Persist Codex auth homes under the Compose `~/.cli2api` service home.
 - [x] Resolve the bundled Codex CLI shim for container auth flows before
   falling back to a global `codex` executable.
+- [x] Install system CA certificates in the API runtime image for Codex CLI
+  HTTPS auth requests.
+- [x] Create per-account `CODEX_HOME` directories before Codex auth/status
+  commands run.
+- [x] Capture Codex device-auth browser instructions from process output before
+  the long-running login command exits.
+- [x] Treat Codex `Not logged in` status output as pending rather than failed.
 - [x] Document Codex browser/device auth from the dashboard.
 - [x] Run build, unit, coverage, E2E, lint, and file-size checks.
 - [x] Verify dashboard language switching and auth flow with mocked Codex auth.

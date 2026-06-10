@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -80,11 +81,13 @@ async function createUpstreamHarness(options: UpstreamHarnessOptions = {}): Prom
   database: CoreDatabase;
   services: Services;
   provider: FakeCodexAuthProvider;
+  authHomeBase: string;
   runtimeWorkspaceBase: string;
   cookie: string;
   close: () => Promise<void>;
 }> {
   const dir = await mkdtemp(join(tmpdir(), "cli2api-upstream-"));
+  const authHomeBase = options?.authHomeBase ?? join(dir, "codex-homes");
   const database = openCoreDatabase(join(dir, "test.sqlite"));
   migrateDatabase(database);
   if (options?.seedLegacyContainerAccount) {
@@ -109,7 +112,7 @@ async function createUpstreamHarness(options: UpstreamHarnessOptions = {}): Prom
   const services = createServices(database, {
     homeDir: dir,
     authProviders: [provider],
-    authHomeBase: options?.authHomeBase ?? "/data/codex-homes",
+    authHomeBase,
     runtimeWorkspaceBase
   });
   services.users.createAdmin("admin@example.com", "password");
@@ -130,6 +133,7 @@ async function createUpstreamHarness(options: UpstreamHarnessOptions = {}): Prom
     database,
     services,
     provider,
+    authHomeBase,
     runtimeWorkspaceBase,
     cookie,
     close: async () => {
@@ -165,8 +169,9 @@ describe("@cli2api/core upstream account pool", () => {
       providerType: "codex",
       name: "主 Codex 账号",
       authState: "pending",
-      authHome: "/data/codex-homes/acct-codex-1"
+      authHome: join(harness.authHomeBase, "acct-codex-1")
     });
+    expect(existsSync(join(harness.authHomeBase, "acct-codex-1"))).toBe(true);
 
     const startResponse = await harness.app.handle(
       new Request("http://localhost/api/admin/upstream/accounts/acct-codex-1/auth/start", {
@@ -184,7 +189,7 @@ describe("@cli2api/core upstream account pool", () => {
       authUrl: "https://example.com/device",
       userCode: "ABCD-1234"
     });
-    expect(harness.provider.started[0]?.authHome).toBe("/data/codex-homes/acct-codex-1");
+    expect(harness.provider.started[0]?.authHome).toBe(join(harness.authHomeBase, "acct-codex-1"));
 
     const statusResponse = await harness.app.handle(
       new Request("http://localhost/api/admin/upstream/accounts/acct-codex-1/auth/status", {
@@ -296,7 +301,7 @@ describe("@cli2api/core upstream account pool", () => {
       accountId: "acct-admin-ops",
       state: "pending"
     });
-    expect(harness.provider.loggedOut[0]?.authHome).toBe("/data/codex-homes/acct-admin-ops");
+    expect(harness.provider.loggedOut[0]?.authHome).toBe(join(harness.authHomeBase, "acct-admin-ops"));
 
     const updateResponse = await harness.app.handle(
       new Request(`http://localhost/api/admin/upstream/instances/${instance.id}`, {

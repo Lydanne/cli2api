@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { mkdirSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { AgentAuthProvider, AuthSession } from "@cli2api/agents-sdk";
 import {
@@ -129,12 +130,14 @@ export class UpstreamService {
     const id = input.id ?? randomUUID();
     assertSafeId(id);
     const now = Date.now();
+    const authHome = this.resolveAuthHome(id, input.authHome);
+    this.ensureAuthHome(authHome);
     const row = {
       id,
       providerType: provider.type,
       name: input.name,
       authState: "pending",
-      authHome: this.resolveAuthHome(id, input.authHome),
+      authHome,
       disabledAt: null,
       lastAuthError: null,
       createdAt: now,
@@ -158,6 +161,7 @@ export class UpstreamService {
   public async startAuth(accountId: string, input: StartUpstreamAuthInput): Promise<UpstreamAuthSessionResponse> {
     const account = this.requireAccount(accountId);
     const provider = this.requireProvider(account.providerType);
+    this.ensureAuthHome(account.authHome);
     const session = await provider.startAuth({
       accountId: account.id,
       authHome: account.authHome,
@@ -170,6 +174,7 @@ export class UpstreamService {
   public async pollAuthStatus(accountId: string): Promise<UpstreamAuthSessionResponse> {
     const account = this.requireAccount(accountId);
     const provider = this.requireProvider(account.providerType);
+    this.ensureAuthHome(account.authHome);
     const session = await provider.checkRuntime({
       accountId: account.id,
       authHome: account.authHome
@@ -181,6 +186,7 @@ export class UpstreamService {
   public async logoutAccount(accountId: string): Promise<UpstreamAuthSessionResponse> {
     const account = this.requireAccount(accountId);
     const provider = this.requireProvider(account.providerType);
+    this.ensureAuthHome(account.authHome);
     const session = await provider.logout({
       accountId: account.id,
       authHome: account.authHome
@@ -550,6 +556,10 @@ export class UpstreamService {
       throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "authHome must be inside the configured auth home base", 400);
     }
     return candidate;
+  }
+
+  private ensureAuthHome(authHome: string): void {
+    mkdirSync(authHome, { recursive: true });
   }
 
   private alignLegacyContainerAuthHomes(): void {

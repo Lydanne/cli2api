@@ -29,6 +29,20 @@ The Codex auth provider runs `codex login --device-auth`,
 Every account receives an isolated `CODEX_HOME`, so multiple Codex accounts can
 coexist in the same deployment.
 
+Core creates each account auth home before it is persisted, and the Codex auth
+provider also ensures the home exists before invoking the CLI. This keeps
+existing accounts and custom auth-home inputs compatible with Codex CLI versions
+that reject missing `CODEX_HOME` directories.
+
+Device auth is a long-running Codex CLI process: it prints the browser URL and
+user code, then waits while the operator completes login. The provider therefore
+captures output until those browser instructions are available and returns a
+`waiting_for_browser` session immediately. The later status poll remains the
+source of truth for whether the account is authenticated. A status response that
+only says the CLI is not logged in is treated as `pending`, even when the Codex
+CLI exits non-zero, so operators do not see a failure while device auth is still
+waiting for browser completion.
+
 By default, the provider resolves the Codex CLI shim bundled under
 `@openai/codex-sdk` before falling back to a `codex` executable on `PATH`.
 Container deployments therefore use the locked workspace dependency instead of
@@ -102,7 +116,10 @@ home volume. The dashboard service remains stateless. The API service owns auth 
 invocation. The runtime image copies the root and package-level `node_modules`
 trees needed for `@openai/codex-sdk` and its bundled Codex CLI shim. The Docker
 build context excludes root and workspace `node_modules` directories so local
-pnpm shims do not overwrite the container's fresh frozen-lockfile install.
+pnpm shims do not overwrite the container's fresh frozen-lockfile install. The
+runtime image installs `ca-certificates` because the bundled Codex CLI performs
+HTTPS requests through the system trust store, while Node's built-in fetch can
+still work without that package.
 
 ## Rejected Options
 

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -44,12 +45,17 @@ export class CodexAuthProvider implements AgentAuthProvider {
 
   /** Starts Codex device auth and returns browser/device instructions when available. */
   public async startAuth(input: StartAuthInput): Promise<AuthSession> {
-    const result = await this.runner.run(this.command(input, ["login", "--device-auth"]));
+    await ensureAuthHome(input.authHome);
+    const command = this.command(input, ["login", "--device-auth"]);
+    const result = this.runner.runUntilOutput
+      ? await this.runner.runUntilOutput(command, hasBrowserInstructions)
+      : await this.runner.run(command);
     return this.toSession(input, result, input.sessionId ?? randomUUID());
   }
 
   /** Logs Codex in with an API key or access token passed through stdin. */
   public async loginWithSecret(input: SecretLoginInput): Promise<AuthSession> {
+    await ensureAuthHome(input.authHome);
     const flag = input.method === "api-key" ? "--with-api-key" : "--with-access-token";
     const result = await this.runner.run(this.command(input, ["login", flag], input.secret));
     return this.toSession(input, result, randomUUID());
@@ -57,12 +63,14 @@ export class CodexAuthProvider implements AgentAuthProvider {
 
   /** Checks Codex login status for one isolated account home. */
   public async checkRuntime(input: RuntimeAuthInput): Promise<AuthSession> {
+    await ensureAuthHome(input.authHome);
     const result = await this.runner.run(this.command(input, ["login", "status"]));
     return this.toSession(input, result, randomUUID());
   }
 
   /** Logs out one isolated Codex account home. */
   public async logout(input: RuntimeAuthInput): Promise<AuthSession> {
+    await ensureAuthHome(input.authHome);
     const result = await this.runner.run(this.command(input, ["logout"]));
     if (result.exitCode !== 0) {
       return this.toSession(input, result, randomUUID());
@@ -98,13 +106,13 @@ export class CodexAuthProvider implements AgentAuthProvider {
   }
 
   private toSession(input: RuntimeAuthInput, result: AgentAuthCommandResult, sessionId: string): AuthSession {
-    const combinedOutput = `${result.stdout}\n${result.stderr}`.trim();
+    const combinedOutput = stripAnsi(`${result.stdout}\n${result.stderr}`).trim();
     const authUrl = extractAuthUrl(combinedOutput);
     const userCode = extractUserCode(combinedOutput);
     const authenticated = isAuthenticatedOutput(combinedOutput);
     const unauthenticated = isUnauthenticatedOutput(combinedOutput);
 
-    if (result.exitCode !== 0) {
+    if (result.exitCode !== 0 && !unauthenticated) {
       return {
         id: sessionId,
         providerType: this.type,
@@ -119,13 +127,27 @@ export class CodexAuthProvider implements AgentAuthProvider {
       id: sessionId,
       providerType: this.type,
       accountId: input.accountId,
-      state: authenticated ? "authenticated" : authUrl || userCode ? "waiting_for_browser" : unauthenticated ? "pending" : "pending",
+      state: unauthenticated ? "pending" : authenticated ? "authenticated" : authUrl || userCode ? "waiting_for_browser" : "pending",
       authHome: input.authHome,
       authUrl,
       userCode,
       message: combinedOutput || undefined
     };
   }
+}
+
+async function ensureAuthHome(authHome: string): Promise<void> {
+  await mkdir(authHome, { recursive: true });
+}
+
+function hasBrowserInstructions(output: string): boolean {
+  const normalized = stripAnsi(output);
+  return Boolean(extractAuthUrl(normalized) && extractUserCode(normalized));
+}
+
+function stripAnsi(output: string): string {
+  const escapeCharacter = String.fromCharCode(27);
+  return output.replace(new RegExp(`${escapeCharacter}\\[[0-?]*[ -/]*[@-~]`, "gu"), "");
 }
 
 function extractAuthUrl(output: string): string | undefined {
@@ -147,7 +169,8 @@ function resolveBundledCodexPath(): string {
 }
 
 function extractUserCode(output: string): string | undefined {
-  return output.match(/\b(?:code|enter code|user code)\b[^A-Z0-9]*([A-Z0-9]{4,}(?:-[A-Z0-9]{3,})*)/iu)?.[1];
+  const promptTail = output.match(/\b(?:enter(?: this)?(?: one-time)? code|user code|one-time code)\b([\s\S]*)/iu)?.[1];
+  return promptTail?.match(/\b([A-Z0-9]{4,}(?:-[A-Z0-9]{3,})*)\b/u)?.[1];
 }
 
 function isAuthenticatedOutput(output: string): boolean {

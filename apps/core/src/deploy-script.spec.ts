@@ -33,6 +33,7 @@ describe("root deploy helper", () => {
     expect(allowedBuilds).toContain("better-sqlite3");
     expect(allowedBuilds).toContain("esbuild");
     expect(dockerfile).toContain("pnpm rebuild better-sqlite3");
+    expect(dockerfile).toContain("apt-get install -y --no-install-recommends ca-certificates");
     expect(dockerfile).toContain("COPY --from=build /app/apps/core/node_modules ./apps/core/node_modules");
     expect(dockerfile).toContain(
       "COPY --from=build /app/packages/agents-sdk/node_modules ./packages/agents-sdk/node_modules"

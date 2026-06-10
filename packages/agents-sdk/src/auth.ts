@@ -88,6 +88,11 @@ export interface AgentAuthCommandResult {
 export interface AgentAuthCommandRunner {
   /** Runs a provider auth command and returns captured output. */
   run(command: AgentAuthCommand): Promise<AgentAuthCommandResult>;
+  /**
+   * Runs a provider auth command until output satisfies the readiness predicate.
+   * The command may keep running after this method resolves.
+   */
+  runUntilOutput?(command: AgentAuthCommand, isReady: (output: string) => boolean): Promise<AgentAuthCommandResult>;
 }
 
 /** Provider-neutral auth provider contract implemented by adapter integrations. */
@@ -131,6 +136,79 @@ export class ChildProcessAuthCommandRunner implements AgentAuthCommandRunner {
           clearTimeout(timeout);
         }
         resolve({
+          exitCode: exitCode ?? 1,
+          stdout: Buffer.concat(stdout).toString("utf8"),
+          stderr: Buffer.concat(stderr).toString("utf8")
+        });
+      });
+
+      if (command.stdin) {
+        child.stdin?.write(command.stdin);
+      }
+      child.stdin?.end();
+    });
+  }
+
+  /** Runs the command until the requested output is observed or the process exits. */
+  public async runUntilOutput(
+    command: AgentAuthCommand,
+    isReady: (output: string) => boolean
+  ): Promise<AgentAuthCommandResult> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command.executable, command.args, {
+        env: command.env,
+        stdio: ["pipe", "pipe", "pipe"]
+      });
+      const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
+      let timeout: NodeJS.Timeout | undefined;
+      let settled = false;
+
+      const output = () => `${Buffer.concat(stdout).toString("utf8")}\n${Buffer.concat(stderr).toString("utf8")}`;
+      const finish = (result: AgentAuthCommandResult): void => {
+        if (settled) return;
+        settled = true;
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        resolve(result);
+      };
+      const finishIfReady = (): void => {
+        if (isReady(output())) {
+          finish({
+            exitCode: 0,
+            stdout: Buffer.concat(stdout).toString("utf8"),
+            stderr: Buffer.concat(stderr).toString("utf8")
+          });
+        }
+      };
+
+      if (command.timeoutMs) {
+        timeout = setTimeout(() => {
+          child.kill();
+          finish({
+            exitCode: 1,
+            stdout: Buffer.concat(stdout).toString("utf8"),
+            stderr: `${Buffer.concat(stderr).toString("utf8")}\nAuth command timed out before required output`.trim()
+          });
+        }, command.timeoutMs);
+      }
+
+      child.stdout?.on("data", (chunk: Buffer) => {
+        stdout.push(chunk);
+        finishIfReady();
+      });
+      child.stderr?.on("data", (chunk: Buffer) => {
+        stderr.push(chunk);
+        finishIfReady();
+      });
+      child.once("error", (error) => {
+        if (!settled) {
+          reject(error);
+        }
+      });
+      child.once("close", (exitCode) => {
+        finish({
           exitCode: exitCode ?? 1,
           stdout: Buffer.concat(stdout).toString("utf8"),
           stderr: Buffer.concat(stderr).toString("utf8")

@@ -75,6 +75,14 @@
   instance selection.
 - [x] Dashboard exposes route binding, upstream logout/disable, API key quota,
   and admin-user creation controls.
+- [x] Docker runtime includes system CA certificates so the bundled Codex CLI can
+  reach OpenAI auth endpoints over HTTPS.
+- [x] Codex account auth homes are created before any `CODEX_HOME`-scoped Codex
+  CLI command runs.
+- [x] Device auth returns the browser URL and user code as soon as Codex prints
+  them instead of waiting for the full login process to exit.
+- [x] Polling a Codex auth home that is simply not logged in keeps the account
+  in `pending` state instead of recording an auth failure.
 - [x] Dashboard uses the installed PrimeVue component library for the main
   control surface instead of plain hand-rolled tables/forms.
 - [x] Dashboard navigation is backed by Vue Router and writes the current page
