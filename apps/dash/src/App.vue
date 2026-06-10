@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Activity, KeyRound, Play, Server, Users } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
-import { ApiError, createDashboardApi } from "./lib/api.js";
-import { summarizeOverview } from "./lib/overview.js";
-import type { AdapterProfileView, ApiKeyView, AdminUser, RunView } from "./types.js";
+import { ApiError, createDashboardApi } from "./lib/api";
+import { summarizeOverview } from "./lib/overview";
+import type { AdapterProfileView, ApiKeyView, AdminUser, RunView } from "./types";
 
 const client = createDashboardApi();
 const email = ref("admin@example.com");

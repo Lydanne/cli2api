@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeOverview } from "./overview.js";
+import { summarizeOverview } from "./overview";
 
 describe("summarizeOverview", () => {
   it("builds operational counts from profiles, keys, and runs", () => {

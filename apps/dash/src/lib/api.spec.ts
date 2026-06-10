@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, createDashboardApi, type DashboardTreaty } from "./api.js";
+import { ApiError, createDashboardApi, type DashboardTreaty } from "./api";
 
 function treatyResponse<T>(data: T) {
   return {

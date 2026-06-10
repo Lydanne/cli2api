@@ -48,5 +48,21 @@ export default [
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       "vue/multi-word-component-names": "off"
     }
+  },
+  {
+    files: ["apps/dash/src/**/*.{ts,vue}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["./*.js", "../*.js", "./**/*.js", "../**/*.js"],
+              message: "Use extensionless relative imports in Vite dashboard code."
+            }
+          ]
+        }
+      ]
+    }
   }
 ];

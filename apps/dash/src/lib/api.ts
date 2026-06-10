@@ -1,7 +1,7 @@
 import { treaty, type Treaty } from "@elysia/eden";
 import type { AgentEvent } from "@cli2api/shared";
 import type { App } from "@cli2api/core";
-import type { AdapterProfileView, AdminUser, ApiKeyView, RunView } from "../types.js";
+import type { AdapterProfileView, AdminUser, ApiKeyView, RunView } from "../types";
 
 /** Error thrown when a backend API request fails. */
 export class ApiError extends Error {
