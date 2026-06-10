@@ -58,7 +58,6 @@ const {
             <Tag :severity="statusSeverity(data.authState)" :value="statusLabel(data.authState)" />
           </template>
         </Column>
-        <Column field="authHome" :header="text('authHome')" />
         <Column :header="text('actions')" headerStyle="width: 390px">
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">

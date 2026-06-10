@@ -1,5 +1,19 @@
 # Model Serving Sandbox Evidence
 
+## 2026-06-10 Dashboard Auth Path Hiding
+
+- `pnpm test:e2e tests/e2e/core-flow.spec.ts -g "dashboard covers"`: failed
+  first because the upstream account table still rendered `认证目录`.
+- `pnpm test:e2e tests/e2e/core-flow.spec.ts -g "dashboard covers"`: passed
+  after removing the account `authHome` table column.
+- `pnpm test`: passed with 11 test files and 50 tests.
+- `pnpm test:coverage`: passed; global coverage is 85.15% statements, 67.21%
+  branches, 91.07% functions, and 85.62% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests.
+- `pnpm check:file-size`: passed; all checked source files are <= 1300 lines.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm lint`: passed with zero warnings.
+
 ## 2026-06-10 Read-only Text Serving Update
 
 - `pnpm --filter @cli2api/agents-sdk test`: first failed as expected because

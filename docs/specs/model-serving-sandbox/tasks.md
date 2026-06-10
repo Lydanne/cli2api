@@ -19,5 +19,6 @@
   to read-only text serving.
 - [x] Remove profile `cwd` input/table column from Dash.
 - [x] Remove upstream instance `cwd`, sandbox, and approval controls from Dash.
+- [x] Remove upstream account `authHome` table column from Dash.
 - [x] Update focused unit tests and E2E expectations.
 - [x] Record verification in `evidence.md`.

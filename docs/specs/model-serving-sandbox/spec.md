@@ -67,6 +67,8 @@
   environment variables taking precedence.
 - [x] Dashboard profile and instance pages no longer let operators type or edit
   `cwd`.
+- [x] Dashboard account pages no longer display Codex auth home paths as normal
+  operator-facing table columns.
 - [x] Tests cover `cwd` override attempts for profiles, upstream instances, and
   downstream run payloads.
 - [x] `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`, `pnpm lint`, and
