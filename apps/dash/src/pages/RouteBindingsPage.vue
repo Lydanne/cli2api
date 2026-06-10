@@ -21,7 +21,7 @@ const {
 </script>
 
 <template>
-  <Card class="border border-slate-200 shadow-sm">
+  <Card class="app-card">
     <template #title>{{ text("routeBindings") }}</template>
     <template #content>
       <form class="mb-4 grid grid-cols-1 gap-2 lg:grid-cols-[1fr_1fr_auto]" @submit.prevent="createRoute">
@@ -47,7 +47,7 @@ const {
           <template #body="{ data }">
             <div>
               <p class="font-medium">{{ profileName(data.profileId) }}</p>
-              <p class="font-mono text-xs text-slate-500">{{ data.profileId }}</p>
+              <p class="app-code-muted font-mono text-xs">{{ data.profileId }}</p>
             </div>
           </template>
         </Column>
@@ -55,7 +55,7 @@ const {
           <template #body="{ data }">
             <div>
               <p class="font-medium">{{ instanceName(data.instanceId) }}</p>
-              <p class="font-mono text-xs text-slate-500">{{ data.instanceId }}</p>
+              <p class="app-code-muted font-mono text-xs">{{ data.instanceId }}</p>
             </div>
           </template>
         </Column>

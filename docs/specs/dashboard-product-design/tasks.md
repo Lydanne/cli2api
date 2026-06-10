@@ -8,3 +8,8 @@
 - [x] Preserve existing dashboard E2E selectors during the UI restructuring.
 - [x] Verify build, unit tests, E2E, lint, coverage, file-size checks, and
   deployment helper after the slice.
+- [x] Configure PrimeVue Aura with a shared `.dark` selector.
+- [x] Add persisted dashboard theme state for `light`, `dark`, and `system`.
+- [x] Replace light-only dashboard color classes with theme-aware classes.
+- [x] Use PrimeVue option controls for locale and theme selection in the shell.
+- [x] Verify light and dark screenshots for login, overview, and runs surfaces.

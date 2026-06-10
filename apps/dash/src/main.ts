@@ -6,4 +6,7 @@ import App from "./App.vue";
 import { createDashboardRouter } from "./router";
 import "./style.css";
 
-createApp(App).use(createDashboardRouter(createWebHashHistory())).use(PrimeVue, { theme: { preset: Aura } }).mount("#app");
+createApp(App)
+  .use(createDashboardRouter(createWebHashHistory()))
+  .use(PrimeVue, { theme: { preset: Aura, options: { darkModeSelector: ".dark" } } })
+  .mount("#app");

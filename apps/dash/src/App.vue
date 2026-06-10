@@ -15,7 +15,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-100 text-slate-950">
+  <main class="app-root">
     <LoginPanel v-if="!loggedIn" />
     <DashboardShell v-else />
   </main>

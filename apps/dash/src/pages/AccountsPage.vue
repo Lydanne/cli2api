@@ -25,7 +25,7 @@ const {
 </script>
 
 <template>
-  <Card class="border border-slate-200 shadow-sm">
+  <Card class="app-card">
     <template #title>{{ text("accounts") }}</template>
     <template #content>
       <form class="mb-4 grid grid-cols-1 gap-2 lg:grid-cols-[190px_1fr_auto]" @submit.prevent="createAccount">
@@ -38,7 +38,7 @@ const {
         <p>{{ text("authInstruction") }}</p>
         <p v-if="lastAuthSession.authUrl" class="mt-2">
           {{ text("authUrl") }}:
-          <a class="font-mono underline" :href="lastAuthSession.authUrl" target="_blank">{{ lastAuthSession.authUrl }}</a>
+          <a class="app-link font-mono underline" :href="lastAuthSession.authUrl" target="_blank">{{ lastAuthSession.authUrl }}</a>
         </p>
         <p v-if="lastAuthSession.userCode" class="mt-1 font-mono">{{ text("userCode") }}: {{ lastAuthSession.userCode }}</p>
       </Message>
@@ -48,7 +48,7 @@ const {
           <template #body="{ data }">
             <div>
               <p class="font-medium">{{ data.name }}</p>
-              <p class="font-mono text-xs text-slate-500">{{ data.id }}</p>
+              <p class="app-code-muted font-mono text-xs">{{ data.id }}</p>
             </div>
           </template>
         </Column>

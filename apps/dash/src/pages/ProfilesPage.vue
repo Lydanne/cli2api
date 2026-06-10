@@ -26,7 +26,7 @@ const {
 </script>
 
 <template>
-  <Card class="border border-slate-200 shadow-sm">
+  <Card class="app-card">
     <template #title>{{ text("profiles") }}</template>
     <template #content>
       <form

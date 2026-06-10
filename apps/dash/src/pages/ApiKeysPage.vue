@@ -27,7 +27,7 @@ const {
 </script>
 
 <template>
-  <Card class="border border-slate-200 shadow-sm">
+  <Card class="app-card">
     <template #title>{{ text("keys") }}</template>
     <template #content>
       <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[1fr_110px_110px_110px_140px_auto]" @submit.prevent="createKey">

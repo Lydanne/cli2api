@@ -27,7 +27,7 @@ const {
 
 <template>
   <div class="space-y-5">
-    <Card class="border border-slate-200 shadow-sm">
+    <Card class="app-card">
       <template #title>{{ text("runs") }}</template>
       <template #content>
         <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[240px_280px_1fr_auto]" @submit.prevent="createRun">
@@ -55,7 +55,7 @@ const {
             <template #body="{ data }">
               <div>
                 <p>{{ instanceName(data.upstreamInstanceId) }}</p>
-                <p v-if="data.upstreamInstanceId" class="font-mono text-xs text-slate-500">{{ data.upstreamInstanceId }}</p>
+                <p v-if="data.upstreamInstanceId" class="app-code-muted font-mono text-xs">{{ data.upstreamInstanceId }}</p>
               </div>
             </template>
           </Column>
@@ -81,12 +81,12 @@ const {
 
     <section
       v-if="selectedRunId"
-      class="rounded-md border border-slate-800 bg-slate-950 p-4 text-slate-100 shadow-sm"
+      class="app-events rounded-md p-4"
       data-testid="run-events"
     >
       <div class="mb-3">
         <h3 class="text-sm font-semibold">{{ text("events") }}</h3>
-        <p class="font-mono text-xs text-slate-300">{{ selectedRunId }}</p>
+        <p class="app-events-id font-mono text-xs">{{ selectedRunId }}</p>
       </div>
       <pre class="max-h-80 overflow-auto whitespace-pre-wrap text-xs">{{ formattedRunEvents }}</pre>
     </section>

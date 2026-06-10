@@ -29,7 +29,7 @@ const {
 </script>
 
 <template>
-  <Card class="border border-slate-200 shadow-sm">
+  <Card class="app-card">
     <template #title>{{ text("instances") }}</template>
     <template #content>
       <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[180px_120px_150px_1fr_100px_auto]" @submit.prevent="createInstance">
@@ -51,7 +51,7 @@ const {
         <Column :header="text('name')">
           <template #body="{ data }">
             <InputText v-model="data.name" class="w-full" />
-            <p class="mt-1 font-mono text-xs text-slate-500">{{ data.id }}</p>
+            <p class="app-code-muted mt-1 font-mono text-xs">{{ data.id }}</p>
           </template>
         </Column>
         <Column :header="text('account')">

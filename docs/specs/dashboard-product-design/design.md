@@ -71,6 +71,21 @@ quiet, and operational:
 - Raw ids remain visible where operators need them, but Chinese labels lead the
   interface.
 
+## Theme System
+
+Dark mode is part of the dashboard system, not a page-level override. PrimeVue
+uses the Aura preset with `.dark` as the configured `darkModeSelector`.
+Dashboard state owns a persisted theme mode with `light`, `dark`, and `system`
+values. The resolved mode is synchronized to the document root so PrimeVue
+tokens and custom dashboard CSS switch together.
+
+Custom dashboard surfaces use semantic CSS classes backed by light and dark CSS
+variables. Tailwind remains responsible for layout, spacing, and responsive
+grid behavior, while color, border, and text tone choices come from the theme
+layer. The shell, navigation, overview setup stepper, cards, management tables,
+forms, event log, login panel, and muted metadata text must remain readable in
+both modes.
+
 ## Development Slice
 
 The first slice converts the current MVP dashboard into this structure without
