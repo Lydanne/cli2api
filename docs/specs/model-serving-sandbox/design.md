@@ -14,7 +14,8 @@ The core service owns one local home directory:
 
 - Environment variable: `CLI2API_HOME`.
 - Local default: `~/.cli2api`.
-- Docker Compose override: `/data`, through `CLI2API_HOME=/data`.
+- Docker Compose default: `~/.cli2api`, mounted at `/root/.cli2api` in the API
+  container.
 
 The service reads `${CLI2API_HOME}/.env` when present. Values from the real
 process environment override values from this file, so deployment-level secrets
@@ -29,7 +30,8 @@ Default paths are derived from `CLI2API_HOME`:
 
 Every path can still be overridden with its existing specific environment
 variable, such as `CLI2API_DB`, `CLI2API_AUTH_HOME_BASE`, or
-`CLI2API_RUNTIME_WORKSPACE_BASE`.
+`CLI2API_RUNTIME_WORKSPACE_BASE`. Compose intentionally does not set those
+specific overrides, so container paths stay derived from `CLI2API_HOME`.
 
 ## Runtime Workspace Policy
 
@@ -111,3 +113,8 @@ tested.
 The schema keeps existing `cwd` columns, so rollback can restore prior admin
 payload behavior without a database migration. Existing rows can continue to run,
 but new creates/updates after this slice use service-owned workspaces.
+
+Deployments that previously used the Compose `/data` mount keep their old
+`cli2api-data` volume until an operator migrates or removes it. The home-aligned
+Compose configuration writes new state to `cli2api-home` mounted at
+`/root/.cli2api`.

@@ -7,9 +7,10 @@ cli2api includes a root Docker Compose package for local private deployments.
 `compose.yaml` defines two services:
 
 - `api`: builds the root `Dockerfile` `runtime` target, runs
-  `apps/core/dist/server.js`, uses `CLI2API_HOME=/data`, stores SQLite data,
-  Codex account auth homes, runtime workspaces, and temporary files in the
-  `cli2api-data` volume, exposes `http://127.0.0.1:3000`, and checks
+  `apps/core/dist/server.js`, uses `CLI2API_HOME=~/.cli2api`, stores SQLite
+  data, Codex account auth homes, runtime workspaces, and temporary files in the
+  `cli2api-home` volume mounted at `/root/.cli2api`, exposes
+  `http://127.0.0.1:3000`, and checks
   `/api/health`.
 - `dash`: builds the `dash-runtime` target, serves `apps/dash/dist` through
   Nginx, exposes `http://127.0.0.1:5173`, and proxies `/api/` and `/v1/` to the
@@ -23,8 +24,9 @@ CLI2API_PUBLISHED_PORT=8080 CLI2API_DASH_PUBLISHED_PORT=8081 ./deploy.sh deploy
 ```
 
 The core service reads `${CLI2API_HOME}/.env` when present. Local development
-defaults `CLI2API_HOME` to `~/.cli2api`; Compose sets it to `/data` so the
-service-owned directories all live in the persistent volume:
+and Compose both use `CLI2API_HOME=~/.cli2api`; inside the API container this
+expands to `/root/.cli2api`, which is backed by the persistent `cli2api-home`
+volume:
 
 - SQLite: `${CLI2API_HOME}/cli2api.sqlite`
 - Upstream account auth homes: `${CLI2API_HOME}/codex-homes`
@@ -35,6 +37,11 @@ Specific environment variables still override individual paths:
 `CLI2API_DB`, `CLI2API_AUTH_HOME_BASE`, `CLI2API_RUNTIME_WORKSPACE_BASE`, and
 `CLI2API_TEMP_DIR`. Process environment values override values from
 `${CLI2API_HOME}/.env`.
+
+Deployments created before the Compose home alignment may still have data in the
+old `cli2api-data` volume mounted at `/data`. That volume is not automatically
+migrated into `cli2api-home`; copy or export the SQLite database and Codex auth
+homes before switching an existing deployment.
 
 ## Operations
 
@@ -71,9 +78,8 @@ docker compose -f compose.yaml exec api \
   --password change-me
 ```
 
-The CLI uses the same `CLI2API_HOME=/data` and `CLI2API_DB=/data/cli2api.sqlite`
-environment as the running server, so the admin is stored in the Compose
-volume.
+The CLI uses the same `CLI2API_HOME=~/.cli2api` environment as the running
+server, so the admin is stored in the Compose volume.
 
 ## Codex Account Pool
 

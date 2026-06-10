@@ -60,7 +60,7 @@ prompt, and adapter profile. The failed run stores the stable error code and a
 The local deployment package uses Docker Compose with separate `api` and `dash`
 services. The API image builds all pnpm workspaces, rebuilds native SQLite
 bindings for the container platform, and runs the core server. SQLite data is
-stored in a named Compose volume mounted at `/data`.
+stored in a named Compose volume mounted at `/root/.cli2api`.
 
 The dashboard image serves `apps/dash/dist` through Nginx. It proxies `/api` and
 `/v1` to the API service so browser calls stay same-origin while API clients can

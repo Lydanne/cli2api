@@ -3,6 +3,8 @@
 - [x] Add runtime workspace base configuration.
 - [x] Add `CLI2API_HOME` local home configuration.
 - [x] Load `${CLI2API_HOME}/.env` before resolving derived paths.
+- [x] Make Compose derive service paths from container `CLI2API_HOME=~/.cli2api`
+  instead of `/data` path overrides.
 - [x] Add a service helper that creates deterministic profile and instance
   runtime workspaces.
 - [x] Add a tmp base directory derived from `CLI2API_HOME`.

@@ -63,6 +63,8 @@
   `approvalPolicy=never`, and the service-owned working directory.
 - [x] Local defaults derive database, auth homes, runtime workspaces, and tmp
   paths from `~/.cli2api`.
+- [x] Compose deployment keeps database, auth homes, runtime workspaces, and tmp
+  paths derived from container `CLI2API_HOME=~/.cli2api`.
 - [x] `loadConfig()` reads `~/.cli2api/.env` when present, with real
   environment variables taking precedence.
 - [x] Dashboard profile and instance pages no longer let operators type or edit

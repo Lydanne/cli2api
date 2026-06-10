@@ -53,4 +53,21 @@ describe("root deploy helper", () => {
     expect(nginx).toContain("proxy_pass http://api:3000/v1/");
     expect(script).toContain("DASH_HEALTH_URL");
   });
+
+  it("keeps Compose service state under the container CLI2API home", async () => {
+    const composePath = fileURLToPath(new URL("../../../compose.yaml", import.meta.url));
+    const dockerfilePath = fileURLToPath(new URL("../../../Dockerfile", import.meta.url));
+    const compose = await readFile(composePath, "utf8");
+    const dockerfile = await readFile(dockerfilePath, "utf8");
+
+    expect(compose).toContain("CLI2API_HOME: ~/.cli2api");
+    expect(compose).toContain("- cli2api-home:/root/.cli2api");
+    expect(compose).not.toContain("CLI2API_DB: /data/cli2api.sqlite");
+    expect(compose).not.toContain("CLI2API_AUTH_HOME_BASE: /data/codex-homes");
+    expect(compose).not.toContain("CLI2API_RUNTIME_WORKSPACE_BASE: /data/runtime-workspaces");
+    expect(compose).not.toContain("CLI2API_TEMP_DIR: /data/tmp");
+    expect(dockerfile).toContain('ENV CLI2API_HOME="~/.cli2api"');
+    expect(dockerfile).toContain("RUN mkdir -p /root/.cli2api");
+    expect(dockerfile).not.toContain('ENV CLI2API_DB="/data/cli2api.sqlite"');
+  });
 });

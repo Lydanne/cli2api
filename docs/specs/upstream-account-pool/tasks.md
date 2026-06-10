@@ -35,7 +35,7 @@
 
 ## Phase 4: Deployment And Evidence
 
-- [x] Persist `/data/codex-homes` in Compose deployment.
+- [x] Persist Codex auth homes under the Compose `~/.cli2api` service home.
 - [x] Resolve the bundled Codex CLI shim for container auth flows before
   falling back to a global `codex` executable.
 - [x] Document Codex browser/device auth from the dashboard.

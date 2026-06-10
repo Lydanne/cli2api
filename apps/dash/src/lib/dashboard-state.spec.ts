@@ -398,7 +398,7 @@ function createAccount(id: string, name: string, authState: UpstreamAccountView[
     providerType: "codex",
     name,
     authState,
-    authHome: `/data/codex-homes/${id}`,
+    authHome: `/root/.cli2api/codex-homes/${id}`,
     disabledAt: null,
     lastAuthError: null,
     createdAt: 1,

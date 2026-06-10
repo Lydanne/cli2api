@@ -1,5 +1,31 @@
 # Model Serving Sandbox Evidence
 
+## 2026-06-10 Compose CLI2API Home Alignment
+
+- `pnpm test apps/core/src/deploy-script.spec.ts`: failed first because
+  Compose and Dockerfile still forced `/data` path overrides.
+- `pnpm test apps/core/src/deploy-script.spec.ts`: passed after setting
+  Compose and Dockerfile to `CLI2API_HOME=~/.cli2api`, removing individual
+  `/data` path overrides, and mounting `cli2api-home` at `/root/.cli2api`.
+- `docker compose -f compose.yaml config`: confirmed the API service keeps
+  `CLI2API_HOME=~/.cli2api`, does not set `CLI2API_DB`,
+  `CLI2API_AUTH_HOME_BASE`, `CLI2API_RUNTIME_WORKSPACE_BASE`, or
+  `CLI2API_TEMP_DIR`, and mounts `cli2api-home` to `/root/.cli2api`.
+- `pnpm test`: passed with 11 test files and 51 tests.
+- `pnpm test:coverage`: passed; global coverage is 85.15% statements, 67.21%
+  branches, 91.07% functions, and 85.62% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests.
+- `pnpm check:file-size`: passed; all checked source files are <= 1300 lines.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm lint`: passed with zero warnings.
+- `docker compose -f compose.yaml build api`: passed and rebuilt the API image.
+- `docker run --rm --entrypoint node cli2api-api:local ... loadConfig()`:
+  confirmed runtime expansion to `/root/.cli2api`, with SQLite at
+  `/root/.cli2api/cli2api.sqlite`, Codex auth homes at
+  `/root/.cli2api/codex-homes`, runtime workspaces at
+  `/root/.cli2api/runtime-workspaces`, and temp files at
+  `/root/.cli2api/tmp`.
+
 ## 2026-06-10 Read-only Text Serving Update
 
 - `pnpm --filter @cli2api/agents-sdk test`: first failed as expected because

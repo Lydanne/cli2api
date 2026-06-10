@@ -32,7 +32,7 @@ workspaces, temporary files, and an optional `.env` file are read from there.
 ```
 
 The Compose deployment builds separate API and dashboard services. API state is
-stored in the `cli2api-data` volume with `CLI2API_HOME=/data`. Set
+stored in the `cli2api-home` volume with `CLI2API_HOME=~/.cli2api`. Set
 `CLI2API_PUBLISHED_PORT` for the API port and `CLI2API_DASH_PUBLISHED_PORT` for
 the dashboard port.
 
