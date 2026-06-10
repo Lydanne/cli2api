@@ -64,6 +64,8 @@ Chinese-first dashboard work.
 - `pnpm lint`: passed.
 - `pnpm check:file-size`: all checked source files are <= 1300 lines.
 - `git diff --check`: passed.
+- `./deploy.sh build`: passed; Docker Compose built `cli2api-api:local` and
+  `cli2api-dash:local`, and the API runtime image created `/data/codex-homes`.
 - `pnpm vitest run apps/core/src/upstream.spec.ts`: failed first because
   account logout, instance update/disable, and route binding admin APIs returned
   404.
