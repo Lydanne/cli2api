@@ -1,0 +1,21 @@
+{
+  "name": "@cli2api/agents-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cli2api/shared": "workspace:*",
+    "@openai/codex-sdk": "^0.139.0"
+  }
+}
