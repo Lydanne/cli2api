@@ -37,3 +37,11 @@
     accounts, models, and users.
   - Re-ran `pnpm build`, `pnpm test`, `pnpm test:coverage`, `pnpm test:e2e`,
     `pnpm lint`, `pnpm check:file-size`, and `./deploy.sh deploy`.
+- Setup-progress visual follow-up after operator feedback:
+  - Replaced the overview setup-progress card grid with a full-width operational
+    stepper: status, next action, progress bar, and six clickable setup steps.
+  - Verified desktop and mobile layouts in the local dashboard; both measured no
+    horizontal overflow.
+  - Re-ran `pnpm --filter @cli2api/dash build`, `./deploy.sh deploy`,
+    `./deploy.sh status`, `pnpm lint`, `pnpm test`, `pnpm test:coverage`, and
+    `pnpm test:e2e`.

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowRight, Check } from "lucide-vue-next";
 import Button from "primevue/button";
 import Card from "primevue/card";
 import Column from "primevue/column";
@@ -90,6 +91,8 @@ const setupSteps = computed<SetupStep[]>(() => [
   }
 ]);
 const nextStep = computed(() => setupSteps.value.find((step) => !step.done) ?? setupSteps.value.at(-1));
+const completedSetupSteps = computed(() => setupSteps.value.filter((step) => step.done).length);
+const setupProgressPercent = computed(() => `${(completedSetupSteps.value / setupSteps.value.length) * 100}%`);
 const endpointReady = computed(() =>
   ["account", "instance", "profile", "route", "key"].every((key) => setupSteps.value.find((step) => step.key === key)?.done)
 );
@@ -101,36 +104,61 @@ function goTo(route: DashboardRouteName): void {
 
 <template>
   <div class="space-y-5">
-    <Card class="border border-slate-200 shadow-sm">
-      <template #title>{{ text("setupProgress") }}</template>
-      <template #content>
-        <div class="grid grid-cols-1 gap-3 xl:grid-cols-[180px_1fr_140px]">
-          <div class="rounded border border-slate-200 p-3">
-            <p class="text-xs font-medium text-slate-500">{{ text("endpointStatus") }}</p>
-            <Tag
-              class="mt-2"
-              :severity="endpointReady ? 'success' : 'warn'"
-              :value="endpointReady ? text('ready') : text('notReady')"
-            />
+    <section class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-sm font-semibold text-slate-900">{{ text("setupProgress") }}</p>
+            <Tag :severity="endpointReady ? 'success' : 'warn'" :value="endpointReady ? text('ready') : text('notReady')" />
+            <span class="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
+              {{ completedSetupSteps }} / {{ setupSteps.length }}
+            </span>
           </div>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-6">
-            <button
-              v-for="step in setupSteps"
-              :key="step.key"
-              class="rounded border p-3 text-left transition"
-              :class="step.done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white hover:border-slate-300'"
-              type="button"
-              @click="goTo(step.route)"
-            >
-              <p class="text-xs text-slate-500">{{ step.done ? text("done") : text("nextAction") }}</p>
-              <p class="mt-1 font-medium">{{ step.label }}</p>
-              <p class="mt-2 text-xl font-semibold">{{ step.count }}</p>
-            </button>
-          </div>
-          <Button v-if="nextStep" class="min-h-12 self-stretch" :label="text('goConfigure')" @click="goTo(nextStep.route)" />
+          <p class="mt-2 text-sm text-slate-500">{{ text("endpointStatus") }}</p>
         </div>
-      </template>
-    </Card>
+
+        <div class="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 sm:min-w-80 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-xs font-medium text-slate-500">{{ text("nextAction") }}</p>
+            <p class="mt-1 text-sm font-semibold text-slate-950">{{ nextStep?.label }}</p>
+          </div>
+          <Button v-if="nextStep" class="shrink-0 justify-center" outlined @click="goTo(nextStep.route)">
+            <span>{{ text("goConfigure") }}</span>
+            <ArrowRight class="ml-2" :size="15" />
+          </Button>
+        </div>
+      </div>
+
+      <div class="mt-5 h-1.5 overflow-hidden rounded bg-slate-100">
+        <div class="h-full rounded bg-emerald-500 transition-all" :style="{ width: setupProgressPercent }" />
+      </div>
+
+      <ol class="mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-md border border-slate-200 bg-slate-200 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <li v-for="(step, index) in setupSteps" :key="step.key" class="bg-white">
+          <button
+            class="flex min-h-24 w-full items-start gap-3 px-3 py-3 text-left transition hover:bg-slate-50"
+            :class="step.done ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'bg-white'"
+            type="button"
+            @click="goTo(step.route)"
+          >
+            <span
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
+              :class="step.done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white text-slate-500'"
+            >
+              <Check v-if="step.done" :size="15" />
+              <span v-else>{{ index + 1 }}</span>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-start justify-between gap-2">
+                <span class="min-w-0 text-sm font-medium text-slate-900">{{ step.label }}</span>
+                <span class="rounded bg-white/80 px-1.5 py-0.5 text-xs font-semibold text-slate-700">{{ step.count }}</span>
+              </span>
+              <span class="mt-2 block text-xs text-slate-500">{{ step.done ? text("done") : text("nextAction") }}</span>
+            </span>
+          </button>
+        </li>
+      </ol>
+    </section>
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <Card v-for="card in metricCards" :key="card.label" class="border border-slate-200 shadow-sm">
