@@ -1,0 +1,34 @@
+{
+  "name": "@cli2api/core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cli2api": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "cli": "tsx src/cli.ts",
+    "dev": "tsx src/server.ts",
+    "e2e:server": "tsx src/testing/e2e-server.ts"
+  },
+  "dependencies": {
+    "@cli2api/agents-sdk": "workspace:*",
+    "@cli2api/shared": "workspace:*",
+    "@elysiajs/node": "^1.4.5",
+    "better-sqlite3": "^12.10.0",
+    "drizzle-orm": "^0.45.2",
+    "elysia": "^1.4.28"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "drizzle-kit": "^0.31.8"
+  }
+}
