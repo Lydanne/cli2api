@@ -59,6 +59,17 @@
   lines.
 - [x] Re-run full repository verification after the review fixes.
 
+## Phase 7: Public Facade Refactor
+
+- [x] Add failing tests for the `AgentsSDK` static facade, instance provider
+  registry, run collection, model discovery, and auth dispatch.
+- [x] Add failing tests for the `CodexAgent` static provider/auth facade.
+- [x] Implement `AgentsSDK` without removing low-level provider contracts.
+- [x] Implement `CodexAgent` and keep direct Codex provider/auth exports.
+- [x] Refactor core services from direct `AdapterRegistry` and auth-provider
+  arrays to the `AgentsSDK` facade.
+- [x] Re-run targeted SDK/core tests and repository verification gates.
+
 ## Allowed Write Areas
 
 - `packages/agents-sdk/**`

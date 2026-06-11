@@ -56,3 +56,32 @@
   `eslint . --max-warnings 0`.
 - 2026-06-11: Review-fix `pnpm check:file-size` passed; all checked source
   files are at or below 1300 lines.
+- 2026-06-11: Facade RED check
+  `pnpm vitest run packages/agents-sdk/src/index.spec.ts
+  packages/agent-codex/src/codex-provider.spec.ts` failed as expected because
+  `AgentsSDK` and `CodexAgent` static facades were not implemented.
+- 2026-06-11: Facade targeted SDK/provider GREEN check
+  `pnpm vitest run packages/agents-sdk/src/index.spec.ts
+  packages/agent-codex/src/codex-provider.spec.ts` passed: 2 files, 11 tests.
+- 2026-06-11: Facade targeted core GREEN check after refreshing package dist
+  with `pnpm --filter @cli2api/agent-codex build`:
+  `pnpm vitest run apps/core/src/upstream.spec.ts apps/core/src/core.spec.ts`
+  passed: 2 files, 32 tests.
+- 2026-06-11: Facade usage aggregation RED check
+  `pnpm vitest run packages/agents-sdk/src/index.spec.ts` failed as expected
+  when a provider emitted `usage.updated` followed by `run.completed` without
+  usage; `AgentsSDK.toResult` reset usage to zero.
+- 2026-06-11: Facade usage aggregation GREEN check
+  `pnpm vitest run packages/agents-sdk/src/index.spec.ts` passed: 1 file,
+  6 tests.
+- 2026-06-11: Facade `pnpm build` passed for shared, agents-sdk, agent-codex,
+  core, and dash.
+- 2026-06-11: Facade `pnpm test` passed: 15 test files, 85 tests.
+- 2026-06-11: Facade `pnpm test:coverage` passed: statements 83.23%,
+  branches 67.54%, functions 88.91%, lines 84.05%.
+- 2026-06-11: Facade `pnpm test:e2e` passed: 2 Playwright tests. The web server
+  printed the existing `NO_COLOR`/`FORCE_COLOR` warning only.
+- 2026-06-11: Facade `pnpm lint` passed with `eslint . --max-warnings 0`.
+- 2026-06-11: Facade `pnpm check:file-size` passed; all checked source files
+  are at or below 1300 lines.
+- 2026-06-11: Facade `git diff --check` passed with no whitespace errors.

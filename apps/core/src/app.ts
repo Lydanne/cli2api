@@ -100,7 +100,7 @@ export function createApp(context: AppContext) {
     .get("/api/admin/agent-models", async ({ request }) => {
       try {
         requireAdmin(services, request);
-        return await services.adapters.listModels();
+        return await services.agents.listModels();
       } catch (error) {
         return errorResponse(error);
       }
@@ -108,7 +108,7 @@ export function createApp(context: AppContext) {
     .post("/api/admin/profiles/import-agent-models", async ({ request }) => {
       try {
         requireAdmin(services, request);
-        return jsonResponse(services.profiles.importAgentModels(await services.adapters.listModels()));
+        return jsonResponse(services.profiles.importAgentModels(await services.agents.listModels()));
       } catch (error) {
         return errorResponse(error);
       }

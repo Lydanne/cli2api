@@ -512,7 +512,7 @@ describe("@cli2api/core upstream account pool", () => {
 
   it("rebinds a session when the pinned upstream instance becomes unhealthy", async () => {
     const recordingProvider = new RecordingAgentProvider();
-    harness.services.adapters.register(recordingProvider);
+    harness.services.agents.use(recordingProvider);
     await createAuthenticatedAccount("acct-rebind-a");
     await createAuthenticatedAccount("acct-rebind-b");
     await createInstance("inst-rebind-a", "acct-rebind-a", { maxConcurrentRuns: 1 });
@@ -562,7 +562,7 @@ describe("@cli2api/core upstream account pool", () => {
 
   it("temporarily overflows a full pinned session without moving the pin", async () => {
     const recordingProvider = new RecordingAgentProvider();
-    harness.services.adapters.register(recordingProvider);
+    harness.services.agents.use(recordingProvider);
     await createAuthenticatedAccount("acct-overflow-a");
     await createAuthenticatedAccount("acct-overflow-b");
     await createInstance("inst-overflow-a", "acct-overflow-a", { maxConcurrentRuns: 1 });

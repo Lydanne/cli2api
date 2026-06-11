@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Elysia } from "elysia";
-import { MockAgentAdapter, type AgentProvider } from "@cli2api/agents-sdk";
+import { AgentsSDK, type AgentProvider } from "@cli2api/agents-sdk";
 import { createApp } from "../app.js";
 import { openCoreDatabase, type CoreDatabase } from "../db/client.js";
 import { migrateDatabase } from "../db/migrate.js";
@@ -37,7 +37,7 @@ export async function createTestHarness(): Promise<TestHarness> {
   const services = createServices(database, {
     homeDir: dir,
     runtimeWorkspaceBase,
-    agentProviders: [new MockAgentAdapter(), createFakeCodexProvider()]
+    agentProviders: [AgentsSDK.mockProvider(), createFakeCodexProvider()]
   });
   services.users.createAdmin("admin@example.com", "password");
   const app = createApp({ database, services });

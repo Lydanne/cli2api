@@ -5,7 +5,7 @@ import {
   type AgentProcessEvent,
   type AgentProcessRunner
 } from "@cli2api/agents-sdk";
-import { CodexAgentProvider } from "./index.js";
+import { CodexAgent, CodexAgentProvider, CodexAuthProvider } from "./index.js";
 
 class FakeProcessRunner implements AgentProcessRunner {
   public readonly commands: AgentProcessCommand[] = [];
@@ -21,6 +21,19 @@ class FakeProcessRunner implements AgentProcessRunner {
 }
 
 describe("CodexAgentProvider", () => {
+  it("exposes static CodexAgent factories for provider and auth registration", () => {
+    const provider = CodexAgent.provider({ codexPath: "codex-test" });
+    const authProvider = CodexAgent.authProvider({ codexPath: "codex-test" });
+    const bundle = CodexAgent.bundle({ provider: { codexPath: "codex-test" }, auth: { codexPath: "codex-test" } });
+
+    expect(provider).toBeInstanceOf(CodexAgentProvider);
+    expect(authProvider).toBeInstanceOf(CodexAuthProvider);
+    expect(bundle.providers).toHaveLength(1);
+    expect(bundle.authProviders).toHaveLength(1);
+    expect(bundle.providers[0]?.type).toBe("codex");
+    expect(bundle.authProviders[0]?.type).toBe("codex");
+  });
+
   it("builds stateless read-only Codex exec commands and normalizes output events", async () => {
     const runner = new FakeProcessRunner([
       [

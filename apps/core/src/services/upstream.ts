@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { AgentAuthProvider, AuthSession } from "@cli2api/agents-sdk";
+import type { AgentsSDK, AuthSession } from "@cli2api/agents-sdk";
 import {
   type AdapterProfile,
   ErrorCode,
@@ -136,23 +136,20 @@ interface UpstreamCandidate {
 
 /** Service that manages upstream accounts, auth sessions, and runnable instances. */
 export class UpstreamService {
-  private readonly providers: Map<string, AgentAuthProvider>;
-
   /** Creates an upstream account service. */
   public constructor(
     private readonly database: CoreDatabase,
-    authProviders: AgentAuthProvider[],
+    private readonly agents: AgentsSDK,
     private readonly authHomeBase: string,
     private readonly runtimeWorkspaces: RuntimeWorkspaceService
   ) {
-    this.providers = new Map(authProviders.map((provider) => [provider.type, provider]));
     this.alignLegacyContainerAuthHomes();
     this.normalizeHealthyInstances();
   }
 
   /** Creates an upstream account. */
   public createAccount(input: CreateUpstreamAccountInput): UpstreamAccountResponse {
-    const provider = this.requireProvider(input.providerType);
+    const provider = this.agents.getAuthProvider(input.providerType);
     const id = input.id ?? randomUUID();
     assertSafeId(id);
     const now = Date.now();
@@ -186,9 +183,8 @@ export class UpstreamService {
   /** Starts an upstream auth session for one account. */
   public async startAuth(accountId: string, input: StartUpstreamAuthInput): Promise<UpstreamAuthSessionResponse> {
     const account = this.requireAccount(accountId);
-    const provider = this.requireProvider(account.providerType);
     this.ensureAuthHome(account.authHome);
-    const session = await provider.startAuth({
+    const session = await this.agents.startAuth(account.providerType, {
       accountId: account.id,
       authHome: account.authHome,
       method: input.method
@@ -199,9 +195,8 @@ export class UpstreamService {
   /** Polls runtime auth status and persists the result. */
   public async pollAuthStatus(accountId: string): Promise<UpstreamAuthSessionResponse> {
     const account = this.requireAccount(accountId);
-    const provider = this.requireProvider(account.providerType);
     this.ensureAuthHome(account.authHome);
-    const session = await provider.checkRuntime({
+    const session = await this.agents.checkAuth(account.providerType, {
       accountId: account.id,
       authHome: account.authHome
     });
@@ -211,9 +206,8 @@ export class UpstreamService {
   /** Logs out one upstream account through its auth provider. */
   public async logoutAccount(accountId: string): Promise<UpstreamAuthSessionResponse> {
     const account = this.requireAccount(accountId);
-    const provider = this.requireProvider(account.providerType);
     this.ensureAuthHome(account.authHome);
-    const session = await provider.logout({
+    const session = await this.agents.logout(account.providerType, {
       accountId: account.id,
       authHome: account.authHome
     });
@@ -669,14 +663,6 @@ export class UpstreamService {
       throw createCli2ApiError("UPSTREAM_NOT_FOUND" as ErrorCode, `Auth session not found: ${sessionId}`, 404);
     }
     return toAuthSession(row);
-  }
-
-  private requireProvider(providerType: string): AgentAuthProvider {
-    const provider = this.providers.get(providerType);
-    if (!provider) {
-      throw createCli2ApiError(ErrorCode.ADAPTER_UNAVAILABLE, `No auth provider for type: ${providerType}`, 503);
-    }
-    return provider;
   }
 
   private persistAuthSession(session: AuthSession): UpstreamAuthSessionResponse {

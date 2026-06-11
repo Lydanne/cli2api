@@ -7,10 +7,20 @@ contracts, process command/result types, normalized events, and a mock provider
 used by tests. It does not know about Elysia routes, SQLite, dashboard state, or
 OpenAI HTTP response shapes.
 
+The package exposes `AgentsSDK` as the primary public entrypoint. Low-level
+contracts stay exported for provider authors, but normal consumers should create
+or use an `AgentsSDK` instance rather than assembling registries and helpers by
+hand.
+
 `packages/agent-codex` implements the first real provider. It owns Codex CLI
 path resolution, auth command construction, model discovery, run command
 construction, and JSONL event normalization. Core registers this provider
 through the existing service graph.
+
+The Codex package also exposes `CodexAgent`, a static facade with
+`provider(options)`, `authProvider(options)`, and `bundle(options)` helpers.
+Core uses those helpers so it no longer imports provider implementation classes
+just to assemble the default service graph.
 
 Core remains the orchestrator. It resolves the downstream model/profile,
 selects an upstream instance, creates the run row, invokes the provider, stores
@@ -28,6 +38,33 @@ OpenAI-compatible responses.
   output schema.
 - `AgentEvent`: existing run/output/usage/failure events plus
   `conversation.updated` and `status.updated`.
+
+`AgentsSDK` provides the stable facade:
+
+- Static helpers:
+  - `create(options)`: creates an instance with provider and auth providers.
+  - `defineProvider(provider)` / `defineAuthProvider(provider)`: type-safe
+    identity helpers for provider packages.
+  - `mockProvider()`, `processRunner()`, and `authRunner()`: default test/local
+    helpers.
+  - `collect(events)`, `toResult(events)`, `runWith(provider, request)`, and
+    `runTextWith(provider, request)`: stateless convenience methods.
+- Instance methods:
+  - `use(provider)` and `useAuth(provider)` register or replace providers.
+  - `getProvider(type)`, `listProviderTypes()`, and `listModels(filter)` expose
+    provider discovery.
+  - `run(request)` streams normalized events and `runText(request)` collects a
+    text result.
+  - `startAuth`, `loginWithSecret`, `checkAuth`, and `logout` dispatch to the
+    registered auth provider by type.
+
+`AgentsRunRequest` accepts a profile, text `input`, optional run id, optional
+explicit provider type, conversation, attachments, and output schema. It maps to
+`AgentRunInput` internally. `AgentRunResult` collects final `output`, `usage`,
+all events, and the latest provider conversation mapping.
+
+`AdapterRegistry` remains as a compatibility export in this slice, but core
+code should use `AgentsSDK` directly.
 
 Provider-specific raw JSONL records stay inside provider packages. Core and
 dashboard only consume normalized events and DTOs from `@cli2api/shared`.

@@ -13,7 +13,7 @@ import {
   type RunResponse
 } from "@cli2api/shared";
 import type { AgentConversationInput } from "@cli2api/agents-sdk";
-import type { AdapterRegistry } from "@cli2api/agents-sdk";
+import type { AgentsSDK } from "@cli2api/agents-sdk";
 import type { CoreDatabase } from "../db/client.js";
 import { runEvents, runs } from "../db/schema.js";
 import type { ApiKeyRow } from "./api-keys.js";
@@ -28,7 +28,7 @@ export class RunService {
     private readonly database: CoreDatabase,
     private readonly profiles: ProfileService,
     private readonly quotas: QuotaService,
-    private readonly adapters: AdapterRegistry,
+    private readonly agents: AgentsSDK,
     private readonly upstream?: UpstreamService
   ) {}
 
@@ -81,11 +81,10 @@ export class RunService {
     let seq = 0;
 
     try {
-      const adapter = this.adapters.get(runtimeProfile.type);
-      for await (const event of adapter.run({
+      for await (const event of this.agents.run({
         runId,
-        prompt: request.prompt,
-        mode: "model",
+        input: request.prompt,
+        provider: runtimeProfile.type,
         profile: runtimeProfile,
         conversation
       })) {

@@ -2,12 +2,11 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import {
-  AdapterRegistry,
-  MockAgentAdapter,
+  AgentsSDK,
   type AgentAuthProvider,
   type AgentProvider
 } from "@cli2api/agents-sdk";
-import { CodexAgentProvider, CodexAuthProvider } from "@cli2api/agent-codex";
+import { CodexAgent } from "@cli2api/agent-codex";
 import type { CoreDatabase } from "../db/client.js";
 import { ApiKeyService } from "./api-keys.js";
 import { ProfileService } from "./profiles.js";
@@ -48,8 +47,8 @@ export interface Services {
   quotas: QuotaService;
   /** Run execution service. */
   runs: RunService;
-  /** Adapter registry. */
-  adapters: AdapterRegistry;
+  /** Agents SDK facade for provider execution, discovery, and auth. */
+  agents: AgentsSDK;
   /** Upstream account pool service. */
   upstream: UpstreamService;
 }
@@ -60,11 +59,11 @@ export function createServices(database: CoreDatabase, options: CreateServicesOp
   const authHomeBase = resolveServicePath(options.authHomeBase ?? "codex-homes", homeDir);
   const runtimeWorkspaceBase = resolveServicePath(options.runtimeWorkspaceBase ?? "runtime-workspaces", homeDir);
   const tempDir = resolveServicePath(options.tempDir ?? "tmp", homeDir);
-  const adapters = new AdapterRegistry();
-  for (const provider of options.agentProviders ?? [new MockAgentAdapter(), new CodexAgentProvider()]) {
-    adapters.register(provider);
-  }
-  const authProviders = options.authProviders ?? [new CodexAuthProvider()];
+  const codex = CodexAgent.bundle();
+  const agents = AgentsSDK.create({
+    providers: options.agentProviders ?? [AgentsSDK.mockProvider(), ...codex.providers],
+    authProviders: options.authProviders ?? codex.authProviders
+  });
 
   const users = new UserService(database);
   const sessions = new SessionService(database);
@@ -74,10 +73,10 @@ export function createServices(database: CoreDatabase, options: CreateServicesOp
   const runtimeWorkspaces = new RuntimeWorkspaceService(runtimeWorkspaceBase);
   const profiles = new ProfileService(database, runtimeWorkspaces);
   const quotas = new QuotaService(database);
-  const upstream = new UpstreamService(database, authProviders, authHomeBase, runtimeWorkspaces);
-  const runs = new RunService(database, profiles, quotas, adapters, upstream);
+  const upstream = new UpstreamService(database, agents, authHomeBase, runtimeWorkspaces);
+  const runs = new RunService(database, profiles, quotas, agents, upstream);
 
-  return { users, sessions, apiKeys, profiles, quotas, runs, adapters, upstream };
+  return { users, sessions, apiKeys, profiles, quotas, runs, agents, upstream };
 }
 
 function resolveServicePath(path: string, baseDir: string): string {
