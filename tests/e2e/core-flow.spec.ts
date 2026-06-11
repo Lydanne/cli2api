@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 test("admin can create profile and key, then downstream key can run and read events", async ({ request }) => {
   const login = await request.post("/api/admin/login", {
@@ -72,15 +72,19 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByRole("heading", { name: "概览" })).toBeVisible();
 
   await page.getByTestId("nav-accounts").click();
+  await expect(page.getByRole("heading", { name: "上游账号" })).toBeVisible();
+  await openCreateDialog(page, "create-account", "account-id");
   await page.getByTestId("account-id").fill("codex-ui-e2e");
   await page.getByTestId("account-name").fill("UI Codex 账号");
   await page.getByTestId("create-account").click();
+  await expect(page.getByTestId("account-id")).toBeHidden();
   await expect(page.getByText("codex-ui-e2e", { exact: true })).toBeVisible();
   await expect(page.getByText("待认证")).toBeVisible();
   await page.getByTestId("auth-codex-ui-e2e").click();
   await expect(page.getByText("E2E-1234")).toBeVisible();
   await page.getByTestId("poll-codex-ui-e2e").click();
   await expect(page.getByText("已认证")).toBeVisible();
+  await openCreateDialog(page, "create-account", "account-id");
   await page.getByTestId("account-id").fill("codex-delete-e2e");
   await page.getByTestId("account-name").fill("待删账号");
   await page.getByTestId("create-account").click();
@@ -89,6 +93,8 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByText("codex-delete-e2e", { exact: true })).toHaveCount(0);
 
   await page.getByTestId("nav-instances").click();
+  await expect(page.getByRole("heading", { name: "执行实例" })).toBeVisible();
+  await openCreateDialog(page, "create-instance", "instance-id");
   await page.getByTestId("instance-account").click();
   await page.getByRole("option", { name: "UI Codex 账号" }).click();
   await page.getByTestId("instance-id").fill("mock-ui-inst");
@@ -99,11 +105,14 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByRole("row").filter({ hasText: "mock-ui-inst" }).filter({ hasText: "健康" })).toBeVisible();
 
   await page.getByTestId("nav-profiles").click();
+  await expect(page.getByRole("heading", { name: "模型配置" })).toBeVisible();
+  await openCreateDialog(page, "create-profile", "profile-id");
   await page.getByTestId("profile-id").fill("mock-ui-e2e");
   await page.getByTestId("create-profile").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-ui-e2e" }).first()).toBeVisible();
   await page.getByTestId("import-agent-models").click();
   await expect(page.getByRole("row").filter({ hasText: "gpt-5.5" }).filter({ hasText: "GPT-5.5" })).toBeVisible();
+  await openCreateDialog(page, "create-profile", "profile-id");
   await page.getByTestId("profile-id").fill("mock-delete-e2e");
   await page.getByTestId("create-profile").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" }).first()).toBeVisible();
@@ -116,15 +125,20 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByRole("heading", { name: "会话管理" })).toBeVisible();
 
   await page.getByTestId("nav-keys").click();
+  await expect(page.getByRole("heading", { name: "调用密钥" })).toBeVisible();
   await expect(page.getByTestId("client-base-url")).toHaveText("http://127.0.0.1:4517/v1");
   await page.getByTestId("copy-client-base-url").click();
   await expect(page.getByText("已复制", { exact: true })).toBeVisible();
+  await openCreateDialog(page, "create-key", "key-name");
   await page.getByTestId("key-name").fill("ui-e2e-key");
   await page.getByTestId("create-key").click();
+  await expect(page.getByTestId("key-name")).toBeHidden();
   await expect(page.getByTestId("created-token")).toContainText("c2a_");
   const token = (await page.getByTestId("created-token").textContent())?.trim() ?? "";
 
   await page.getByTestId("nav-runs").click();
+  await expect(page.getByRole("heading", { name: "调用记录" })).toBeVisible();
+  await openCreateDialog(page, "run-submit", "run-prompt");
   await page.getByTestId("run-profile").click();
   await page.getByRole("option", { name: "mock-ui-e2e" }).click();
   await page.getByTestId("run-prompt").fill("hello dashboard e2e");
@@ -159,6 +173,8 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByText("停用")).toBeVisible();
 
   await page.getByTestId("nav-users").click();
+  await expect(page.getByRole("heading", { name: "用户" })).toBeVisible();
+  await openCreateDialog(page, "create-user", "user-email");
   await page.getByTestId("user-email").fill("ops-e2e@example.com");
   await page.getByTestId("user-password").fill("change-me");
   await page.getByTestId("create-user").click();
@@ -170,3 +186,9 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("disable-instance-mock-ui-inst").click();
   await expect(page.getByText("停用")).toBeVisible();
 });
+
+async function openCreateDialog(page: Page, actionTestId: string, fieldTestId: string): Promise<void> {
+  await expect(page.getByTestId(fieldTestId)).toBeHidden();
+  await page.getByTestId(actionTestId).click();
+  await expect(page.getByTestId(fieldTestId)).toBeVisible();
+}

@@ -6,6 +6,8 @@ import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
+import { ref } from "vue";
+import CreateActionDialog from "../components/CreateActionDialog.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -22,17 +24,33 @@ const {
   statusSeverity,
   text
 } = useDashboardState();
+
+const createDialogVisible = ref(false);
+
+async function submitCreateAccount(): Promise<void> {
+  if (await createAccount()) {
+    createDialogVisible.value = false;
+  }
+}
 </script>
 
 <template>
   <Card class="app-card">
     <template #title>{{ text("accounts") }}</template>
     <template #content>
-      <form class="mb-4 grid grid-cols-1 gap-2 lg:grid-cols-[190px_1fr_auto]" @submit.prevent="createAccount">
-        <InputText v-model="newAccountId" data-testid="account-id" :placeholder="text('id')" />
-        <InputText v-model="newAccountName" data-testid="account-name" :placeholder="text('name')" />
-        <Button data-testid="create-account" :label="text('createAccount')" type="submit" />
-      </form>
+      <div class="mb-4 flex justify-end">
+        <CreateActionDialog
+          v-model:visible="createDialogVisible"
+          :action-label="text('createAccount')"
+          action-test-id="create-account"
+          :cancel-label="text('cancel')"
+          :title="text('createAccount')"
+          @submit="submitCreateAccount"
+        >
+          <InputText v-model="newAccountId" class="w-full" data-testid="account-id" :placeholder="text('id')" />
+          <InputText v-model="newAccountName" class="w-full" data-testid="account-name" :placeholder="text('name')" />
+        </CreateActionDialog>
+      </div>
 
       <Message v-if="lastAuthSession" class="mb-4" severity="info">
         <p>{{ text("authInstruction") }}</p>

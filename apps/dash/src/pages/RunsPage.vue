@@ -6,6 +6,8 @@ import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
+import { ref } from "vue";
+import CreateActionDialog from "../components/CreateActionDialog.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -23,6 +25,14 @@ const {
   statusSeverity,
   text
 } = useDashboardState();
+
+const createDialogVisible = ref(false);
+
+async function submitCreateRun(): Promise<void> {
+  if (await createRun()) {
+    createDialogVisible.value = false;
+  }
+}
 </script>
 
 <template>
@@ -30,18 +40,27 @@ const {
     <Card class="app-card">
       <template #title>{{ text("runs") }}</template>
       <template #content>
-        <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[240px_280px_1fr_auto]" @submit.prevent="createRun">
-          <Select
-            v-model="selectedProfile"
-            data-testid="run-profile"
-            optionLabel="label"
-            optionValue="value"
-            :options="profileOptions"
-          />
-          <InputText v-model="runToken" :placeholder="text('clientToken')" type="password" />
-          <InputText v-model="prompt" data-testid="run-prompt" :placeholder="text('prompt')" />
-          <Button data-testid="run-submit" :label="text('createRun')" type="submit" />
-        </form>
+        <div class="mb-4 flex justify-end">
+          <CreateActionDialog
+            v-model:visible="createDialogVisible"
+            :action-label="text('createRun')"
+            action-test-id="run-submit"
+            :cancel-label="text('cancel')"
+            :title="text('createRun')"
+            @submit="submitCreateRun"
+          >
+            <Select
+              v-model="selectedProfile"
+              class="w-full"
+              data-testid="run-profile"
+              optionLabel="label"
+              optionValue="value"
+              :options="profileOptions"
+            />
+            <InputText v-model="runToken" class="w-full" :placeholder="text('clientToken')" type="password" />
+            <InputText v-model="prompt" class="w-full" data-testid="run-prompt" :placeholder="text('prompt')" />
+          </CreateActionDialog>
+        </div>
 
         <DataTable :value="runs" dataKey="id" size="small" stripedRows>
           <Column :header="text('id')">

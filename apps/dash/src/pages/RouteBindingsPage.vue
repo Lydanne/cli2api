@@ -4,6 +4,8 @@ import Card from "primevue/card";
 import Column from "primevue/column";
 import DataTable from "primevue/datatable";
 import Select from "primevue/select";
+import { ref } from "vue";
+import CreateActionDialog from "../components/CreateActionDialog.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -18,29 +20,47 @@ const {
   selectedRouteProfile,
   text
 } = useDashboardState();
+
+const createDialogVisible = ref(false);
+
+async function submitCreateRoute(): Promise<void> {
+  if (await createRoute()) {
+    createDialogVisible.value = false;
+  }
+}
 </script>
 
 <template>
   <Card class="app-card">
     <template #title>{{ text("routeBindings") }}</template>
     <template #content>
-      <form class="mb-4 grid grid-cols-1 gap-2 lg:grid-cols-[1fr_1fr_auto]" @submit.prevent="createRoute">
-        <Select
-          v-model="selectedRouteProfile"
-          data-testid="route-profile"
-          optionLabel="label"
-          optionValue="value"
-          :options="profileOptions"
-        />
-        <Select
-          v-model="selectedRouteInstance"
-          data-testid="route-instance"
-          optionLabel="label"
-          optionValue="value"
-          :options="instanceOptions"
-        />
-        <Button data-testid="create-route" :label="text('createRoute')" type="submit" />
-      </form>
+      <div class="mb-4 flex justify-end">
+        <CreateActionDialog
+          v-model:visible="createDialogVisible"
+          :action-label="text('createRoute')"
+          action-test-id="create-route"
+          :cancel-label="text('cancel')"
+          :title="text('createRoute')"
+          @submit="submitCreateRoute"
+        >
+          <Select
+            v-model="selectedRouteProfile"
+            class="w-full"
+            data-testid="route-profile"
+            optionLabel="label"
+            optionValue="value"
+            :options="profileOptions"
+          />
+          <Select
+            v-model="selectedRouteInstance"
+            class="w-full"
+            data-testid="route-instance"
+            optionLabel="label"
+            optionValue="value"
+            :options="instanceOptions"
+          />
+        </CreateActionDialog>
+      </div>
 
       <DataTable :value="routes" dataKey="id" size="small" stripedRows>
         <Column :header="text('profile')">

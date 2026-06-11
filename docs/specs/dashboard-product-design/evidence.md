@@ -1,5 +1,36 @@
 # Dashboard Product Design Evidence
 
+## Modal Creation Follow-Up
+
+- Added `CreateActionDialog` as the shared dashboard create wrapper for the
+  toolbar action, PrimeVue dialog, cancel button, and submit footer.
+- Moved client-key, model, upstream account, executor, dispatch-rule,
+  dashboard-user, and test-call creation fields into modal forms.
+- Kept the existing create field bindings and create action test ids. The same
+  create button id opens the dialog before entry and submits inside the dialog.
+- Submit handlers close the dialog only when the dashboard-state create method
+  returns `true`; failed submissions keep the dialog open.
+- TDD red: `pnpm exec playwright test tests/e2e/core-flow.spec.ts -g "dashboard covers"`
+  failed because `account-id` was still visible inline on the accounts page.
+- TDD green: `pnpm exec playwright test tests/e2e/core-flow.spec.ts -g "dashboard covers"`
+  passed with the modal creation flow.
+- `pnpm lint`: passed with zero warnings.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm test`: passed with 13 files and 73 tests.
+- `pnpm test:coverage`: passed with 82.69% statements, 66.01% branches,
+  88.99% functions, and 83.34% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests.
+- `pnpm check:file-size`: passed; checked source files are within the 1300-line
+  limit.
+- `./deploy.sh deploy`: passed; rebuilt API and dashboard images and both
+  health checks passed.
+- `./deploy.sh status`: passed; API and dashboard containers are healthy and
+  dashboard is available at `http://127.0.0.1:5173/`.
+- Browser QA on `http://127.0.0.1:5173/#/api-keys`: `key-name` was not visible
+  before opening the create action; after opening, the field was inside the
+  dialog, dialog width was 544 px in a 1280 px viewport, and no horizontal
+  overflow was detected.
+
 ## Used Client Key Delete Follow-Up
 
 - Preserved the backend audit rule: used client keys are not physically deleted;

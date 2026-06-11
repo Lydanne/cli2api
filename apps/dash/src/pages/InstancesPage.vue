@@ -6,6 +6,8 @@ import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
+import { ref } from "vue";
+import CreateActionDialog from "../components/CreateActionDialog.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -26,26 +28,43 @@ const {
   statusSeverity,
   text
 } = useDashboardState();
+
+const createDialogVisible = ref(false);
+
+async function submitCreateInstance(): Promise<void> {
+  if (await createInstance()) {
+    createDialogVisible.value = false;
+  }
+}
 </script>
 
 <template>
   <Card class="app-card">
     <template #title>{{ text("instances") }}</template>
     <template #content>
-      <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[180px_120px_150px_1fr_100px_auto]" @submit.prevent="createInstance">
-        <Select
-          v-model="selectedAccountId"
-          data-testid="instance-account"
-          optionLabel="label"
-          optionValue="value"
-          :options="accountOptions"
-        />
-        <Select v-model="newInstanceType" optionLabel="label" optionValue="value" :options="instanceTypeOptions" />
-        <InputText v-model="newInstanceId" data-testid="instance-id" :placeholder="text('id')" />
-        <InputText v-model="newInstanceName" data-testid="instance-name" :placeholder="text('name')" />
-        <InputText v-model.number="newInstanceConcurrency" data-testid="instance-concurrency" type="number" />
-        <Button data-testid="create-instance" :label="text('createInstance')" type="submit" />
-      </form>
+      <div class="mb-4 flex justify-end">
+        <CreateActionDialog
+          v-model:visible="createDialogVisible"
+          :action-label="text('createInstance')"
+          action-test-id="create-instance"
+          :cancel-label="text('cancel')"
+          :title="text('createInstance')"
+          @submit="submitCreateInstance"
+        >
+          <Select
+            v-model="selectedAccountId"
+            class="w-full"
+            data-testid="instance-account"
+            optionLabel="label"
+            optionValue="value"
+            :options="accountOptions"
+          />
+          <Select v-model="newInstanceType" class="w-full" optionLabel="label" optionValue="value" :options="instanceTypeOptions" />
+          <InputText v-model="newInstanceId" class="w-full" data-testid="instance-id" :placeholder="text('id')" />
+          <InputText v-model="newInstanceName" class="w-full" data-testid="instance-name" :placeholder="text('name')" />
+          <InputText v-model.number="newInstanceConcurrency" class="w-full" data-testid="instance-concurrency" type="number" />
+        </CreateActionDialog>
+      </div>
 
       <DataTable :value="instances" dataKey="id" size="small" stripedRows>
         <Column :header="text('name')">

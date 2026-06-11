@@ -43,6 +43,9 @@
     serving endpoint into downstream tools.
   - Delete-on-used-client-key handling that falls back to revocation and
     refreshes the table instead of surfacing the backend audit-history error.
+  - Creation flows opened from compact page actions and completed in modal
+    forms for client keys, models, upstream accounts, executors, dispatch rules,
+    dashboard users, and test calls.
 - Out of scope:
   - Backend API changes.
   - New dashboard pages or navigation items.
@@ -73,6 +76,9 @@
   plaintext.
 - [x] Client-key delete action handles used keys by revoking them and keeping
   the dashboard error area clear.
+- [x] Creation forms are no longer laid out inline above resource tables.
+- [x] Modal creation forms keep their existing fields and action test selectors,
+  close after successful submit, and stay open when submit fails.
 
 ## Open Questions
 

@@ -8,6 +8,7 @@ import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
 import { computed, ref } from "vue";
+import CreateActionDialog from "../components/CreateActionDialog.vue";
 import { buildClientBaseUrl } from "../lib/client-links";
 import { useDashboardState } from "../lib/dashboard-state";
 
@@ -29,8 +30,15 @@ const {
 } = useDashboardState();
 
 const clientBaseUrl = computed(() => buildClientBaseUrl());
+const createDialogVisible = ref(false);
 const copiedLink = ref(false);
 let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function submitCreateKey(): Promise<void> {
+  if (await createKey()) {
+    createDialogVisible.value = false;
+  }
+}
 
 async function copyClientBaseUrl(): Promise<void> {
   await writeClipboardText(clientBaseUrl.value);
@@ -67,14 +75,32 @@ async function writeClipboardText(value: string): Promise<void> {
   <Card class="app-card">
     <template #title>{{ text("keys") }}</template>
     <template #content>
-      <form class="mb-4 grid grid-cols-1 gap-2 xl:grid-cols-[1fr_110px_110px_110px_140px_auto]" @submit.prevent="createKey">
-        <InputText v-model="newKeyName" data-testid="key-name" :placeholder="text('name')" />
-        <InputText v-model.number="newKeyDailyLimit" :aria-label="text('dailyLimit')" type="number" />
-        <InputText v-model.number="newKeyRpmLimit" :aria-label="text('rpmLimit')" type="number" />
-        <InputText v-model.number="newKeyConcurrentLimit" :aria-label="text('concurrentLimit')" type="number" />
-        <InputText v-model.number="newKeyMonthlyTokenLimit" :aria-label="text('monthlyTokenLimit')" type="number" />
-        <Button data-testid="create-key" :label="text('createApiKey')" type="submit" />
-      </form>
+      <div class="mb-4 flex justify-end">
+        <CreateActionDialog
+          v-model:visible="createDialogVisible"
+          :action-label="text('createApiKey')"
+          action-test-id="create-key"
+          :cancel-label="text('cancel')"
+          :title="text('createApiKey')"
+          @submit="submitCreateKey"
+        >
+          <InputText v-model="newKeyName" class="w-full" data-testid="key-name" :placeholder="text('name')" />
+          <InputText v-model.number="newKeyDailyLimit" class="w-full" :aria-label="text('dailyLimit')" type="number" />
+          <InputText v-model.number="newKeyRpmLimit" class="w-full" :aria-label="text('rpmLimit')" type="number" />
+          <InputText
+            v-model.number="newKeyConcurrentLimit"
+            class="w-full"
+            :aria-label="text('concurrentLimit')"
+            type="number"
+          />
+          <InputText
+            v-model.number="newKeyMonthlyTokenLimit"
+            class="w-full"
+            :aria-label="text('monthlyTokenLimit')"
+            type="number"
+          />
+        </CreateActionDialog>
+      </div>
 
       <div class="app-panel-muted mb-4 flex flex-col gap-3 rounded-md p-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="min-w-0">

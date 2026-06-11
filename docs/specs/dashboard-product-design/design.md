@@ -153,3 +153,19 @@ backend `409` audit-history rejection as a cue to revoke the key. The backend
 remains the source of truth for physical delete eligibility; the browser only
 normalizes this known rejection into the supported lifecycle transition and then
 refreshes resources.
+
+## Modal Creation Flows
+
+Dashboard pages should read first as resource lists. Creation controls are
+compact primary actions in the page toolbar; the actual input fields live in a
+modal form. This applies to client keys, models, upstream accounts, executors,
+dispatch rules, dashboard users, and test calls.
+
+The modal wrapper owns the open/close chrome, cancel action, and submit area.
+Page modules still own their existing field bindings and dashboard-state create
+methods. Submit handlers close the modal only when the create method returns
+`true`; validation or backend errors leave the modal open so the operator can
+correct the form.
+
+Instant actions that do not collect creation input, such as importing SDK
+models, stay on the page toolbar instead of moving into a dialog.

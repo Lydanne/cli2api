@@ -22,3 +22,8 @@
   revocation.
 - [x] Implement the client-key delete fallback without changing backend delete
   constraints.
+- [x] Add E2E assertions that inline create inputs are hidden until a modal is
+  opened and modal submit buttons still complete creation.
+- [x] Add a reusable dashboard creation dialog wrapper.
+- [x] Move client-key, model, account, executor, route, user, and run creation
+  forms into modal dialogs.
