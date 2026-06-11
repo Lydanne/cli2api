@@ -19,9 +19,21 @@ optional `~/.cli2api/.env` before applying process environment overrides.
 
 ## Documentation Map
 
+- `docs/guide/`: user-facing setup, operations, client API, SDK, and provider guides.
 - `docs/specs/`: specifications, architecture decisions, tasks, and evidence.
 - `docs/devs/`: developer-facing architecture, testing, and extension notes.
 - `docs/devs/deployment.md`: Docker Compose and `deploy.sh` operations.
+
+## User Guides
+
+- [Guide index](guide/README.md): recommended reading order and current boundaries.
+- [Quick start](guide/quick-start.md): local and Docker first-run setup.
+- [Client API](guide/client-api.md): OpenAI-compatible requests and native run events.
+- [Admin dashboard](guide/admin-dashboard.md): accounts, instances, profiles, keys, sessions, and runs.
+- [Agents SDK](guide/agents-sdk.md): public facade for provider-neutral CLI agent usage.
+- [Codex provider](guide/agent-codex.md): Codex CLI provider behavior and safe defaults.
+- [Provider development](guide/provider-development.md): custom provider package conventions.
+- [Troubleshooting](guide/troubleshooting.md): common setup, routing, auth, and streaming issues.
 
 ## MVP Scope
 

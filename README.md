@@ -5,7 +5,8 @@ cli2api turns coding-agent CLIs into managed HTTP APIs with a local operations d
 ## Stack
 
 - Node.js, pnpm, TypeScript monorepo
-- `packages/agents-sdk`: CLI adapter abstraction and Codex SDK integration
+- `packages/agents-sdk`: provider-neutral agent facade, process runner, events, and mock provider
+- `packages/agent-codex`: Codex CLI provider for auth, model discovery, and JSONL runs
 - `apps/core`: Elysia + Drizzle + SQLite backend and management CLI
 - `apps/dash`: Vite 8 + Vue + PrimeVue + Tailwind dashboard
 
@@ -38,6 +39,17 @@ the dashboard port.
 
 By default, the API is available at `http://127.0.0.1:3000` and the dashboard is
 available at `http://127.0.0.1:5173`.
+
+## User Guides
+
+- [Guide index](docs/guide/README.md)
+- [Quick start](docs/guide/quick-start.md)
+- [Client API](docs/guide/client-api.md)
+- [Admin dashboard](docs/guide/admin-dashboard.md)
+- [Agents SDK](docs/guide/agents-sdk.md)
+- [Codex provider](docs/guide/agent-codex.md)
+- [Provider development](docs/guide/provider-development.md)
+- [Troubleshooting](docs/guide/troubleshooting.md)
 
 ## Verification
 
