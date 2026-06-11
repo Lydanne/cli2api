@@ -12,10 +12,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run --root ../.. ../../packages/agents-sdk/src/auth.spec.ts ../../packages/agents-sdk/src/index.spec.ts"
+    "test": "vitest run --root ../.. ../../packages/agents-sdk/src/index.spec.ts ../../packages/agents-sdk/src/process-runner.spec.ts"
   },
   "dependencies": {
-    "@cli2api/shared": "workspace:*",
-    "@openai/codex-sdk": "^0.139.0"
+    "@cli2api/shared": "workspace:*"
   }
 }

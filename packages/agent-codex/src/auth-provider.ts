@@ -1,8 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   ChildProcessAuthCommandRunner,
   type AgentAuthCommand,
@@ -13,7 +10,8 @@ import {
   type RuntimeAuthInput,
   type SecretLoginInput,
   type StartAuthInput
-} from "./auth.js";
+} from "@cli2api/agents-sdk";
+import { resolveBundledCodexPath } from "./codex-path.js";
 
 /** Constructor options for the Codex auth provider. */
 export interface CodexAuthProviderOptions {
@@ -152,20 +150,6 @@ function stripAnsi(output: string): string {
 
 function extractAuthUrl(output: string): string | undefined {
   return output.match(/https?:\/\/[^\s)]+/u)?.[0]?.replace(/[.,;:]+$/u, "");
-}
-
-function resolveBundledCodexPath(): string {
-  try {
-    const sdkEntry = fileURLToPath(import.meta.resolve("@openai/codex-sdk"));
-    const sdkRoot = dirname(dirname(sdkEntry));
-    const executable = join(sdkRoot, "node_modules", ".bin", process.platform === "win32" ? "codex.cmd" : "codex");
-    if (existsSync(executable)) {
-      return executable;
-    }
-  } catch {
-    // Fall through to PATH lookup for custom installs.
-  }
-  return "codex";
 }
 
 function extractUserCode(output: string): string | undefined {

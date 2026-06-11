@@ -27,6 +27,11 @@ function formatTime(value: number): string {
             <span class="font-mono text-xs">{{ data.sessionId }}</span>
           </template>
         </Column>
+        <Column :header="text('providerSession')">
+          <template #body="{ data }">
+            <span class="font-mono text-xs">{{ data.providerSessionId || "-" }}</span>
+          </template>
+        </Column>
         <Column :header="text('profile')">
           <template #body="{ data }">
             <div>

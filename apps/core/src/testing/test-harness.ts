@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Elysia } from "elysia";
+import { MockAgentAdapter, type AgentProvider } from "@cli2api/agents-sdk";
 import { createApp } from "../app.js";
 import { openCoreDatabase, type CoreDatabase } from "../db/client.js";
 import { migrateDatabase } from "../db/migrate.js";
@@ -33,7 +34,11 @@ export async function createTestHarness(): Promise<TestHarness> {
   const database = openCoreDatabase(join(dir, "test.sqlite"));
   migrateDatabase(database);
   const runtimeWorkspaceBase = join(dir, "runtime-workspaces");
-  const services = createServices(database, { homeDir: dir, runtimeWorkspaceBase });
+  const services = createServices(database, {
+    homeDir: dir,
+    runtimeWorkspaceBase,
+    agentProviders: [new MockAgentAdapter(), createFakeCodexProvider()]
+  });
   services.users.createAdmin("admin@example.com", "password");
   const app = createApp({ database, services });
 
@@ -92,5 +97,38 @@ export async function createTestHarness(): Promise<TestHarness> {
       database.sqlite.close();
       await rm(dir, { recursive: true, force: true });
     }
+  };
+}
+
+function createFakeCodexProvider(): AgentProvider {
+  return {
+    type: "codex",
+    run: async function* (input) {
+      yield { type: "run.started", runId: input.runId };
+      yield { type: "run.completed", runId: input.runId, output: "" };
+    },
+    listModels: () => [
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+        type: "codex",
+        source: "codex",
+        config: { model: "gpt-5.5" }
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
+        type: "codex",
+        source: "codex",
+        config: { model: "gpt-5.4" }
+      },
+      {
+        id: "gpt-5.4-mini",
+        name: "GPT-5.4-Mini",
+        type: "codex",
+        source: "codex",
+        config: { model: "gpt-5.4-mini" }
+      }
+    ]
   };
 }

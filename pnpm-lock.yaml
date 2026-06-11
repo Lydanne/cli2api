@@ -59,6 +59,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@cli2api/agent-codex':
+        specifier: workspace:*
+        version: link:../../packages/agent-codex
       '@cli2api/agents-sdk':
         specifier: workspace:*
         version: link:../../packages/agents-sdk
@@ -119,14 +122,23 @@ importers:
         specifier: ^4.1.18
         version: 4.3.0
 
-  packages/agents-sdk:
+  packages/agent-codex:
     dependencies:
+      '@cli2api/agents-sdk':
+        specifier: workspace:*
+        version: link:../agents-sdk
       '@cli2api/shared':
         specifier: workspace:*
         version: link:../shared
       '@openai/codex-sdk':
         specifier: ^0.139.0
         version: 0.139.0
+
+  packages/agents-sdk:
+    dependencies:
+      '@cli2api/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/shared: {}
 

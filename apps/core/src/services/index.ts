@@ -3,11 +3,11 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import {
   AdapterRegistry,
-  CodexAdapter,
-  CodexAuthProvider,
   MockAgentAdapter,
-  type AgentAuthProvider
+  type AgentAuthProvider,
+  type AgentProvider
 } from "@cli2api/agents-sdk";
+import { CodexAgentProvider, CodexAuthProvider } from "@cli2api/agent-codex";
 import type { CoreDatabase } from "../db/client.js";
 import { ApiKeyService } from "./api-keys.js";
 import { ProfileService } from "./profiles.js";
@@ -24,6 +24,8 @@ export interface CreateServicesOptions {
   homeDir?: string;
   /** Auth providers available for upstream account login flows. */
   authProviders?: AgentAuthProvider[];
+  /** Agent providers available for run execution and model discovery. */
+  agentProviders?: AgentProvider[];
   /** Base directory for per-account auth homes. */
   authHomeBase?: string;
   /** Base directory for service-owned model-serving runtime workspaces. */
@@ -59,8 +61,9 @@ export function createServices(database: CoreDatabase, options: CreateServicesOp
   const runtimeWorkspaceBase = resolveServicePath(options.runtimeWorkspaceBase ?? "runtime-workspaces", homeDir);
   const tempDir = resolveServicePath(options.tempDir ?? "tmp", homeDir);
   const adapters = new AdapterRegistry();
-  adapters.register(new MockAgentAdapter());
-  adapters.register(new CodexAdapter());
+  for (const provider of options.agentProviders ?? [new MockAgentAdapter(), new CodexAgentProvider()]) {
+    adapters.register(provider);
+  }
   const authProviders = options.authProviders ?? [new CodexAuthProvider()];
 
   const users = new UserService(database);

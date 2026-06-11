@@ -133,6 +133,9 @@ const statements = [
     user_id TEXT NOT NULL,
     session_id TEXT NOT NULL,
     upstream_instance_id TEXT NOT NULL,
+    provider_session_id TEXT,
+    provider_session_updated_at INTEGER,
+    provider_session_metadata_json TEXT NOT NULL DEFAULT '{}',
     run_count INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
@@ -159,6 +162,9 @@ export function migrateDatabase(database: CoreDatabase): void {
     }
     ensureColumn(database, "runs", "metadata_json", "TEXT NOT NULL DEFAULT '{}'");
     ensureColumn(database, "runs", "upstream_instance_id", "TEXT");
+    ensureColumn(database, "upstream_run_sessions", "provider_session_id", "TEXT");
+    ensureColumn(database, "upstream_run_sessions", "provider_session_updated_at", "INTEGER");
+    ensureColumn(database, "upstream_run_sessions", "provider_session_metadata_json", "TEXT NOT NULL DEFAULT '{}'");
   });
   migration();
 }

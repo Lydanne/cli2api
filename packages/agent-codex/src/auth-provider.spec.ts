@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  CodexAuthProvider,
   type AgentAuthCommand,
   type AgentAuthCommandResult,
   type AgentAuthCommandRunner
-} from "./index.js";
+} from "@cli2api/agents-sdk";
+import { CodexAuthProvider } from "./index.js";
 
 const authRoots: string[] = [];
 

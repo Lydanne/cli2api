@@ -1,7 +1,6 @@
 import { access, readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { Elysia } from "elysia";
-import { listAgentModels } from "@cli2api/agents-sdk";
 import type { CoreDatabase } from "./db/client.js";
 import {
   errorResponse,
@@ -98,18 +97,18 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
-    .get("/api/admin/agent-models", ({ request }) => {
+    .get("/api/admin/agent-models", async ({ request }) => {
       try {
         requireAdmin(services, request);
-        return listAgentModels();
+        return await services.adapters.listModels();
       } catch (error) {
         return errorResponse(error);
       }
     })
-    .post("/api/admin/profiles/import-agent-models", ({ request }) => {
+    .post("/api/admin/profiles/import-agent-models", async ({ request }) => {
       try {
         requireAdmin(services, request);
-        return jsonResponse(services.profiles.importAgentModels(listAgentModels()));
+        return jsonResponse(services.profiles.importAgentModels(await services.adapters.listModels()));
       } catch (error) {
         return errorResponse(error);
       }

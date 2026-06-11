@@ -224,6 +224,12 @@ export interface UpstreamRunSessionResponse {
   sessionId: string;
   /** Preferred upstream instance id for this session. */
   upstreamInstanceId: string;
+  /** Provider-native session id used to resume the upstream conversation. */
+  providerSessionId: string | null;
+  /** Last time the provider-native session id was updated. */
+  providerSessionUpdatedAt: number | null;
+  /** Provider-neutral metadata for the provider-native session. */
+  providerSessionMetadata: Record<string, unknown>;
   /** Number of runs observed for this session affinity. */
   runCount: number;
   /** Creation timestamp in milliseconds. */

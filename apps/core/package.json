@@ -20,6 +20,7 @@
     "e2e:server": "tsx src/testing/e2e-server.ts"
   },
   "dependencies": {
+    "@cli2api/agent-codex": "workspace:*",
     "@cli2api/agents-sdk": "workspace:*",
     "@cli2api/shared": "workspace:*",
     "@elysiajs/node": "^1.4.5",

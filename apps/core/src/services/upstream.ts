@@ -16,7 +16,7 @@ import {
   type UpstreamRouteBindingResponse,
   type UpstreamRunSessionResponse
 } from "@cli2api/shared";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { CoreDatabase } from "../db/client.js";
 import {
   adapterProfiles,
@@ -109,6 +109,10 @@ export interface UpstreamSelection {
   instanceId: string;
   /** Adapter profile with instance-owned runtime settings applied. */
   profile: AdapterProfile;
+  /** Automatically-created downstream session affinity row, when available. */
+  runSession: UpstreamRunSessionResponse | null;
+  /** Session affinity input used to select the instance, when available. */
+  affinity: UpstreamSessionAffinityInput | null;
 }
 
 /** Normalized downstream session identity used for upstream instance affinity. */
@@ -121,6 +125,8 @@ export interface UpstreamSessionAffinityInput {
   userId: string;
   /** Normalized downstream session id. */
   sessionId: string;
+  /** Whether the downstream request explicitly supplied session identity. */
+  explicit: boolean;
 }
 
 interface UpstreamCandidate {
@@ -372,6 +378,24 @@ export class UpstreamService {
     return toRunSession(row);
   }
 
+  /** Updates the provider-native session id stored for one run session. */
+  public updateRunSessionProviderSession(
+    sessionId: string,
+    providerSessionId: string,
+    metadata: Record<string, unknown> | undefined
+  ): void {
+    this.database.db
+      .update(upstreamRunSessions)
+      .set({
+        providerSessionId,
+        providerSessionUpdatedAt: Date.now(),
+        providerSessionMetadataJson: stringifyJson(metadata ?? {}),
+        updatedAt: Date.now()
+      })
+      .where(eq(upstreamRunSessions.id, sessionId))
+      .run();
+  }
+
   /** Creates one explicit profile-to-instance route binding. */
   public createRouteBinding(input: CreateUpstreamRouteBindingInput): UpstreamRouteBindingResponse {
     const profile = this.requireProfile(input.profileId);
@@ -439,9 +463,9 @@ export class UpstreamService {
     const availableCandidates = healthyCandidates.filter(
       ({ instance }) => instance.currentRuns < instance.maxConcurrentRuns
     );
-    const runSession = affinity ? this.findRunSession(affinity) : null;
-    const pinned = runSession
-      ? healthyCandidates.find(({ instance }) => instance.id === runSession.upstreamInstanceId)
+    const existingRunSession = affinity ? this.findRunSession(affinity) : null;
+    const pinned = existingRunSession
+      ? healthyCandidates.find(({ instance }) => instance.id === existingRunSession.upstreamInstanceId)
       : undefined;
     const pinnedHasCapacity = pinned
       ? pinned.instance.currentRuns < pinned.instance.maxConcurrentRuns
@@ -455,11 +479,12 @@ export class UpstreamService {
       this.touchRunSession(
         affinity,
         pinned && !pinnedHasCapacity ? pinned.instance.id : selected.instance.id,
-        runSession
+        existingRunSession
       );
     }
     this.occupyInstance(selected.instance.id);
-    return this.toSelection(profile, selected);
+    const nextRunSession = affinity ? this.findRunSession(affinity) : null;
+    return this.toSelection(profile, selected, affinity ?? null, nextRunSession);
   }
 
   /** Releases one occupied upstream instance after a run finishes. */
@@ -475,28 +500,19 @@ export class UpstreamService {
   }
 
   private findRunSession(affinity: UpstreamSessionAffinityInput): UpstreamRunSessionResponse | null {
-    const row = this.database.sqlite
-      .prepare(
-        `SELECT id,
-                api_key_id AS apiKeyId,
-                profile_id AS profileId,
-                user_id AS userId,
-                session_id AS sessionId,
-                upstream_instance_id AS upstreamInstanceId,
-                run_count AS runCount,
-                created_at AS createdAt,
-                updated_at AS updatedAt,
-                last_used_at AS lastUsedAt
-         FROM upstream_run_sessions
-         WHERE api_key_id = ?
-           AND profile_id = ?
-           AND user_id = ?
-           AND session_id = ?`
+    const row = this.database.db
+      .select()
+      .from(upstreamRunSessions)
+      .where(
+        and(
+          eq(upstreamRunSessions.apiKeyId, affinity.apiKeyId),
+          eq(upstreamRunSessions.profileId, affinity.profileId),
+          eq(upstreamRunSessions.userId, affinity.userId),
+          eq(upstreamRunSessions.sessionId, affinity.sessionId)
+        )
       )
-      .get(affinity.apiKeyId, affinity.profileId, affinity.userId, affinity.sessionId) as
-      | UpstreamRunSessionResponse
-      | undefined;
-    return row ?? null;
+      .get();
+    return row ? toRunSession(row) : null;
   }
 
   private touchRunSession(
@@ -506,6 +522,22 @@ export class UpstreamService {
   ): void {
     const now = Date.now();
     if (existing) {
+      if (existing.upstreamInstanceId !== upstreamInstanceId) {
+        this.database.sqlite
+          .prepare(
+            `UPDATE upstream_run_sessions
+             SET upstream_instance_id = ?,
+                 provider_session_id = NULL,
+                 provider_session_updated_at = NULL,
+                 provider_session_metadata_json = '{}',
+                 run_count = run_count + 1,
+                 updated_at = ?,
+                 last_used_at = ?
+             WHERE id = ?`
+          )
+          .run(upstreamInstanceId, now, now, existing.id);
+        return;
+      }
       this.database.sqlite
         .prepare(
           `UPDATE upstream_run_sessions
@@ -550,9 +582,16 @@ export class UpstreamService {
     })[0] as UpstreamCandidate;
   }
 
-  private toSelection(profile: AdapterProfile, selected: UpstreamCandidate): UpstreamSelection {
+  private toSelection(
+    profile: AdapterProfile,
+    selected: UpstreamCandidate,
+    affinity: UpstreamSessionAffinityInput | null,
+    runSession: UpstreamRunSessionResponse | null
+  ): UpstreamSelection {
     return {
       instanceId: selected.instance.id,
+      affinity,
+      runSession,
       profile: {
         ...profile,
         type: selected.instance.type,
@@ -840,6 +879,9 @@ function toRunSession(row: typeof upstreamRunSessions.$inferSelect): UpstreamRun
     userId: row.userId,
     sessionId: row.sessionId,
     upstreamInstanceId: row.upstreamInstanceId,
+    providerSessionId: row.providerSessionId,
+    providerSessionUpdatedAt: row.providerSessionUpdatedAt,
+    providerSessionMetadata: parseJsonObject(row.providerSessionMetadataJson, {}),
     runCount: row.runCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

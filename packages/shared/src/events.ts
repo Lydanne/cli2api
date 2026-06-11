@@ -57,6 +57,36 @@ export interface UsageUpdatedEvent {
   timestamp?: number;
 }
 
+/** Event emitted when a provider-native conversation/session id is known. */
+export interface ConversationUpdatedEvent {
+  /** Event discriminator. */
+  type: "conversation.updated";
+  /** Internal run identifier. */
+  runId: string;
+  /** Core-owned downstream conversation scope. */
+  scopeId: string;
+  /** Provider-native conversation or session identifier. */
+  providerSessionId: string;
+  /** Provider-neutral metadata safe to persist and show to operators. */
+  metadata?: Record<string, unknown>;
+  /** Unix timestamp in milliseconds. */
+  timestamp?: number;
+}
+
+/** Event emitted when an adapter has non-terminal runtime status to report. */
+export interface StatusUpdatedEvent {
+  /** Event discriminator. */
+  type: "status.updated";
+  /** Internal run identifier. */
+  runId: string;
+  /** Machine-readable status phase. */
+  status: string;
+  /** Non-secret operator-readable status message. */
+  message?: string;
+  /** Unix timestamp in milliseconds. */
+  timestamp?: number;
+}
+
 /** Event emitted when a run completes successfully. */
 export interface RunCompletedEvent {
   /** Event discriminator. */
@@ -91,6 +121,8 @@ export type AgentEvent =
   | OutputDeltaEvent
   | ItemCompletedEvent
   | UsageUpdatedEvent
+  | ConversationUpdatedEvent
+  | StatusUpdatedEvent
   | RunCompletedEvent
   | RunFailedEvent;
 

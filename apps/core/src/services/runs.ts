@@ -12,6 +12,7 @@ import {
   type CreateRunRequest,
   type RunResponse
 } from "@cli2api/shared";
+import type { AgentConversationInput } from "@cli2api/agents-sdk";
 import type { AdapterRegistry } from "@cli2api/agents-sdk";
 import type { CoreDatabase } from "../db/client.js";
 import { runEvents, runs } from "../db/schema.js";
@@ -45,9 +46,12 @@ export class RunService {
       }
       throw error;
     }
-    const selection =
-      this.upstream?.selectForProfile(profile, createSessionAffinity(key.id, profile.id, request)) ?? null;
+    const affinity = createSessionAffinity(key.id, profile.id, request);
+    const selection = this.upstream?.selectForProfile(profile, affinity) ?? null;
     const runtimeProfile = selection?.profile ?? profile;
+    const conversation = selection
+      ? createConversationInput(selection.runSession, selection.affinity, selection.instanceId)
+      : undefined;
 
     const runId = randomUUID();
     const startedAt = Date.now();
@@ -78,10 +82,29 @@ export class RunService {
 
     try {
       const adapter = this.adapters.get(runtimeProfile.type);
-      for await (const event of adapter.run({ runId, prompt: request.prompt, profile: runtimeProfile })) {
+      for await (const event of adapter.run({
+        runId,
+        prompt: request.prompt,
+        mode: "model",
+        profile: runtimeProfile,
+        conversation
+      })) {
         this.storeEvent(runId, seq++, event);
         if (event.type === "output.delta") {
           output += event.delta;
+        }
+        if (
+          event.type === "conversation.updated" &&
+          conversation &&
+          event.scopeId === conversation.scopeId &&
+          selection?.runSession &&
+          selection.affinity?.explicit
+        ) {
+          this.upstream?.updateRunSessionProviderSession(
+            selection.runSession.id,
+            event.providerSessionId,
+            event.metadata
+          );
         }
         if (event.type === "usage.updated" || event.type === "run.completed") {
           usage = normalizeUsage(event.usage);
@@ -251,20 +274,59 @@ function createSessionAffinity(
   profileId: string;
   userId: string;
   sessionId: string;
+  explicit: boolean;
 } {
+  const userValue = request.user ?? request.metadata?.user;
+  const sessionValue =
+    request.sessionId ??
+    request.conversationId ??
+    request.metadata?.sessionId ??
+    request.metadata?.conversationId;
   return {
     apiKeyId,
     profileId,
-    userId: normalizeIdentity(request.user ?? request.metadata?.user),
-    sessionId: normalizeIdentity(
-      request.sessionId ??
-        request.conversationId ??
-        request.metadata?.sessionId ??
-        request.metadata?.conversationId
-    )
+    userId: normalizeIdentity(userValue),
+    sessionId: normalizeIdentity(sessionValue),
+    explicit: hasExplicitIdentity(userValue) || hasExplicitIdentity(sessionValue)
+  };
+}
+
+function createConversationInput(
+  runSession: {
+    apiKeyId: string;
+    profileId: string;
+    userId: string;
+    sessionId: string;
+    upstreamInstanceId: string;
+    providerSessionId: string | null;
+    providerSessionMetadata: Record<string, unknown>;
+  } | null,
+  affinity: {
+    apiKeyId: string;
+    profileId: string;
+    userId: string;
+    sessionId: string;
+    explicit: boolean;
+  } | null,
+  selectedInstanceId: string
+): AgentConversationInput | undefined {
+  if (!runSession || !affinity?.explicit) {
+    return undefined;
+  }
+  if (runSession.upstreamInstanceId !== selectedInstanceId) {
+    return undefined;
+  }
+  return {
+    scopeId: `${runSession.apiKeyId}:${runSession.profileId}:${runSession.userId}:${runSession.sessionId}`,
+    providerSessionId: runSession.providerSessionId ?? undefined,
+    metadata: runSession.providerSessionMetadata
   };
 }
 
 function normalizeIdentity(value: unknown): string {
   return typeof value === "string" && value.trim() ? value.trim() : "default";
+}
+
+function hasExplicitIdentity(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
 }
