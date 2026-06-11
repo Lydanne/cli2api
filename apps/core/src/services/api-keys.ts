@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { ErrorCode, createCli2ApiError } from "@cli2api/shared";
 import type { CoreDatabase } from "../db/client.js";
-import { apiKeys, runs, usageBuckets } from "../db/schema.js";
+import { apiKeys, runEvents, runs, upstreamRunSessions, usageBuckets } from "../db/schema.js";
 import { generateToken, hashToken, tokenPrefix, verifyToken } from "../security/tokens.js";
 
 /** API key quota options accepted by admin APIs and CLI. */
@@ -90,11 +90,15 @@ export class ApiKeyService {
       .run();
   }
 
-  /** Deletes an unused API key. Keys with runs or usage must be revoked instead. */
-  public delete(id: string): void {
+  /** Deletes an API key, optionally removing its dependent history first. */
+  public delete(id: string, options: { force?: boolean } = {}): void {
     const key = this.database.db.select().from(apiKeys).where(eq(apiKeys.id, id)).get();
     if (!key) {
       throw createCli2ApiError(ErrorCode.INVALID_REQUEST, `API key not found: ${id}`, 404);
+    }
+    if (options.force) {
+      this.forceDelete(id);
+      return;
     }
     const hasRunHistory = this.database.db
       .select({ id: runs.id })
@@ -112,6 +116,21 @@ export class ApiKeyService {
       throw createCli2ApiError(ErrorCode.INVALID_REQUEST, "API key has usage history; revoke it instead", 409);
     }
     this.database.db.delete(apiKeys).where(eq(apiKeys.id, id)).run();
+  }
+
+  // Delete dependent history in child-to-parent order so SQLite never leaves orphaned rows.
+  private forceDelete(id: string): void {
+    this.database.sqlite
+      .transaction(() => {
+        const ownedRunIds = this.database.db.select({ id: runs.id }).from(runs).where(eq(runs.apiKeyId, id)).all();
+        if (ownedRunIds.length > 0) {
+          this.database.db.delete(runEvents).where(inArray(runEvents.runId, ownedRunIds.map((run) => run.id))).run();
+        }
+        this.database.db.delete(runs).where(eq(runs.apiKeyId, id)).run();
+        this.database.db.delete(usageBuckets).where(eq(usageBuckets.apiKeyId, id)).run();
+        this.database.db.delete(upstreamRunSessions).where(eq(upstreamRunSessions.apiKeyId, id)).run();
+        this.database.db.delete(apiKeys).where(eq(apiKeys.id, id)).run();
+      })();
   }
 
   /** Lists API key records without plaintext tokens. */

@@ -142,6 +142,7 @@ export interface DashboardState {
   deleteRunSession: (session: UpstreamRunSessionView) => Promise<boolean>;
   deleteProfile: (profile: AdapterProfileView) => Promise<boolean>;
   deleteKey: (key: ApiKeyView) => Promise<boolean>;
+  hardDeleteKey: (key: ApiKeyView) => Promise<boolean>;
   deleteAccount: (account: UpstreamAccountView) => Promise<boolean>;
   deleteInstance: (instance: UpstreamInstanceView) => Promise<boolean>;
   deleteUser: (user: AdminUser) => Promise<boolean>;
@@ -505,6 +506,13 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     });
   }
 
+  async function hardDeleteKey(key: ApiKeyView): Promise<boolean> {
+    return action(async () => {
+      await client.hardDeleteApiKey(key.id);
+      await refresh();
+    });
+  }
+
   async function deleteAccount(account: UpstreamAccountView): Promise<boolean> {
     return action(async () => {
       await client.deleteUpstreamAccount(account.id);
@@ -664,6 +672,7 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
     deleteRunSession,
     deleteProfile,
     deleteKey,
+    hardDeleteKey,
     deleteAccount,
     deleteInstance,
     deleteUser,

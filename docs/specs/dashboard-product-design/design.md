@@ -154,6 +154,17 @@ remains the source of truth for physical delete eligibility; the browser only
 normalizes this known rejection into the supported lifecycle transition and then
 refreshes resources.
 
+Operators also need an explicit hard-delete path for cleanup and local testing.
+`DELETE /api/admin/api-keys/:id` stays the safe path and continues to reject
+used keys. `DELETE /api/admin/api-keys/:id?force=true` is the destructive path:
+it deletes run events for runs created by the key, deletes those runs, deletes
+usage buckets, deletes upstream run-session affinity records, and finally
+deletes the API key record.
+
+The dashboard exposes this as a separate dangerous action so operators can
+choose between revoke, safe delete, and hard delete. Hard delete is not
+automatic fallback from the safe delete path.
+
 ## Modal Creation Flows
 
 Dashboard pages should read first as resource lists. Creation controls are

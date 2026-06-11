@@ -27,3 +27,7 @@
 - [x] Add a reusable dashboard creation dialog wrapper.
 - [x] Move client-key, model, account, executor, route, user, and run creation
   forms into modal dialogs.
+- [x] Add core coverage for safe delete still rejecting used keys and force
+  delete removing dependent key history.
+- [x] Add dashboard state and E2E coverage for hard-deleting a used key.
+- [x] Implement `force=true` API-key deletion and dashboard hard-delete action.

@@ -316,7 +316,8 @@ export function createApp(context: AppContext) {
     .delete("/api/admin/api-keys/:id", ({ params, request }) => {
       try {
         requireAdmin(services, request);
-        services.apiKeys.delete(params.id);
+        const force = new URL(request.url).searchParams.get("force") === "true";
+        services.apiKeys.delete(params.id, { force });
         return { ok: true };
       } catch (error) {
         return errorResponse(error);

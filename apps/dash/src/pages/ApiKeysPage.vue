@@ -16,6 +16,7 @@ const {
   createKey,
   createdToken,
   deleteKey,
+  hardDeleteKey,
   keys,
   monthlyUsageByKey,
   newKeyConcurrentLimit,
@@ -142,7 +143,7 @@ async function writeClipboardText(value: string): Promise<void> {
             {{ monthlyUsageByKey.get(data.id)?.totalTokens ?? 0 }} {{ text("totalTokens") }}
           </template>
         </Column>
-        <Column :header="text('actions')" headerStyle="width: 190px">
+        <Column :header="text('actions')" headerStyle="width: 280px">
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">
               <Button
@@ -161,6 +162,14 @@ async function writeClipboardText(value: string): Promise<void> {
                 severity="danger"
                 size="small"
                 @click="deleteKey(data)"
+              />
+              <Button
+                :data-testid="`hard-delete-key-${data.name}`"
+                :label="text('hardDelete')"
+                outlined
+                severity="danger"
+                size="small"
+                @click="hardDeleteKey(data)"
               />
             </div>
           </template>

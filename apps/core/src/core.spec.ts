@@ -1,10 +1,12 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { openCoreDatabase } from "./db/client.js";
 import { migrateDatabase } from "./db/migrate.js";
+import { apiKeys, runEvents, runs, upstreamRunSessions, usageBuckets } from "./db/schema.js";
 import { createServices } from "./services/index.js";
 import { createTestHarness, type TestHarness } from "./testing/test-harness.js";
 
@@ -710,6 +712,66 @@ describe("@cli2api/core HTTP contracts", () => {
       })
     );
     expect(deleteUser.status).toBe(200);
+  });
+
+  it("force deletes a used API key together with its run, event, usage, and session history", async () => {
+    const cookie = await harness.login();
+    const profile = await harness.createMockProfile(cookie, "mock-force-delete");
+    const key = await harness.createApiKey(cookie, { name: "force-delete-key" });
+
+    const runResponse = await harness.app.handle(
+      new Request("http://localhost/api/runs", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prompt: "delete all history", profileId: profile.id })
+      })
+    );
+    expect(runResponse.status).toBe(200);
+    const run = (await runResponse.json()) as { id: string };
+    const keyRecord = harness.services.apiKeys.list().find((entry) => entry.keyPrefix === key.token.slice(0, 14));
+    expect(keyRecord).toBeTruthy();
+
+    harness.database.db
+      .insert(upstreamRunSessions)
+      .values({
+        id: "session-force-delete",
+        apiKeyId: String(keyRecord?.id),
+        profileId: profile.id,
+        userId: "default",
+        sessionId: "default",
+        upstreamInstanceId: "inst-force-delete",
+        runCount: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        lastUsedAt: 1
+      })
+      .run();
+
+    const safeDelete = await harness.app.handle(
+      new Request(`http://localhost/api/admin/api-keys/${String(keyRecord?.id)}`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(safeDelete.status).toBe(409);
+
+    const forceDelete = await harness.app.handle(
+      new Request(`http://localhost/api/admin/api-keys/${String(keyRecord?.id)}?force=true`, {
+        method: "DELETE",
+        headers: { cookie }
+      })
+    );
+    expect(forceDelete.status).toBe(200);
+    expect(harness.database.db.select().from(apiKeys).where(eq(apiKeys.id, String(keyRecord?.id))).all()).toHaveLength(0);
+    expect(harness.database.db.select().from(runs).where(eq(runs.apiKeyId, String(keyRecord?.id))).all()).toHaveLength(0);
+    expect(harness.database.db.select().from(runEvents).where(eq(runEvents.runId, run.id)).all()).toHaveLength(0);
+    expect(harness.database.db.select().from(usageBuckets).where(eq(usageBuckets.apiKeyId, String(keyRecord?.id))).all()).toHaveLength(0);
+    expect(
+      harness.database.db.select().from(upstreamRunSessions).where(eq(upstreamRunSessions.apiKeyId, String(keyRecord?.id))).all()
+    ).toHaveLength(0);
   });
 
   it("serves built dashboard assets when a dist directory is configured", async () => {

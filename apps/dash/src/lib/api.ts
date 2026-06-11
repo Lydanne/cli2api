@@ -233,6 +233,8 @@ export interface DashboardApi {
   revokeApiKey(id: string): Promise<RevokeApiKeyResult>;
   /** Deletes an unused API key. */
   deleteApiKey(id: string): Promise<DeleteResult>;
+  /** Deletes an API key and its dependent run history. */
+  hardDeleteApiKey(id: string): Promise<DeleteResult>;
   /** Lists usage buckets for API keys. */
   usage(): Promise<UsageBucketView[]>;
   /** Lists runs visible to admins. */
@@ -287,7 +289,7 @@ interface AdminApiKeysClient {
   get(): Promise<TreatyResult<ApiKeyView[]>>;
   post(input: CreateApiKeyInput): Promise<TreatyResult<CreatedApiKey>>;
   (params: { id: string }): {
-    delete(): Promise<TreatyResult<DeleteResult>>;
+    delete(input?: { query?: { force?: string } }): Promise<TreatyResult<DeleteResult>>;
     revoke: {
       post(): Promise<TreatyResult<RevokeApiKeyResult>>;
     };
@@ -404,6 +406,7 @@ export function createDashboardApi(baseUrl = defaultBaseUrl(), factory: TreatyFa
       unwrap<CreatedApiKey>(adminApiKeys.post(input)),
     revokeApiKey: (id) => unwrap<RevokeApiKeyResult>(adminApiKeys({ id }).revoke.post()),
     deleteApiKey: (id) => unwrap<DeleteResult>(adminApiKeys({ id }).delete()),
+    hardDeleteApiKey: (id) => hardDeleteApiKey(baseUrl, id),
     usage: () => unwrap<UsageBucketView[]>(client.api.admin.usage.get() as Promise<TreatyResult<UsageBucketView[]>>),
     runs: () => unwrap<RunView[]>(adminRuns.get()),
     createRun: (token, input) =>
@@ -476,6 +479,34 @@ async function unwrap<T>(responsePromise: Promise<TreatyResult<T>>): Promise<T> 
     throw new ApiError("REQUEST_FAILED", "Request failed", result.status);
   }
   return result.data;
+}
+
+async function hardDeleteApiKey(baseUrl: string, id: string): Promise<DeleteResult> {
+  const response = await fetch(`${trimTrailingSlash(baseUrl)}/api/admin/api-keys/${encodeURIComponent(id)}?force=true`, {
+    credentials: "include",
+    method: "DELETE"
+  });
+  return unwrapFetch<DeleteResult>(response);
+}
+
+async function unwrapFetch<T>(response: Response): Promise<T> {
+  const payload = await readJson(response);
+  if (!response.ok) {
+    throw toApiError({ status: response.status, value: payload }, response.status);
+  }
+  return payload as T;
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
 function toApiError(error: { status: unknown; value: unknown }, fallbackStatus: number): ApiError {

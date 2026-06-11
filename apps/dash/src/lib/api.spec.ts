@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, createDashboardApi, type DashboardTreaty } from "./api";
 
 function treatyResponse<T>(data: T) {
@@ -22,6 +22,11 @@ function treatyError(status: number, value: unknown) {
 }
 
 describe("dashboard Eden API facade", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("creates an Eden Treaty client and returns admin users", async () => {
     const fakeClient = {
       api: {
@@ -72,6 +77,8 @@ describe("dashboard Eden API facade", () => {
   });
 
   it("exposes admin run events, usage buckets, and API key revocation", async () => {
+    const deleteApiKey = vi.fn(async () => treatyResponse({ ok: true }));
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     const fakeClient = {
       api: {
         admin: {
@@ -84,7 +91,7 @@ describe("dashboard Eden API facade", () => {
             get: vi.fn(async () => treatyResponse([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]))
           },
           "api-keys": vi.fn(() => ({
-            delete: vi.fn(async () => treatyResponse({ ok: true })),
+            delete: deleteApiKey,
             revoke: {
               post: vi.fn(async () => treatyResponse({ ok: true }))
             }
@@ -98,6 +105,11 @@ describe("dashboard Eden API facade", () => {
     await expect(api.usage()).resolves.toEqual([{ apiKeyId: "key-1", bucketType: "month", runCount: 1 }]);
     await expect(api.revokeApiKey("key-1")).resolves.toEqual({ ok: true });
     await expect(api.deleteApiKey("key-1")).resolves.toEqual({ ok: true });
+    await expect(api.hardDeleteApiKey("key-1")).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledWith("/api/admin/api-keys/key-1?force=true", {
+      credentials: "include",
+      method: "DELETE"
+    });
   });
 
   it("exposes upstream account auth and instance APIs", async () => {

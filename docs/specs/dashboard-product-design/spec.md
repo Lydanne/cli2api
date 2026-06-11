@@ -46,6 +46,8 @@
   - Creation flows opened from compact page actions and completed in modal
     forms for client keys, models, upstream accounts, executors, dispatch rules,
     dashboard users, and test calls.
+  - Client-key hard deletion that can remove a key together with its run,
+    event, usage, and session-affinity records when explicitly requested.
 - Out of scope:
   - Backend API changes.
   - New dashboard pages or navigation items.
@@ -79,6 +81,10 @@
 - [x] Creation forms are no longer laid out inline above resource tables.
 - [x] Modal creation forms keep their existing fields and action test selectors,
   close after successful submit, and stay open when submit fails.
+- [x] Client-key actions expose both normal delete and explicit hard delete.
+- [x] Hard-deleting a used client key removes its dependent dashboard history so
+  the key disappears from the key table, usage totals, run table, and session
+  list.
 
 ## Open Questions
 

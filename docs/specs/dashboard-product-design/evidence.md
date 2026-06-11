@@ -1,5 +1,39 @@
 # Dashboard Product Design Evidence
 
+## Client Key Hard Delete Follow-Up
+
+- Added explicit hard delete for client keys as
+  `DELETE /api/admin/api-keys/:id?force=true`.
+- Kept safe delete behavior unchanged: used keys still reject safe physical
+  delete and the dashboard can still revoke them.
+- Hard delete removes run events for the key's runs, the runs, usage buckets,
+  upstream run-session affinity records, and then the key record.
+- Added dashboard action `hardDeleteKey` and a separate `彻底删除` / `Hard Delete`
+  button on the client-key table.
+- TDD red: `pnpm vitest run apps/core/src/core.spec.ts apps/dash/src/lib/dashboard-state.spec.ts apps/dash/src/lib/api.spec.ts`
+  failed because `force=true` still returned 409 and dashboard hard-delete
+  methods were missing.
+- TDD green: the same focused Vitest command passed with 3 files and 26 tests
+  after implementing backend cascade deletion and the dashboard hard-delete
+  path.
+- First full `pnpm test:e2e` exposed a facade bug: the Eden delete query was not
+  sent and the UI still showed the backend usage-history error. Replaced the
+  hard-delete facade call with explicit `fetch` to the `force=true` URL.
+- `pnpm lint`: passed with zero warnings after moving the fetch spy into the
+  correct API facade test.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm test`: passed with 13 files and 75 tests.
+- `pnpm test:coverage`: passed with 82.89% statements, 66.02% branches,
+  89.25% functions, and 83.52% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests, including dashboard hard
+  delete removing the used `ui-e2e-key` row.
+- `pnpm check:file-size`: passed; checked source files are within the 1300-line
+  limit.
+- `./deploy.sh deploy`: passed; rebuilt API and dashboard images and both HTTP
+  health checks passed.
+- `./deploy.sh status`: passed after the dashboard container completed its
+  health startup; API and dashboard containers are healthy.
+
 ## Modal Creation Follow-Up
 
 - Added `CreateActionDialog` as the shared dashboard create wrapper for the

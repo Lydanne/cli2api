@@ -174,6 +174,21 @@ describe("dashboard state", () => {
     expect(state.error.value).toBe("");
   });
 
+  it("hard deletes a client key through the destructive API path", async () => {
+    const { api, resources } = createFakeApi();
+    seedResources(resources);
+    const state = createDashboardState(api);
+
+    await expect(state.hardDeleteKey(resources.keys[0] as ApiKeyView)).resolves.toBe(true);
+
+    expect(api.hardDeleteApiKey).toHaveBeenCalledWith("key-1");
+    expect(api.revokeApiKey).not.toHaveBeenCalled();
+    expect(resources.keys).toHaveLength(0);
+    expect(resources.usage).toHaveLength(0);
+    expect(resources.runSessions).toHaveLength(0);
+    expect(state.monthlyUsageByKey.value.has("key-1")).toBe(false);
+  });
+
   it("stores upstream model config and imports SDK models", async () => {
     const { api, resources } = createFakeApi();
     const state = createDashboardState(api);
@@ -338,6 +353,12 @@ function createFakeApi(): { api: DashboardApi; resources: FakeResources } {
     }),
     deleteApiKey: vi.fn(async (id: string) => {
       removeById(resources.keys, id);
+      return { ok: true };
+    }),
+    hardDeleteApiKey: vi.fn(async (id: string) => {
+      removeById(resources.keys, id);
+      removeAllByApiKeyId(resources.usage, id);
+      removeAllByApiKeyId(resources.runSessions, id);
       return { ok: true };
     }),
     usage: vi.fn(async () => resources.usage),
@@ -585,4 +606,12 @@ function removeById<T extends { id: string }>(items: T[], id: string): T {
   }
   const [removed] = items.splice(index, 1);
   return removed as T;
+}
+
+function removeAllByApiKeyId<T extends { apiKeyId: string }>(items: T[], apiKeyId: string): void {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (items[index]?.apiKeyId === apiKeyId) {
+      items.splice(index, 1);
+    }
+  }
 }

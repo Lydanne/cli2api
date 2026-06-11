@@ -171,6 +171,8 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("nav-keys").click();
   await page.getByTestId("revoke-key-ui-e2e-key").click();
   await expect(page.getByText("停用")).toBeVisible();
+  await page.getByTestId("hard-delete-key-ui-e2e-key").click();
+  await expect(page.getByRole("row").filter({ hasText: "ui-e2e-key" })).toHaveCount(0);
 
   await page.getByTestId("nav-users").click();
   await expect(page.getByRole("heading", { name: "用户" })).toBeVisible();
