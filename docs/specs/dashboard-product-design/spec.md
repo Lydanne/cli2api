@@ -35,6 +35,12 @@
     event logs, progress panels, and supporting text.
   - Unit coverage for theme mode resolution and root class synchronization.
   - Visual verification of light and dark dashboard surfaces.
+  - Overview setup progress rendered as a compact list while any setup step is
+    incomplete.
+  - Automatic hiding of the overview setup progress once every setup step has
+    completed, including a successful test call.
+  - A copyable client base URL on the client-key page so operators can paste the
+    serving endpoint into downstream tools.
 - Out of scope:
   - Backend API changes.
   - New dashboard pages or navigation items.
@@ -57,6 +63,12 @@
 - [x] Existing E2E product flow continues to pass after selector updates.
 - [x] Evidence records build/test/lint/coverage/E2E results and dark-mode
   screenshots or screenshot paths.
+- [x] Overview setup progress is rendered as a vertical list instead of a
+  tiled stepper.
+- [x] Overview setup progress is hidden once all setup steps have completed.
+- [x] Client-key page displays the current same-origin `/v1` base URL.
+- [x] Client-key page can copy that base URL without exposing stored API key
+  plaintext.
 
 ## Open Questions
 

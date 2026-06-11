@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Check, Copy } from "lucide-vue-next";
 import Button from "primevue/button";
 import Card from "primevue/card";
 import Column from "primevue/column";
@@ -6,6 +7,8 @@ import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
+import { computed, ref } from "vue";
+import { buildClientBaseUrl } from "../lib/client-links";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -24,6 +27,40 @@ const {
   statusSeverity,
   text
 } = useDashboardState();
+
+const clientBaseUrl = computed(() => buildClientBaseUrl());
+const copiedLink = ref(false);
+let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function copyClientBaseUrl(): Promise<void> {
+  await writeClipboardText(clientBaseUrl.value);
+  copiedLink.value = true;
+  if (copyResetTimer) window.clearTimeout(copyResetTimer);
+  copyResetTimer = window.setTimeout(() => {
+    copiedLink.value = false;
+  }, 1500);
+}
+
+async function writeClipboardText(value: string): Promise<void> {
+  if (window.navigator.clipboard?.writeText) {
+    try {
+      await window.navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // Fall back for browsers that expose clipboard but reject the write.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
 </script>
 
 <template>
@@ -38,6 +75,28 @@ const {
         <InputText v-model.number="newKeyMonthlyTokenLimit" :aria-label="text('monthlyTokenLimit')" type="number" />
         <Button data-testid="create-key" :label="text('createApiKey')" type="submit" />
       </form>
+
+      <div class="app-panel-muted mb-4 flex flex-col gap-3 rounded-md p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
+          <p class="app-field-label text-xs font-medium">{{ text("clientBaseUrl") }}</p>
+          <p class="app-code-muted mt-1 truncate font-mono text-xs" data-testid="client-base-url">{{ clientBaseUrl }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <Button
+            :aria-label="text('copyLink')"
+            data-testid="copy-client-base-url"
+            outlined
+            size="small"
+            :title="text('copyLink')"
+            type="button"
+            @click="copyClientBaseUrl"
+          >
+            <Check v-if="copiedLink" :size="15" />
+            <Copy v-else :size="15" />
+          </Button>
+          <span v-if="copiedLink" class="app-muted text-xs">{{ text("copied") }}</span>
+        </div>
+      </div>
 
       <Message v-if="createdToken" class="mb-4 break-all font-mono text-xs" data-testid="created-token" severity="success">
         {{ createdToken }}

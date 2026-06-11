@@ -116,6 +116,9 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByRole("heading", { name: "会话管理" })).toBeVisible();
 
   await page.getByTestId("nav-keys").click();
+  await expect(page.getByTestId("client-base-url")).toHaveText("http://127.0.0.1:4517/v1");
+  await page.getByTestId("copy-client-base-url").click();
+  await expect(page.getByText("已复制", { exact: true })).toBeVisible();
   await page.getByTestId("key-name").fill("ui-e2e-key");
   await page.getByTestId("create-key").click();
   await expect(page.getByTestId("created-token")).toContainText("c2a_");
@@ -132,6 +135,11 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByRole("button", { name: "查看事件" }).last().click();
   await expect(page.getByTestId("run-events")).toContainText("run.completed");
   const runId = (await page.getByTestId("run-id").last().textContent())?.trim() ?? "";
+
+  await page.getByTestId("nav-overview").click();
+  await expect(page.getByRole("heading", { name: "概览" })).toBeVisible();
+  await expect(page.getByText("接入进度", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("启用模型", { exact: true })).toBeVisible();
 
   await page.getByTestId("nav-sessions").click();
   await expect(page.getByRole("heading", { name: "会话管理" })).toBeVisible();

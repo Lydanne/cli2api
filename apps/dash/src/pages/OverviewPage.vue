@@ -8,15 +8,8 @@ import Tag from "primevue/tag";
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useDashboardState } from "../lib/dashboard-state";
+import { createSetupProgressState, type SetupProgressStep } from "../lib/overview";
 import type { DashboardRouteName } from "../router";
-
-interface SetupStep {
-  key: string;
-  label: string;
-  count: number;
-  done: boolean;
-  route: DashboardRouteName;
-}
 
 const {
   accounts,
@@ -44,7 +37,7 @@ const metricCards = computed(() => [
 ]);
 const recentRuns = computed(() => runs.value.slice(-6).reverse());
 const recentSessions = computed(() => runSessions.value.slice(-6).reverse());
-const setupSteps = computed<SetupStep[]>(() => [
+const setupSteps = computed<Array<SetupProgressStep<DashboardRouteName>>>(() => [
   {
     key: "account",
     label: text("setupAccount"),
@@ -81,9 +74,7 @@ const setupSteps = computed<SetupStep[]>(() => [
     route: "runs"
   }
 ]);
-const nextStep = computed(() => setupSteps.value.find((step) => !step.done) ?? setupSteps.value.at(-1));
-const completedSetupSteps = computed(() => setupSteps.value.filter((step) => step.done).length);
-const setupProgressPercent = computed(() => `${(completedSetupSteps.value / setupSteps.value.length) * 100}%`);
+const setupProgress = computed(() => createSetupProgressState(setupSteps.value));
 const endpointReady = computed(() =>
   ["account", "instance", "profile", "key"].every((key) => setupSteps.value.find((step) => step.key === key)?.done)
 );
@@ -95,14 +86,14 @@ function goTo(route: DashboardRouteName): void {
 
 <template>
   <div class="space-y-5">
-    <section class="app-panel rounded-md p-5">
+    <section v-if="setupProgress.visible" class="app-panel rounded-md p-5">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div class="flex flex-wrap items-center gap-2">
             <p class="text-sm font-semibold">{{ text("setupProgress") }}</p>
             <Tag :severity="endpointReady ? 'success' : 'warn'" :value="endpointReady ? text('ready') : text('notReady')" />
             <span class="app-shell-badge rounded px-2 py-1 text-xs font-medium">
-              {{ completedSetupSteps }} / {{ setupSteps.length }}
+              {{ setupProgress.completedSteps }} / {{ setupProgress.steps.length }}
             </span>
           </div>
           <p class="app-muted mt-2 text-sm">{{ text("endpointStatus") }}</p>
@@ -111,9 +102,9 @@ function goTo(route: DashboardRouteName): void {
         <div class="app-panel-muted flex flex-col gap-3 rounded-md p-3 sm:min-w-80 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="app-field-label text-xs font-medium">{{ text("nextAction") }}</p>
-            <p class="mt-1 text-sm font-semibold">{{ nextStep?.label }}</p>
+            <p class="mt-1 text-sm font-semibold">{{ setupProgress.nextStep?.label }}</p>
           </div>
-          <Button v-if="nextStep" class="shrink-0 justify-center" outlined @click="goTo(nextStep.route)">
+          <Button v-if="setupProgress.nextStep" class="shrink-0 justify-center" outlined @click="goTo(setupProgress.nextStep.route)">
             <span>{{ text("goConfigure") }}</span>
             <ArrowRight class="ml-2" :size="15" />
           </Button>
@@ -121,13 +112,13 @@ function goTo(route: DashboardRouteName): void {
       </div>
 
       <div class="app-progress-track mt-5 h-1.5 overflow-hidden rounded">
-        <div class="app-progress-bar h-full rounded transition-all" :style="{ width: setupProgressPercent }" />
+        <div class="app-progress-bar h-full rounded transition-all" :style="{ width: setupProgress.progressPercent }" />
       </div>
 
-      <ol class="app-step-list mt-4 grid grid-cols-1 gap-px overflow-hidden rounded-md md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-        <li v-for="(step, index) in setupSteps" :key="step.key" class="app-step-cell">
+      <ol class="app-step-list mt-4 overflow-hidden rounded-md">
+        <li v-for="(step, index) in setupProgress.steps" :key="step.key" class="app-step-cell">
           <button
-            class="app-step-button flex min-h-24 w-full items-start gap-3 px-3 py-3 text-left transition"
+            class="app-step-button flex min-h-16 w-full items-center gap-3 px-3 py-3 text-left transition"
             :class="{ 'is-done': step.done }"
             type="button"
             @click="goTo(step.route)"
@@ -140,12 +131,13 @@ function goTo(route: DashboardRouteName): void {
               <span v-else>{{ index + 1 }}</span>
             </span>
             <span class="min-w-0 flex-1">
-              <span class="flex items-start justify-between gap-2">
+              <span class="flex flex-wrap items-center justify-between gap-2">
                 <span class="min-w-0 text-sm font-medium">{{ step.label }}</span>
                 <span class="app-step-count rounded px-1.5 py-0.5 text-xs font-semibold">{{ step.count }}</span>
               </span>
-              <span class="app-muted mt-2 block text-xs">{{ step.done ? text("done") : text("nextAction") }}</span>
+              <span class="app-muted mt-1 block text-xs">{{ step.done ? text("done") : text("nextAction") }}</span>
             </span>
+            <ArrowRight class="app-subtle shrink-0" :size="15" />
           </button>
         </li>
       </ol>

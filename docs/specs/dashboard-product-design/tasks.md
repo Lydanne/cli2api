@@ -13,3 +13,8 @@
 - [x] Replace light-only dashboard color classes with theme-aware classes.
 - [x] Use PrimeVue option controls for locale and theme selection in the shell.
 - [x] Verify light and dark screenshots for login, overview, and runs surfaces.
+- [x] Convert overview setup progress from tiled stepper to compact list.
+- [x] Hide overview setup progress when all setup steps are complete.
+- [x] Add focused dashboard unit coverage for setup progress visibility.
+- [x] Add client-key page copy action for the same-origin `/v1` base URL.
+- [x] Cover client base URL derivation with dashboard unit tests.

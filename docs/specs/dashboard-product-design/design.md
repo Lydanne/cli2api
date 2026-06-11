@@ -109,6 +109,29 @@ HTTP entrypoint is callable, which setup steps are complete, and routes the
 operator to the next incomplete step. The calls page also accepts a pasted
 client key so test calls still work after a browser refresh.
 
+## Setup Progress List Follow-Up
+
+Operator feedback asks for the setup progress to be quieter once the serving
+path works. The overview setup progress should render as a vertical list, with
+each row showing the step status marker, label, current count, and a direct
+configuration action. This keeps the unfinished work scan-friendly without
+using the previous tiled stepper.
+
+The whole setup progress panel is only an onboarding aid. Once every setup step
+is complete, including a successful test call, the panel is hidden so the
+overview starts with live metrics and operating tables.
+
+## Client Key Link Copy Follow-Up
+
+The client-key page should make the downstream call address explicit. It shows
+the current same-origin OpenAI-compatible base URL, ending in `/v1`, and offers
+an icon copy action. This keeps the operator workflow concrete: create a key,
+copy the base URL, then paste both into the downstream client.
+
+The copy action must not expose stored key plaintext. The token keeps its
+existing one-time display behavior after creation; the reusable copied value is
+only the service URL.
+
 ## Data Cleanup
 
 Dashboard-created setup data must be removable while operators are testing. The
