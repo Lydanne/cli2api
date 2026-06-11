@@ -1,5 +1,38 @@
 # Dashboard Product Design Evidence
 
+## Explained Forms And Confirmed Deletes Follow-Up
+
+- Added `FormField` for visible labels and field-level help inside dashboard
+  creation dialogs.
+- Extended `CreateActionDialog` with an operator-facing description area.
+- Added `ConfirmActionButton` so delete, revoke, hard-delete, reset-session,
+  and disable-instance actions open a confirmation dialog before running the
+  dashboard-state action.
+- Applied explanatory creation copy to client keys, models, upstream accounts,
+  executors, dispatch rules, dashboard users, and test calls.
+- Applied confirmation dialogs to client-key revoke/delete/hard-delete, model
+  delete, account delete, executor disable/delete, dispatch-rule delete,
+  run-session reset, and user delete.
+- TDD red: `pnpm exec playwright test tests/e2e/core-flow.spec.ts -g "dashboard covers"`
+  failed because the existing account creation dialog had no
+  `create-dialog-description`.
+- TDD green: the same focused Playwright command passed after adding explained
+  form fields and confirmation dialogs.
+- `pnpm lint`: passed with zero warnings.
+- `pnpm check:file-size`: passed; checked source files are within the 1300-line
+  limit.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm test`: passed with 13 files and 75 tests.
+- `pnpm test:coverage`: passed with 82.89% statements, 66.02% branches,
+  89.25% functions, and 83.52% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests.
+- Browser QA on `http://127.0.0.1:4517/#/api-keys`: the client-key creation
+  dialog rendered a description and 5 field-help entries; width was 506 px in a
+  1280 px viewport with no horizontal overflow.
+- Browser QA on the same page: the delete confirmation dialog opened before the
+  delete action, showed the target `browser-qa-key`, and measured 446 px wide
+  with no horizontal overflow.
+
 ## Client Key Hard Delete Follow-Up
 
 - Added explicit hard delete for client keys as

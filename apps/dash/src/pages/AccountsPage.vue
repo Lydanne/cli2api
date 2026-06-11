@@ -7,7 +7,9 @@ import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
 import { ref } from "vue";
+import ConfirmActionButton from "../components/ConfirmActionButton.vue";
 import CreateActionDialog from "../components/CreateActionDialog.vue";
+import FormField from "../components/FormField.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -44,11 +46,16 @@ async function submitCreateAccount(): Promise<void> {
           :action-label="text('createAccount')"
           action-test-id="create-account"
           :cancel-label="text('cancel')"
+          :description="text('createAccountDescription')"
           :title="text('createAccount')"
           @submit="submitCreateAccount"
         >
-          <InputText v-model="newAccountId" class="w-full" data-testid="account-id" :placeholder="text('id')" />
-          <InputText v-model="newAccountName" class="w-full" data-testid="account-name" :placeholder="text('name')" />
+          <FormField :help="text('accountIdHelp')" :label="text('id')">
+            <InputText v-model="newAccountId" class="w-full" data-testid="account-id" :placeholder="text('id')" />
+          </FormField>
+          <FormField :help="text('accountNameHelp')" :label="text('name')">
+            <InputText v-model="newAccountName" class="w-full" data-testid="account-name" :placeholder="text('name')" />
+          </FormField>
         </CreateActionDialog>
       </div>
 
@@ -90,13 +97,17 @@ async function submitCreateAccount(): Promise<void> {
                 size="small"
                 @click="logoutAccount(data)"
               />
-              <Button
-                :data-testid="`delete-account-${data.id}`"
+              <ConfirmActionButton
+                :action-test-id="`delete-account-${data.id}`"
+                :cancel-label="text('cancel')"
+                :confirm-label="text('confirm')"
                 :label="text('delete')"
-                outlined
+                :message="text('confirmDeleteMessage')"
                 severity="danger"
-                size="small"
-                @click="deleteAccount(data)"
+                :target="data.id"
+                :target-label="text('confirmTarget')"
+                :title="text('confirmDeleteTitle')"
+                @confirm="deleteAccount(data)"
               />
             </div>
           </template>

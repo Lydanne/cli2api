@@ -7,7 +7,9 @@ import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { ref } from "vue";
+import ConfirmActionButton from "../components/ConfirmActionButton.vue";
 import CreateActionDialog from "../components/CreateActionDialog.vue";
+import FormField from "../components/FormField.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -45,13 +47,22 @@ async function submitCreateProfile(): Promise<void> {
           :action-label="text('createProfile')"
           action-test-id="create-profile"
           :cancel-label="text('cancel')"
+          :description="text('createProfileDescription')"
           :title="text('createProfile')"
           @submit="submitCreateProfile"
         >
-          <InputText v-model="newProfileId" class="w-full" data-testid="profile-id" :placeholder="text('id')" />
-          <Select v-model="newProfileType" class="w-full" optionLabel="label" optionValue="value" :options="profileTypeOptions" />
-          <InputText v-model="newProfileName" class="w-full" :placeholder="text('name')" />
-          <InputText v-model="newProfileModel" class="w-full" data-testid="profile-model" :placeholder="text('upstreamModel')" />
+          <FormField :help="text('profileIdHelp')" :label="text('publicModel')">
+            <InputText v-model="newProfileId" class="w-full" data-testid="profile-id" :placeholder="text('id')" />
+          </FormField>
+          <FormField :help="text('profileTypeHelp')" :label="text('type')">
+            <Select v-model="newProfileType" class="w-full" optionLabel="label" optionValue="value" :options="profileTypeOptions" />
+          </FormField>
+          <FormField :help="text('profileNameHelp')" :label="text('name')">
+            <InputText v-model="newProfileName" class="w-full" :placeholder="text('name')" />
+          </FormField>
+          <FormField :help="text('profileModelHelp')" :label="text('upstreamModel')">
+            <InputText v-model="newProfileModel" class="w-full" data-testid="profile-model" :placeholder="text('upstreamModel')" />
+          </FormField>
         </CreateActionDialog>
         <Button
           data-testid="import-agent-models"
@@ -78,13 +89,17 @@ async function submitCreateProfile(): Promise<void> {
         </Column>
         <Column :header="text('actions')" headerStyle="width: 120px">
           <template #body="{ data }">
-            <Button
-              :data-testid="`delete-profile-${data.id}`"
+            <ConfirmActionButton
+              :action-test-id="`delete-profile-${data.id}`"
+              :cancel-label="text('cancel')"
+              :confirm-label="text('confirm')"
               :label="text('delete')"
-              outlined
+              :message="text('confirmDeleteMessage')"
               severity="danger"
-              size="small"
-              @click="deleteProfile(data)"
+              :target="data.id"
+              :target-label="text('confirmTarget')"
+              :title="text('confirmDeleteTitle')"
+              @confirm="deleteProfile(data)"
             />
           </template>
         </Column>

@@ -8,6 +8,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { ref } from "vue";
 import CreateActionDialog from "../components/CreateActionDialog.vue";
+import FormField from "../components/FormField.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -46,19 +47,26 @@ async function submitCreateRun(): Promise<void> {
             :action-label="text('createRun')"
             action-test-id="run-submit"
             :cancel-label="text('cancel')"
+            :description="text('createRunDescription')"
             :title="text('createRun')"
             @submit="submitCreateRun"
           >
-            <Select
-              v-model="selectedProfile"
-              class="w-full"
-              data-testid="run-profile"
-              optionLabel="label"
-              optionValue="value"
-              :options="profileOptions"
-            />
-            <InputText v-model="runToken" class="w-full" :placeholder="text('clientToken')" type="password" />
-            <InputText v-model="prompt" class="w-full" data-testid="run-prompt" :placeholder="text('prompt')" />
+            <FormField :help="text('runProfileHelp')" :label="text('profile')">
+              <Select
+                v-model="selectedProfile"
+                class="w-full"
+                data-testid="run-profile"
+                optionLabel="label"
+                optionValue="value"
+                :options="profileOptions"
+              />
+            </FormField>
+            <FormField :help="text('runTokenHelp')" :label="text('clientToken')">
+              <InputText v-model="runToken" class="w-full" :placeholder="text('clientToken')" type="password" />
+            </FormField>
+            <FormField :help="text('runPromptHelp')" :label="text('prompt')">
+              <InputText v-model="prompt" class="w-full" data-testid="run-prompt" :placeholder="text('prompt')" />
+            </FormField>
           </CreateActionDialog>
         </div>
 

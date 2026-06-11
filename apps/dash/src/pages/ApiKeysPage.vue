@@ -8,7 +8,9 @@ import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
 import { computed, ref } from "vue";
+import ConfirmActionButton from "../components/ConfirmActionButton.vue";
 import CreateActionDialog from "../components/CreateActionDialog.vue";
+import FormField from "../components/FormField.vue";
 import { buildClientBaseUrl } from "../lib/client-links";
 import { useDashboardState } from "../lib/dashboard-state";
 
@@ -82,24 +84,35 @@ async function writeClipboardText(value: string): Promise<void> {
           :action-label="text('createApiKey')"
           action-test-id="create-key"
           :cancel-label="text('cancel')"
+          :description="text('createApiKeyDescription')"
           :title="text('createApiKey')"
           @submit="submitCreateKey"
         >
-          <InputText v-model="newKeyName" class="w-full" data-testid="key-name" :placeholder="text('name')" />
-          <InputText v-model.number="newKeyDailyLimit" class="w-full" :aria-label="text('dailyLimit')" type="number" />
-          <InputText v-model.number="newKeyRpmLimit" class="w-full" :aria-label="text('rpmLimit')" type="number" />
-          <InputText
-            v-model.number="newKeyConcurrentLimit"
-            class="w-full"
-            :aria-label="text('concurrentLimit')"
-            type="number"
-          />
-          <InputText
-            v-model.number="newKeyMonthlyTokenLimit"
-            class="w-full"
-            :aria-label="text('monthlyTokenLimit')"
-            type="number"
-          />
+          <FormField :help="text('keyNameHelp')" :label="text('name')">
+            <InputText v-model="newKeyName" class="w-full" data-testid="key-name" :placeholder="text('name')" />
+          </FormField>
+          <FormField :help="text('dailyLimitHelp')" :label="text('dailyLimit')">
+            <InputText v-model.number="newKeyDailyLimit" class="w-full" :aria-label="text('dailyLimit')" type="number" />
+          </FormField>
+          <FormField :help="text('rpmLimitHelp')" :label="text('rpmLimit')">
+            <InputText v-model.number="newKeyRpmLimit" class="w-full" :aria-label="text('rpmLimit')" type="number" />
+          </FormField>
+          <FormField :help="text('concurrentLimitHelp')" :label="text('concurrentLimit')">
+            <InputText
+              v-model.number="newKeyConcurrentLimit"
+              class="w-full"
+              :aria-label="text('concurrentLimit')"
+              type="number"
+            />
+          </FormField>
+          <FormField :help="text('monthlyTokenLimitHelp')" :label="text('monthlyTokenLimit')">
+            <InputText
+              v-model.number="newKeyMonthlyTokenLimit"
+              class="w-full"
+              :aria-label="text('monthlyTokenLimit')"
+              type="number"
+            />
+          </FormField>
         </CreateActionDialog>
       </div>
 
@@ -146,30 +159,44 @@ async function writeClipboardText(value: string): Promise<void> {
         <Column :header="text('actions')" headerStyle="width: 280px">
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">
-              <Button
-                :data-testid="`revoke-key-${data.name}`"
+              <ConfirmActionButton
+                :action-test-id="`revoke-key-${data.name}`"
+                :cancel-label="text('cancel')"
+                :confirm-label="text('confirm')"
                 :disabled="data.enabled !== 1"
                 :label="text('revoke')"
-                outlined
+                :message="text('confirmRevokeKeyMessage')"
                 severity="danger"
-                size="small"
-                @click="revokeKey(data)"
+                :target="data.name"
+                :target-label="text('confirmTarget')"
+                :title="text('confirmRevokeTitle')"
+                @confirm="revokeKey(data)"
               />
-              <Button
-                :data-testid="`delete-key-${data.name}`"
+              <ConfirmActionButton
+                :action-test-id="`delete-key-${data.name}`"
+                :cancel-label="text('cancel')"
+                :confirm-label="text('confirm')"
+                :detail="text('confirmSafeDeleteDetail')"
                 :label="text('delete')"
-                outlined
+                :message="text('confirmDeleteMessage')"
                 severity="danger"
-                size="small"
-                @click="deleteKey(data)"
+                :target="data.name"
+                :target-label="text('confirmTarget')"
+                :title="text('confirmDeleteTitle')"
+                @confirm="deleteKey(data)"
               />
-              <Button
-                :data-testid="`hard-delete-key-${data.name}`"
+              <ConfirmActionButton
+                :action-test-id="`hard-delete-key-${data.name}`"
+                :cancel-label="text('cancel')"
+                :confirm-label="text('confirm')"
+                :detail="text('confirmHardDeleteDetail')"
                 :label="text('hardDelete')"
-                outlined
+                :message="text('confirmHardDeleteKeyMessage')"
                 severity="danger"
-                size="small"
-                @click="hardDeleteKey(data)"
+                :target="data.name"
+                :target-label="text('confirmTarget')"
+                :title="text('confirmHardDeleteTitle')"
+                @confirm="hardDeleteKey(data)"
               />
             </div>
           </template>

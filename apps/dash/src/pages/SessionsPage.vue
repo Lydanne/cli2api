@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Button from "primevue/button";
 import Card from "primevue/card";
 import Column from "primevue/column";
 import DataTable from "primevue/datatable";
+import ConfirmActionButton from "../components/ConfirmActionButton.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const { deleteRunSession, instanceName, profileName, runSessions, text } = useDashboardState();
@@ -49,13 +49,18 @@ function formatTime(value: number): string {
         </Column>
         <Column :header="text('actions')" headerStyle="width: 150px">
           <template #body="{ data }">
-            <Button
-              :data-testid="`delete-session-${data.id}`"
+            <ConfirmActionButton
+              :action-test-id="`delete-session-${data.id}`"
+              :cancel-label="text('cancel')"
+              :confirm-label="text('confirm')"
+              confirm-test-id="confirm-current-action"
               :label="text('resetSession')"
-              outlined
+              :message="text('confirmResetSessionMessage')"
               severity="danger"
-              size="small"
-              @click="deleteRunSession(data)"
+              :target="data.sessionId"
+              :target-label="text('confirmTarget')"
+              :title="text('confirmResetTitle')"
+              @confirm="deleteRunSession(data)"
             />
           </template>
         </Column>

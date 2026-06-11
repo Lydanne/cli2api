@@ -180,3 +180,24 @@ correct the form.
 
 Instant actions that do not collect creation input, such as importing SDK
 models, stay on the page toolbar instead of moving into a dialog.
+
+Creation dialogs must include enough context to operate without reading source
+or backend docs. The dialog header identifies the action, the intro paragraph
+explains where the created object sits in the serving path, and each input is
+wrapped with a visible label plus a short hint. The hint should state the
+operational effect of the value, not repeat the label.
+
+## Destructive Action Confirmation
+
+Delete and destructive lifecycle actions must be two-step interactions. The
+table action button opens a modal confirmation dialog first. The backing
+dashboard-state action runs only from the confirm button. This applies to
+client-key revoke, safe delete, and hard delete; model delete; account delete;
+executor disable and delete; dispatch-rule delete; run-session reset; and user
+delete.
+
+Confirmation copy should name the object being affected and distinguish safe
+delete from hard delete. Hard delete copy must clearly state that dependent
+history is removed. Safe delete or lifecycle actions should describe their
+backend constraints without implying that records are removed when the backend
+will instead reject or transition the resource.

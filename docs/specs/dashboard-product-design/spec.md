@@ -46,8 +46,12 @@
   - Creation flows opened from compact page actions and completed in modal
     forms for client keys, models, upstream accounts, executors, dispatch rules,
     dashboard users, and test calls.
+  - Creation dialogs include operator-facing purpose text and field-level help
+    so the form explains what will be created and how each value is used.
   - Client-key hard deletion that can remove a key together with its run,
     event, usage, and session-affinity records when explicitly requested.
+  - Delete and destructive lifecycle actions require an explicit confirmation
+    dialog before the dashboard calls the backing API action.
 - Out of scope:
   - Backend API changes.
   - New dashboard pages or navigation items.
@@ -85,6 +89,11 @@
 - [x] Hard-deleting a used client key removes its dependent dashboard history so
   the key disappears from the key table, usage totals, run table, and session
   list.
+- [x] Creation dialogs explain the resource purpose and show field-level hints
+  for client keys, models, accounts, executors, dispatch rules, users, and test
+  calls.
+- [x] Delete, hard-delete, reset-session, revoke, and disable actions open a
+  confirmation dialog and only run after the operator confirms.
 
 ## Open Questions
 

@@ -89,7 +89,7 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("account-name").fill("待删账号");
   await page.getByTestId("create-account").click();
   await expect(page.getByText("codex-delete-e2e", { exact: true })).toBeVisible();
-  await page.getByTestId("delete-account-codex-delete-e2e").click();
+  await confirmAction(page, "delete-account-codex-delete-e2e");
   await expect(page.getByText("codex-delete-e2e", { exact: true })).toHaveCount(0);
 
   await page.getByTestId("nav-instances").click();
@@ -116,7 +116,7 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("profile-id").fill("mock-delete-e2e");
   await page.getByTestId("create-profile").click();
   await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" }).first()).toBeVisible();
-  await page.getByTestId("delete-profile-mock-delete-e2e").click();
+  await confirmAction(page, "delete-profile-mock-delete-e2e");
   await expect(page.getByRole("row").filter({ hasText: "mock-delete-e2e" })).toHaveCount(0);
 
   await page.goto("/#/route-bindings");
@@ -159,6 +159,8 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await expect(page.getByRole("heading", { name: "会话管理" })).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: "default" }).filter({ hasText: "UI Mock 实例" })).toBeVisible();
   await page.getByRole("button", { name: "重置会话" }).click();
+  await page.getByTestId("confirm-current-action").click();
+  await expect(page.getByTestId("confirm-current-action")).toBeHidden();
   await expect(page.getByRole("row").filter({ hasText: "default" }).filter({ hasText: "UI Mock 实例" })).toHaveCount(0);
 
   const events = await request.get(`/api/runs/${runId}/events`, {
@@ -169,9 +171,9 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   expect(eventBody.map((event) => event.type)).toContain("run.completed");
 
   await page.getByTestId("nav-keys").click();
-  await page.getByTestId("revoke-key-ui-e2e-key").click();
+  await confirmAction(page, "revoke-key-ui-e2e-key");
   await expect(page.getByText("停用")).toBeVisible();
-  await page.getByTestId("hard-delete-key-ui-e2e-key").click();
+  await confirmAction(page, "hard-delete-key-ui-e2e-key");
   await expect(page.getByRole("row").filter({ hasText: "ui-e2e-key" })).toHaveCount(0);
 
   await page.getByTestId("nav-users").click();
@@ -181,16 +183,26 @@ test("dashboard covers Chinese account pool, profile, API key, run, and events",
   await page.getByTestId("user-password").fill("change-me");
   await page.getByTestId("create-user").click();
   await expect(page.getByText("ops-e2e@example.com")).toBeVisible();
-  await page.getByTestId("delete-user-ops-e2e@example.com").click();
+  await confirmAction(page, "delete-user-ops-e2e@example.com");
   await expect(page.getByText("ops-e2e@example.com")).toHaveCount(0);
 
   await page.getByTestId("nav-instances").click();
-  await page.getByTestId("disable-instance-mock-ui-inst").click();
-  await expect(page.getByText("停用")).toBeVisible();
+  await confirmAction(page, "disable-instance-mock-ui-inst");
+  await expect(page.getByRole("row").filter({ hasText: "mock-ui-inst" }).filter({ hasText: "停用" })).toBeVisible();
 });
 
 async function openCreateDialog(page: Page, actionTestId: string, fieldTestId: string): Promise<void> {
   await expect(page.getByTestId(fieldTestId)).toBeHidden();
   await page.getByTestId(actionTestId).click();
   await expect(page.getByTestId(fieldTestId)).toBeVisible();
+  const dialog = page.getByRole("dialog").filter({ has: page.getByTestId(fieldTestId) });
+  await expect(dialog.getByTestId("create-dialog-description")).toBeVisible();
+  await expect(dialog.getByTestId("form-field-help").first()).toBeVisible();
+}
+
+async function confirmAction(page: Page, actionTestId: string): Promise<void> {
+  await page.getByTestId(actionTestId).click();
+  await expect(page.getByRole("dialog").filter({ has: page.getByTestId(`confirm-${actionTestId}`) })).toBeVisible();
+  await page.getByTestId(`confirm-${actionTestId}`).click();
+  await expect(page.getByTestId(`confirm-${actionTestId}`)).toBeHidden();
 }

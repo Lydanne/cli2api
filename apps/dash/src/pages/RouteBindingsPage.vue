@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import Button from "primevue/button";
 import Card from "primevue/card";
 import Column from "primevue/column";
 import DataTable from "primevue/datatable";
 import Select from "primevue/select";
 import { ref } from "vue";
+import ConfirmActionButton from "../components/ConfirmActionButton.vue";
 import CreateActionDialog from "../components/CreateActionDialog.vue";
+import FormField from "../components/FormField.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -40,25 +41,30 @@ async function submitCreateRoute(): Promise<void> {
           :action-label="text('createRoute')"
           action-test-id="create-route"
           :cancel-label="text('cancel')"
+          :description="text('createRouteDescription')"
           :title="text('createRoute')"
           @submit="submitCreateRoute"
         >
-          <Select
-            v-model="selectedRouteProfile"
-            class="w-full"
-            data-testid="route-profile"
-            optionLabel="label"
-            optionValue="value"
-            :options="profileOptions"
-          />
-          <Select
-            v-model="selectedRouteInstance"
-            class="w-full"
-            data-testid="route-instance"
-            optionLabel="label"
-            optionValue="value"
-            :options="instanceOptions"
-          />
+          <FormField :help="text('routeProfileHelp')" :label="text('profile')">
+            <Select
+              v-model="selectedRouteProfile"
+              class="w-full"
+              data-testid="route-profile"
+              optionLabel="label"
+              optionValue="value"
+              :options="profileOptions"
+            />
+          </FormField>
+          <FormField :help="text('routeInstanceHelp')" :label="text('instance')">
+            <Select
+              v-model="selectedRouteInstance"
+              class="w-full"
+              data-testid="route-instance"
+              optionLabel="label"
+              optionValue="value"
+              :options="instanceOptions"
+            />
+          </FormField>
         </CreateActionDialog>
       </div>
 
@@ -81,13 +87,17 @@ async function submitCreateRoute(): Promise<void> {
         </Column>
         <Column :header="text('actions')" headerStyle="width: 150px">
           <template #body="{ data }">
-            <Button
-              :data-testid="`delete-route-${data.id}`"
+            <ConfirmActionButton
+              :action-test-id="`delete-route-${data.id}`"
+              :cancel-label="text('cancel')"
+              :confirm-label="text('confirm')"
               :label="text('deleteRoute')"
-              outlined
+              :message="text('confirmDeleteMessage')"
               severity="danger"
-              size="small"
-              @click="deleteRoute(data)"
+              :target="data.id"
+              :target-label="text('confirmTarget')"
+              :title="text('confirmDeleteTitle')"
+              @confirm="deleteRoute(data)"
             />
           </template>
         </Column>

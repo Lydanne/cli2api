@@ -7,7 +7,9 @@ import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { ref } from "vue";
+import ConfirmActionButton from "../components/ConfirmActionButton.vue";
 import CreateActionDialog from "../components/CreateActionDialog.vue";
+import FormField from "../components/FormField.vue";
 import { useDashboardState } from "../lib/dashboard-state";
 
 const {
@@ -48,21 +50,32 @@ async function submitCreateInstance(): Promise<void> {
           :action-label="text('createInstance')"
           action-test-id="create-instance"
           :cancel-label="text('cancel')"
+          :description="text('createInstanceDescription')"
           :title="text('createInstance')"
           @submit="submitCreateInstance"
         >
-          <Select
-            v-model="selectedAccountId"
-            class="w-full"
-            data-testid="instance-account"
-            optionLabel="label"
-            optionValue="value"
-            :options="accountOptions"
-          />
-          <Select v-model="newInstanceType" class="w-full" optionLabel="label" optionValue="value" :options="instanceTypeOptions" />
-          <InputText v-model="newInstanceId" class="w-full" data-testid="instance-id" :placeholder="text('id')" />
-          <InputText v-model="newInstanceName" class="w-full" data-testid="instance-name" :placeholder="text('name')" />
-          <InputText v-model.number="newInstanceConcurrency" class="w-full" data-testid="instance-concurrency" type="number" />
+          <FormField :help="text('instanceAccountHelp')" :label="text('account')">
+            <Select
+              v-model="selectedAccountId"
+              class="w-full"
+              data-testid="instance-account"
+              optionLabel="label"
+              optionValue="value"
+              :options="accountOptions"
+            />
+          </FormField>
+          <FormField :help="text('instanceTypeHelp')" :label="text('type')">
+            <Select v-model="newInstanceType" class="w-full" optionLabel="label" optionValue="value" :options="instanceTypeOptions" />
+          </FormField>
+          <FormField :help="text('instanceIdHelp')" :label="text('id')">
+            <InputText v-model="newInstanceId" class="w-full" data-testid="instance-id" :placeholder="text('id')" />
+          </FormField>
+          <FormField :help="text('instanceNameHelp')" :label="text('name')">
+            <InputText v-model="newInstanceName" class="w-full" data-testid="instance-name" :placeholder="text('name')" />
+          </FormField>
+          <FormField :help="text('instanceConcurrencyHelp')" :label="text('concurrency')">
+            <InputText v-model.number="newInstanceConcurrency" class="w-full" data-testid="instance-concurrency" type="number" />
+          </FormField>
         </CreateActionDialog>
       </div>
 
@@ -99,21 +112,29 @@ async function submitCreateInstance(): Promise<void> {
           <template #body="{ data }">
             <div class="flex flex-wrap gap-2">
               <Button :label="text('save')" outlined size="small" @click="saveInstance(data)" />
-              <Button
-                :data-testid="`disable-instance-${data.id}`"
+              <ConfirmActionButton
+                :action-test-id="`disable-instance-${data.id}`"
+                :cancel-label="text('cancel')"
+                :confirm-label="text('confirm')"
                 :label="text('disableInstance')"
-                outlined
+                :message="text('confirmDisableInstanceMessage')"
                 severity="danger"
-                size="small"
-                @click="disableInstance(data)"
+                :target="data.id"
+                :target-label="text('confirmTarget')"
+                :title="text('confirmDisableTitle')"
+                @confirm="disableInstance(data)"
               />
-              <Button
-                :data-testid="`delete-instance-${data.id}`"
+              <ConfirmActionButton
+                :action-test-id="`delete-instance-${data.id}`"
+                :cancel-label="text('cancel')"
+                :confirm-label="text('confirm')"
                 :label="text('delete')"
-                outlined
+                :message="text('confirmDeleteMessage')"
                 severity="danger"
-                size="small"
-                @click="deleteInstance(data)"
+                :target="data.id"
+                :target-label="text('confirmTarget')"
+                :title="text('confirmDeleteTitle')"
+                @confirm="deleteInstance(data)"
               />
             </div>
           </template>

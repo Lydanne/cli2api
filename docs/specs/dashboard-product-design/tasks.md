@@ -31,3 +31,11 @@
   delete removing dependent key history.
 - [x] Add dashboard state and E2E coverage for hard-deleting a used key.
 - [x] Implement `force=true` API-key deletion and dashboard hard-delete action.
+- [x] Add E2E coverage that creation dialogs show explanatory text and field
+  hints.
+- [x] Add E2E coverage that destructive buttons require confirmation before
+  deletion, reset, revoke, or disable takes effect.
+- [x] Add reusable dashboard components for explained form fields and confirmed
+  destructive actions.
+- [x] Apply the explained form and confirmation pattern across client keys,
+  models, accounts, executors, dispatch rules, users, sessions, and test calls.
