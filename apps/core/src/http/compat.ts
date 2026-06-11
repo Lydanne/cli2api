@@ -2,7 +2,14 @@ import type { AdapterProfile, OpenAiModel, RunResponse } from "@cli2api/shared";
 
 /** Converts an adapter profile into an OpenAI-compatible model record. */
 export function toModelPayload(profile: AdapterProfile): OpenAiModel {
-  return { object: "model", id: profile.id, owned_by: "cli2api" };
+  return {
+    object: "model",
+    id: profile.id,
+    created: 0,
+    owned_by: "cli2api",
+    permission: [],
+    permissions: []
+  };
 }
 
 /** Converts a Responses API input payload into a prompt string. */
@@ -89,6 +96,7 @@ export function toChatPayload(run: RunResponse): Record<string, unknown> {
   return {
     id: run.id,
     object: "chat.completion",
+    created: 0,
     model: run.profileId,
     choices: [
       {
@@ -125,6 +133,7 @@ export function toCompletionPayload(run: RunResponse): Record<string, unknown> {
   return {
     id: run.id,
     object: "text_completion",
+    created: 0,
     model: run.profileId,
     choices: [
       {

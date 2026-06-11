@@ -11,6 +11,9 @@
   responses instead of accidental 404s.
 - The official OpenAI API reference and OpenAPI description include many product
   families. cli2api can only execute text-generation runs today.
+- Cherry Studio and similar desktop clients may issue browser-style CORS
+  preflight requests before `/v1/models` and `/v1/chat/completions`, and they
+  expect model objects to contain common OpenAI metadata fields.
 
 ## Goal
 
@@ -29,6 +32,10 @@
     `GET /v1/chat/completions/:completion_id/messages`.
   - Legacy `POST /v1/completions` mapped to the same internal run service.
   - OpenAI-shaped error responses for `/v1` failures.
+  - CORS preflight and response headers for `/v1` endpoints used by desktop
+    clients.
+  - Model list metadata fields commonly consumed by OpenAI-compatible client
+    model managers.
   - Explicit `unsupported_endpoint` responses for OpenAI families that have no
     cli2api backend capability in this slice.
   - Tests proving successful mappings, retrieve/list behavior, ownership checks,
@@ -60,6 +67,11 @@
   `error.code="unsupported_endpoint"` after API key authentication.
 - [x] Existing session-affinity metadata behavior for OpenAI-compatible requests
   remains unchanged.
+- [x] `/v1` CORS preflight requests return a successful response with
+  authorization and content-type allowed.
+- [x] `/v1` model discovery and chat detection responses include CORS headers.
+- [x] `/v1/models` records include common model metadata fields such as
+  `created` and empty permission arrays for stricter OpenAI-compatible clients.
 
 ## Open Questions
 

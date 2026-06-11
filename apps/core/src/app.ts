@@ -7,6 +7,9 @@ import {
   errorResponse,
   jsonResponse,
   openAiErrorResponse,
+  openAiJsonResponse,
+  openAiOptionsResponse,
+  openAiSseResponse,
   sseResponse
 } from "./http/responses.js";
 import { requireAdmin, requireApiKey } from "./http/auth.js";
@@ -385,11 +388,12 @@ export function createApp(context: AppContext) {
         return errorResponse(error);
       }
     })
+    .options("/v1/*", () => openAiOptionsResponse())
     .get("/v1/models", ({ request }) => {
       try {
         requireApiKey(services, request);
         const data = services.profiles.list(false).map((profile) => toModelPayload(profile));
-        return { object: "list", data };
+        return openAiJsonResponse({ object: "list", data });
       } catch (error) {
         return openAiErrorResponse(error);
       }
@@ -397,7 +401,7 @@ export function createApp(context: AppContext) {
     .get("/v1/models/:model", ({ params, request }) => {
       try {
         requireApiKey(services, request);
-        return toModelPayload(services.profiles.require(params.model));
+        return openAiJsonResponse(toModelPayload(services.profiles.require(params.model)));
       } catch (error) {
         return openAiErrorResponse(error, "model");
       }
@@ -422,7 +426,9 @@ export function createApp(context: AppContext) {
           conversationId: body.conversationId,
           metadata: body.metadata
         });
-        return body.stream ? sseResponse([{ type: "response.output_text.delta", delta: run.output ?? "" }]) : toResponsesPayload(run);
+        return body.stream
+          ? openAiSseResponse([{ type: "response.output_text.delta", delta: run.output ?? "" }])
+          : openAiJsonResponse(toResponsesPayload(run));
       } catch (error) {
         return openAiErrorResponse(error);
       }
@@ -430,7 +436,7 @@ export function createApp(context: AppContext) {
     .get("/v1/responses/:response_id/input_items", ({ params, request }) => {
       try {
         const key = requireApiKey(services, request);
-        return toResponseInputItemsPayload(services.runs.requireForKey(params.response_id, key.id));
+        return openAiJsonResponse(toResponseInputItemsPayload(services.runs.requireForKey(params.response_id, key.id)));
       } catch (error) {
         return openAiErrorResponse(error, "response_id");
       }
@@ -438,7 +444,7 @@ export function createApp(context: AppContext) {
     .get("/v1/responses/:response_id", ({ params, request }) => {
       try {
         const key = requireApiKey(services, request);
-        return toResponsesPayload(services.runs.requireForKey(params.response_id, key.id));
+        return openAiJsonResponse(toResponsesPayload(services.runs.requireForKey(params.response_id, key.id)));
       } catch (error) {
         return openAiErrorResponse(error, "response_id");
       }
@@ -463,7 +469,9 @@ export function createApp(context: AppContext) {
           conversationId: body.conversationId,
           metadata: body.metadata
         });
-        return body.stream ? sseResponse([{ choices: [{ delta: { content: run.output ?? "" } }] }]) : toChatPayload(run);
+        return body.stream
+          ? openAiSseResponse([{ choices: [{ delta: { content: run.output ?? "" } }] }])
+          : openAiJsonResponse(toChatPayload(run));
       } catch (error) {
         return openAiErrorResponse(error);
       }
@@ -471,7 +479,7 @@ export function createApp(context: AppContext) {
     .get("/v1/chat/completions/:completion_id/messages", ({ params, request }) => {
       try {
         const key = requireApiKey(services, request);
-        return toChatMessagesPayload(services.runs.requireForKey(params.completion_id, key.id));
+        return openAiJsonResponse(toChatMessagesPayload(services.runs.requireForKey(params.completion_id, key.id)));
       } catch (error) {
         return openAiErrorResponse(error, "completion_id");
       }
@@ -479,7 +487,7 @@ export function createApp(context: AppContext) {
     .get("/v1/chat/completions/:completion_id", ({ params, request }) => {
       try {
         const key = requireApiKey(services, request);
-        return toChatPayload(services.runs.requireForKey(params.completion_id, key.id));
+        return openAiJsonResponse(toChatPayload(services.runs.requireForKey(params.completion_id, key.id)));
       } catch (error) {
         return openAiErrorResponse(error, "completion_id");
       }
@@ -505,8 +513,8 @@ export function createApp(context: AppContext) {
           metadata: body.metadata
         });
         return body.stream
-          ? sseResponse([{ choices: [{ text: run.output ?? "", index: 0, finish_reason: "stop" }] }])
-          : toCompletionPayload(run);
+          ? openAiSseResponse([{ choices: [{ text: run.output ?? "", index: 0, finish_reason: "stop" }] }])
+          : openAiJsonResponse(toCompletionPayload(run));
       } catch (error) {
         return openAiErrorResponse(error);
       }

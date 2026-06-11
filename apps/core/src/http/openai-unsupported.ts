@@ -201,7 +201,9 @@ export function registerOpenAiUnsupportedRoutes<App extends AnyElysia>(app: App,
   for (const route of unsupportedOpenAiRoutes) {
     switch (route.method) {
       case "all":
-        app.all(route.path, unsupported(route.path));
+        app.get(route.path, unsupported(route.path));
+        app.post(route.path, unsupported(route.path));
+        app.delete(route.path, unsupported(route.path));
         break;
       case "delete":
         app.delete(route.path, unsupported(route.path));

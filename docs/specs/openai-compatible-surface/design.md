@@ -13,6 +13,10 @@ implements text-run mappings and registers explicit unsupported responses for
 the largest unsupported families so OpenAI-compatible clients receive stable
 machine-readable errors.
 
+Cherry Studio compatibility requires two additional OpenAI-compatible behaviors:
+desktop clients may send CORS `OPTIONS` preflights to localhost, and their model
+manager can be stricter about model metadata than the minimal OpenAI payload.
+
 ## Text Endpoint Mapping
 
 - `GET /v1/models`: existing list of enabled profiles.
@@ -30,6 +34,12 @@ machine-readable errors.
   object with one user message containing the stored prompt.
 - `POST /v1/completions`: maps the legacy `prompt` field to one internal run and
   returns a legacy completion payload.
+
+Model objects include the profile id, object discriminator, owner label, a
+stable numeric `created` value, and empty permission arrays. cli2api does not
+currently expose profile creation time in the public profile contract, so the
+compatibility layer uses `0` as a stable placeholder rather than inventing a
+runtime timestamp.
 
 Create endpoints keep existing `user` and `metadata.sessionId` /
 `metadata.conversationId` behavior so upstream session affinity remains
@@ -53,6 +63,20 @@ compatible with prior OpenAI-compatible requests.
 `Cli2ApiError` codes remain the internal source of truth. The `/v1` serializer
 normalizes codes to lowercase and maps unsupported compatibility families to
 `unsupported_endpoint`.
+
+## CORS
+
+All `/v1` compatibility responses include permissive CORS headers for local
+desktop clients:
+
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
+- `Access-Control-Allow-Headers: authorization, content-type, api-key,
+  x-api-key, openai-organization, openai-project`
+
+`OPTIONS /v1/*` returns `204` without API key authentication because it is a
+browser preflight, not an API call. Actual `/v1` requests still require bearer
+authentication where required today.
 
 ## Unsupported Families
 

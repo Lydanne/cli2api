@@ -409,6 +409,74 @@ describe("@cli2api/core HTTP contracts", () => {
     }
   });
 
+  it("supports Cherry Studio style model discovery preflight and detection", async () => {
+    const cookie = await harness.login();
+    const profile = await harness.createMockProfile(cookie, "mock-cherry");
+    const apiKey = await harness.createApiKey(cookie, { name: "cherry-key" });
+
+    const preflight = await harness.app.handle(
+      new Request("http://localhost/v1/models", {
+        method: "OPTIONS",
+        headers: {
+          origin: "app://cherry-studio",
+          "access-control-request-method": "GET",
+          "access-control-request-headers": "authorization,content-type"
+        }
+      })
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe("*");
+    expect(preflight.headers.get("access-control-allow-methods")).toContain("GET");
+    expect(preflight.headers.get("access-control-allow-headers")).toContain("authorization");
+
+    const modelsResponse = await harness.app.handle(
+      new Request("http://localhost/v1/models", {
+        headers: {
+          authorization: `Bearer ${apiKey.token}`,
+          origin: "app://cherry-studio"
+        }
+      })
+    );
+    expect(modelsResponse.status).toBe(200);
+    expect(modelsResponse.headers.get("access-control-allow-origin")).toBe("*");
+    expect(await modelsResponse.json()).toMatchObject({
+      object: "list",
+      data: [
+        {
+          id: profile.id,
+          object: "model",
+          created: expect.any(Number),
+          owned_by: "cli2api",
+          permission: [],
+          permissions: []
+        }
+      ]
+    });
+
+    const detectionResponse = await harness.app.handle(
+      new Request("http://localhost/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey.token}`,
+          "content-type": "application/json",
+          origin: "app://cherry-studio"
+        },
+        body: JSON.stringify({
+          model: profile.id,
+          messages: [{ role: "user", content: "ping" }]
+        })
+      })
+    );
+    expect(detectionResponse.status).toBe(200);
+    expect(detectionResponse.headers.get("access-control-allow-origin")).toBe("*");
+    expect(await detectionResponse.json()).toMatchObject({
+      object: "chat.completion",
+      created: expect.any(Number),
+      model: profile.id,
+      choices: [{ message: { role: "assistant", content: expect.any(String) } }]
+    });
+  });
+
   it("rejects API keys that exceed run quotas", async () => {
     const cookie = await harness.login();
     const profile = await harness.createMockProfile(cookie, "mock-quota");

@@ -72,8 +72,14 @@ export interface OpenAiModel {
   object: "model";
   /** Model id, mapped to an adapter profile id. */
   id: string;
+  /** Stable creation timestamp placeholder in Unix seconds. */
+  created: number;
   /** Owner label. */
   owned_by: string;
+  /** Legacy OpenAI-compatible permission array. */
+  permission: unknown[];
+  /** OpenAI-compatible permission array variant used by some clients. */
+  permissions: unknown[];
 }
 
 /** Usage bucket returned by admin quota inspection APIs. */
