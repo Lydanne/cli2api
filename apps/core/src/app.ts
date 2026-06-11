@@ -2,11 +2,26 @@ import { access, readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { Elysia } from "elysia";
 import { listAgentModels } from "@cli2api/agents-sdk";
-import type { OpenAiModel } from "@cli2api/shared";
 import type { CoreDatabase } from "./db/client.js";
-import { errorResponse, jsonResponse, sseResponse } from "./http/responses.js";
+import {
+  errorResponse,
+  jsonResponse,
+  openAiErrorResponse,
+  sseResponse
+} from "./http/responses.js";
 import { requireAdmin, requireApiKey } from "./http/auth.js";
-import { chatPrompt, responsesPrompt, toChatPayload, toResponsesPayload } from "./http/compat.js";
+import {
+  chatPrompt,
+  completionPrompt,
+  responsesPrompt,
+  toChatMessagesPayload,
+  toChatPayload,
+  toCompletionPayload,
+  toModelPayload,
+  toResponseInputItemsPayload,
+  toResponsesPayload
+} from "./http/compat.js";
+import { registerOpenAiUnsupportedRoutes } from "./http/openai-unsupported.js";
 import { createServices, type Services } from "./services/index.js";
 import { createSessionCookie } from "./services/sessions.js";
 
@@ -22,7 +37,7 @@ export interface AppContext {
 export function createApp(context: AppContext) {
   const services = context.services ?? createServices(context.database);
 
-  return new Elysia()
+  const app = new Elysia()
     .get("/api/health", () => ({ ok: true, service: "cli2api-core" }))
     .get("/", async () => serveDashboardFile("index.html"))
     .get("/assets/:file", async ({ params }) => serveDashboardFile(`assets/${params.file}`))
@@ -373,12 +388,18 @@ export function createApp(context: AppContext) {
     .get("/v1/models", ({ request }) => {
       try {
         requireApiKey(services, request);
-        const data: OpenAiModel[] = services.profiles
-          .list(false)
-          .map((profile) => ({ object: "model", id: profile.id, owned_by: "cli2api" }));
+        const data = services.profiles.list(false).map((profile) => toModelPayload(profile));
         return { object: "list", data };
       } catch (error) {
-        return errorResponse(error);
+        return openAiErrorResponse(error);
+      }
+    })
+    .get("/v1/models/:model", ({ params, request }) => {
+      try {
+        requireApiKey(services, request);
+        return toModelPayload(services.profiles.require(params.model));
+      } catch (error) {
+        return openAiErrorResponse(error, "model");
       }
     })
     .post("/v1/responses", async ({ request }) => {
@@ -403,7 +424,23 @@ export function createApp(context: AppContext) {
         });
         return body.stream ? sseResponse([{ type: "response.output_text.delta", delta: run.output ?? "" }]) : toResponsesPayload(run);
       } catch (error) {
-        return errorResponse(error);
+        return openAiErrorResponse(error);
+      }
+    })
+    .get("/v1/responses/:response_id/input_items", ({ params, request }) => {
+      try {
+        const key = requireApiKey(services, request);
+        return toResponseInputItemsPayload(services.runs.requireForKey(params.response_id, key.id));
+      } catch (error) {
+        return openAiErrorResponse(error, "response_id");
+      }
+    })
+    .get("/v1/responses/:response_id", ({ params, request }) => {
+      try {
+        const key = requireApiKey(services, request);
+        return toResponsesPayload(services.runs.requireForKey(params.response_id, key.id));
+      } catch (error) {
+        return openAiErrorResponse(error, "response_id");
       }
     })
     .post("/v1/chat/completions", async ({ request }) => {
@@ -428,9 +465,54 @@ export function createApp(context: AppContext) {
         });
         return body.stream ? sseResponse([{ choices: [{ delta: { content: run.output ?? "" } }] }]) : toChatPayload(run);
       } catch (error) {
-        return errorResponse(error);
+        return openAiErrorResponse(error);
+      }
+    })
+    .get("/v1/chat/completions/:completion_id/messages", ({ params, request }) => {
+      try {
+        const key = requireApiKey(services, request);
+        return toChatMessagesPayload(services.runs.requireForKey(params.completion_id, key.id));
+      } catch (error) {
+        return openAiErrorResponse(error, "completion_id");
+      }
+    })
+    .get("/v1/chat/completions/:completion_id", ({ params, request }) => {
+      try {
+        const key = requireApiKey(services, request);
+        return toChatPayload(services.runs.requireForKey(params.completion_id, key.id));
+      } catch (error) {
+        return openAiErrorResponse(error, "completion_id");
+      }
+    })
+    .post("/v1/completions", async ({ request }) => {
+      try {
+        const key = requireApiKey(services, request);
+        const body = (await request.json()) as {
+          model?: string;
+          prompt?: unknown;
+          stream?: boolean;
+          user?: string;
+          sessionId?: string;
+          conversationId?: string;
+          metadata?: Record<string, unknown>;
+        };
+        const run = await services.runs.createAndExecute(key, {
+          prompt: completionPrompt(body.prompt),
+          profileId: body.model,
+          user: body.user,
+          sessionId: body.sessionId,
+          conversationId: body.conversationId,
+          metadata: body.metadata
+        });
+        return body.stream
+          ? sseResponse([{ choices: [{ text: run.output ?? "", index: 0, finish_reason: "stop" }] }])
+          : toCompletionPayload(run);
+      } catch (error) {
+        return openAiErrorResponse(error);
       }
     });
+
+  return registerOpenAiUnsupportedRoutes(app, services);
 }
 
 /** Elysia application type consumed by Eden Treaty clients. */

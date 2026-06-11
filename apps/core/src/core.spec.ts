@@ -218,6 +218,197 @@ describe("@cli2api/core HTTP contracts", () => {
     expect(await response.text()).toContain("data:");
   });
 
+  it("supports broader OpenAI-compatible text retrieval contracts", async () => {
+    const cookie = await harness.login();
+    const profile = await harness.createMockProfile(cookie, "mock-openai-wide");
+    const apiKey = await harness.createApiKey(cookie, { name: "openai-wide-key" });
+    const authHeaders = {
+      authorization: `Bearer ${apiKey.token}`,
+      "content-type": "application/json"
+    };
+
+    const modelResponse = await harness.app.handle(
+      new Request(`http://localhost/v1/models/${profile.id}`, {
+        headers: { authorization: `Bearer ${apiKey.token}` }
+      })
+    );
+    expect(modelResponse.status).toBe(200);
+    expect(await json(modelResponse)).toMatchObject({
+      id: profile.id,
+      object: "model",
+      owned_by: "cli2api"
+    });
+
+    const createdResponse = await harness.app.handle(
+      new Request("http://localhost/v1/responses", {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ model: profile.id, input: "hello stored response" })
+      })
+    );
+    expect(createdResponse.status).toBe(200);
+    const created = await json(createdResponse);
+
+    const retrievedResponse = await harness.app.handle(
+      new Request(`http://localhost/v1/responses/${String(created.id)}`, {
+        headers: { authorization: `Bearer ${apiKey.token}` }
+      })
+    );
+    expect(retrievedResponse.status).toBe(200);
+    expect(await json(retrievedResponse)).toMatchObject({
+      id: created.id,
+      object: "response",
+      output_text: expect.stringContaining("hello stored response")
+    });
+
+    const inputItemsResponse = await harness.app.handle(
+      new Request(`http://localhost/v1/responses/${String(created.id)}/input_items`, {
+        headers: { authorization: `Bearer ${apiKey.token}` }
+      })
+    );
+    expect(inputItemsResponse.status).toBe(200);
+    expect(await inputItemsResponse.json()).toMatchObject({
+      object: "list",
+      data: [
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "hello stored response" }]
+        }
+      ],
+      has_more: false
+    });
+
+    const chatResponse = await harness.app.handle(
+      new Request("http://localhost/v1/chat/completions", {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          model: profile.id,
+          messages: [{ role: "user", content: "hello stored chat" }]
+        })
+      })
+    );
+    expect(chatResponse.status).toBe(200);
+    const chat = await json(chatResponse);
+
+    const retrievedChat = await harness.app.handle(
+      new Request(`http://localhost/v1/chat/completions/${String(chat.id)}`, {
+        headers: { authorization: `Bearer ${apiKey.token}` }
+      })
+    );
+    expect(retrievedChat.status).toBe(200);
+    expect(await json(retrievedChat)).toMatchObject({
+      id: chat.id,
+      object: "chat.completion",
+      choices: [
+        {
+          message: { role: "assistant", content: expect.stringContaining("hello stored chat") },
+          finish_reason: "stop"
+        }
+      ]
+    });
+
+    const chatMessages = await harness.app.handle(
+      new Request(`http://localhost/v1/chat/completions/${String(chat.id)}/messages`, {
+        headers: { authorization: `Bearer ${apiKey.token}` }
+      })
+    );
+    expect(chatMessages.status).toBe(200);
+    expect(await chatMessages.json()).toMatchObject({
+      object: "list",
+      data: [{ role: "user", content: expect.stringContaining("hello stored chat") }],
+      has_more: false
+    });
+
+    const completionResponse = await harness.app.handle(
+      new Request("http://localhost/v1/completions", {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ model: profile.id, prompt: "hello legacy completion" })
+      })
+    );
+    expect(completionResponse.status).toBe(200);
+    expect(await json(completionResponse)).toMatchObject({
+      object: "text_completion",
+      model: profile.id,
+      choices: [{ text: expect.stringContaining("hello legacy completion"), finish_reason: "stop" }]
+    });
+  });
+
+  it("uses OpenAI-shaped errors for compatibility failures and unsupported families", async () => {
+    const cookie = await harness.login();
+    const apiKey = await harness.createApiKey(cookie, { name: "openai-error-key" });
+
+    const unauthenticated = await harness.app.handle(new Request("http://localhost/v1/models"));
+    expect(unauthenticated.status).toBe(401);
+    expect(await json(unauthenticated)).toMatchObject({
+      error: {
+        type: "invalid_request_error",
+        code: "auth_failed",
+        param: null
+      }
+    });
+
+    const missingModel = await harness.app.handle(
+      new Request("http://localhost/v1/models/missing-model", {
+        headers: { authorization: `Bearer ${apiKey.token}` }
+      })
+    );
+    expect(missingModel.status).toBe(404);
+    expect(await json(missingModel)).toMatchObject({
+      error: {
+        type: "invalid_request_error",
+        code: "profile_not_found",
+        param: "model"
+      }
+    });
+
+    const unsupported = await harness.app.handle(
+      new Request("http://localhost/v1/embeddings", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${apiKey.token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ model: "text-embedding-3-small", input: "hello" })
+      })
+    );
+    expect(unsupported.status).toBe(501);
+    expect(await json(unsupported)).toMatchObject({
+      error: {
+        type: "invalid_request_error",
+        code: "unsupported_endpoint",
+        param: null
+      }
+    });
+
+    for (const endpoint of [
+      "/v1/conversations",
+      "/v1/evals",
+      "/v1/realtime/sessions",
+      "/v1/videos",
+      "/v1/skills",
+      "/v1/chatkit/threads",
+      "/v1/organization/projects"
+    ]) {
+      const unsupportedFamily = await harness.app.handle(
+        new Request(`http://localhost${endpoint}`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${apiKey.token}` }
+        })
+      );
+      expect(unsupportedFamily.status).toBe(501);
+      expect(await json(unsupportedFamily)).toMatchObject({
+        error: {
+          type: "invalid_request_error",
+          code: "unsupported_endpoint",
+          param: null
+        }
+      });
+    }
+  });
+
   it("rejects API keys that exceed run quotas", async () => {
     const cookie = await harness.login();
     const profile = await harness.createMockProfile(cookie, "mock-quota");
