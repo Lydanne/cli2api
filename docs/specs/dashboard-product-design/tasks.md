@@ -18,3 +18,7 @@
 - [x] Add focused dashboard unit coverage for setup progress visibility.
 - [x] Add client-key page copy action for the same-origin `/v1` base URL.
 - [x] Cover client base URL derivation with dashboard unit tests.
+- [x] Add dashboard-state coverage for delete-on-used-key falling back to
+  revocation.
+- [x] Implement the client-key delete fallback without changing backend delete
+  constraints.

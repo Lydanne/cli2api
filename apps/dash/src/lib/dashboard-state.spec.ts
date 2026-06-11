@@ -1,5 +1,6 @@
 import type { AgentEvent } from "@cli2api/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "./api";
 import { createDashboardState } from "./dashboard-state";
 import { isLocale } from "./i18n";
 import type {
@@ -154,6 +155,23 @@ describe("dashboard state", () => {
     expect(resources.users.some((user) => user.email === "ops@example.com")).toBe(true);
     await expect(state.deleteUser(resources.users[0] as AdminUser)).resolves.toBe(true);
     expect(resources.users).toHaveLength(0);
+  });
+
+  it("revokes a used client key when delete is rejected for usage history", async () => {
+    const { api, resources } = createFakeApi();
+    seedResources(resources);
+    const state = createDashboardState(api);
+    vi.mocked(api.deleteApiKey).mockRejectedValueOnce(
+      new ApiError("INVALID_REQUEST", "API key has usage history; revoke it instead", 409)
+    );
+
+    await expect(state.deleteKey(resources.keys[0] as ApiKeyView)).resolves.toBe(true);
+
+    expect(api.deleteApiKey).toHaveBeenCalledWith("key-1");
+    expect(api.revokeApiKey).toHaveBeenCalledWith("key-1");
+    expect(resources.keys).toHaveLength(1);
+    expect(resources.keys[0]?.enabled).toBe(0);
+    expect(state.error.value).toBe("");
   });
 
   it("stores upstream model config and imports SDK models", async () => {

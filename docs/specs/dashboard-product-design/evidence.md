@@ -1,5 +1,25 @@
 # Dashboard Product Design Evidence
 
+## Used Client Key Delete Follow-Up
+
+- Preserved the backend audit rule: used client keys are not physically deleted;
+  they must be revoked.
+- Added dashboard-state coverage for the browser delete action falling back to
+  `revokeApiKey` when `deleteApiKey` returns the known `409` usage-history
+  error.
+- TDD red: `pnpm vitest run apps/dash/src/lib/dashboard-state.spec.ts` failed
+  because `deleteKey` returned `false` on the backend usage-history rejection.
+- TDD green: `pnpm vitest run apps/dash/src/lib/dashboard-state.spec.ts`
+  passed with 1 file and 5 tests after adding the fallback.
+- `pnpm lint`: passed with zero warnings.
+- `pnpm test`: passed with 13 files and 73 tests.
+- `pnpm build`: passed for shared, agents-sdk, core, and dash.
+- `pnpm test:coverage`: passed with 82.69% statements, 66.01% branches,
+  88.99% functions, and 83.34% lines.
+- `pnpm test:e2e`: passed with 2 Playwright tests.
+- `pnpm check:file-size`: passed; checked source files are within the 1300-line
+  limit.
+
 ## Client Key Link Copy Follow-Up
 
 - Added a client-key page call-address panel that displays the current

@@ -493,7 +493,14 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
 
   async function deleteKey(key: ApiKeyView): Promise<boolean> {
     return action(async () => {
-      await client.deleteApiKey(key.id);
+      try {
+        await client.deleteApiKey(key.id);
+      } catch (cause) {
+        if (!isUsedApiKeyDeleteRejection(cause)) {
+          throw cause;
+        }
+        await client.revokeApiKey(key.id);
+      }
       await refresh();
     });
   }
@@ -530,6 +537,15 @@ export function createDashboardState(client: DashboardApi = createDashboardApi()
       }
       return false;
     }
+  }
+
+  function isUsedApiKeyDeleteRejection(cause: unknown): boolean {
+    return (
+      cause instanceof ApiError &&
+      cause.status === 409 &&
+      cause.code === "INVALID_REQUEST" &&
+      cause.message.includes("usage history")
+    );
   }
 
   function enabledText(value: boolean | number): string {

@@ -147,3 +147,9 @@ delete rules are:
   are internal cleanup data and are removed with the account.
 - Extra dashboard users can be deleted when they are not the current user, not
   the last active admin, and do not own client keys.
+
+When an operator clicks delete on a used client key, the dashboard treats the
+backend `409` audit-history rejection as a cue to revoke the key. The backend
+remains the source of truth for physical delete eligibility; the browser only
+normalizes this known rejection into the supported lifecycle transition and then
+refreshes resources.

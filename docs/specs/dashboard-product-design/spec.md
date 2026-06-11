@@ -41,6 +41,8 @@
     completed, including a successful test call.
   - A copyable client base URL on the client-key page so operators can paste the
     serving endpoint into downstream tools.
+  - Delete-on-used-client-key handling that falls back to revocation and
+    refreshes the table instead of surfacing the backend audit-history error.
 - Out of scope:
   - Backend API changes.
   - New dashboard pages or navigation items.
@@ -69,6 +71,8 @@
 - [x] Client-key page displays the current same-origin `/v1` base URL.
 - [x] Client-key page can copy that base URL without exposing stored API key
   plaintext.
+- [x] Client-key delete action handles used keys by revoking them and keeping
+  the dashboard error area clear.
 
 ## Open Questions
 
