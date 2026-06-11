@@ -14,7 +14,7 @@
 - [x] Replace adapter-specific run contracts with provider-neutral contracts.
 - [x] Add `AgentProcessRunner` and a child-process JSONL implementation.
 - [x] Update the mock provider to emit normalized conversation/status events.
-- [x] Keep compatibility exports only where needed by existing code.
+- [x] Remove legacy compatibility exports after callers move to `AgentsSDK`.
 
 ## Phase 3: Codex Provider Package
 
@@ -66,9 +66,17 @@
 - [x] Add failing tests for the `CodexAgent` static provider/auth facade.
 - [x] Implement `AgentsSDK` without removing low-level provider contracts.
 - [x] Implement `CodexAgent` and keep direct Codex provider/auth exports.
-- [x] Refactor core services from direct `AdapterRegistry` and auth-provider
+- [x] Refactor core services from direct provider registries and auth-provider
   arrays to the `AgentsSDK` facade.
 - [x] Re-run targeted SDK/core tests and repository verification gates.
+
+## Phase 8: Compatibility Removal
+
+- [x] Remove `AdapterRegistry`, `AgentAdapter`, `MockAgentAdapter`,
+  `collectAgentEvents`, and `normalizeAdapterError` from the public package
+  entrypoint.
+- [x] Replace remaining package callers with `AgentsSDK` facade methods.
+- [x] Update docs to describe provider-only public contracts.
 
 ## Allowed Write Areas
 

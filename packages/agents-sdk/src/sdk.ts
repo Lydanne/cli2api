@@ -16,10 +16,8 @@ import {
   type SecretLoginInput,
   type StartAuthInput
 } from "./auth.js";
-import { collectAgentEvents } from "./collect.js";
-import { MockAgentProvider } from "./mock-adapter.js";
+import { MockAgentProvider } from "./mock-provider.js";
 import { ChildProcessAgentProcessRunner, type AgentProcessRunner } from "./process-runner.js";
-import { AdapterRegistry } from "./registry.js";
 import type {
   AgentAttachment,
   AgentConversationInput,
@@ -48,7 +46,7 @@ export interface AgentsRunRequest {
   runId?: string;
   /** Optional provider type override. Defaults to `profile.type`. */
   provider?: string;
-  /** Operator-managed adapter profile. */
+  /** Operator-managed model profile. */
   profile: AdapterProfile;
   /** User input text after route-specific normalization. */
   input: string;
@@ -76,7 +74,7 @@ export interface AgentRunResult {
 
 /** Primary facade for provider-neutral agent execution, discovery, and auth. */
 export class AgentsSDK {
-  private readonly providers = new AdapterRegistry();
+  private readonly providers = new Map<string, AgentProvider>();
 
   private readonly authProviders = new Map<string, AgentAuthProvider>();
 
@@ -122,7 +120,11 @@ export class AgentsSDK {
 
   /** Collects an async event stream into an array. */
   public static async collect(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
-    return collectAgentEvents(events);
+    const collected: AgentEvent[] = [];
+    for await (const event of events) {
+      collected.push(event);
+    }
+    return collected;
   }
 
   /** Converts a normalized event sequence into a final text result. */
@@ -172,13 +174,8 @@ export class AgentsSDK {
 
   /** Registers or replaces a run provider. */
   public use(provider: AgentProvider): this {
-    this.providers.register(provider);
+    this.providers.set(provider.type, provider);
     return this;
-  }
-
-  /** Compatibility alias for provider registration. */
-  public register(provider: AgentProvider): this {
-    return this.use(provider);
   }
 
   /** Registers or replaces an auth provider. */
@@ -189,12 +186,11 @@ export class AgentsSDK {
 
   /** Resolves a run provider by type. */
   public getProvider(type: string): AgentProvider {
-    return this.providers.get(type);
-  }
-
-  /** Compatibility alias for resolving a run provider by type. */
-  public get(type: string): AgentProvider {
-    return this.getProvider(type);
+    const provider = this.providers.get(type);
+    if (!provider) {
+      throw createCli2ApiError(ErrorCode.ADAPTER_UNAVAILABLE, `No provider registered for type "${type}"`, 503);
+    }
+    return provider;
   }
 
   /** Resolves an auth provider by type. */
@@ -208,17 +204,13 @@ export class AgentsSDK {
 
   /** Lists registered run provider type names. */
   public listProviderTypes(): string[] {
-    return this.providers.listTypes();
-  }
-
-  /** Compatibility alias for listing registered run provider type names. */
-  public listTypes(): string[] {
-    return this.listProviderTypes();
+    return [...this.providers.keys()].sort();
   }
 
   /** Lists model catalog entries exposed by registered providers. */
   public async listModels(filter: AgentsModelFilter = {}): Promise<AgentModelDefinition[]> {
-    const models = await this.providers.listModels();
+    const catalogs = await Promise.all([...this.providers.values()].map(async (provider) => provider.listModels?.() ?? []));
+    const models = catalogs.flat();
     return filter.type ? models.filter((model) => model.type === filter.type) : models;
   }
 

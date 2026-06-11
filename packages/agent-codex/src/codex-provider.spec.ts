@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  collectAgentEvents,
+  AgentsSDK,
   type AgentProcessCommand,
   type AgentProcessEvent,
   type AgentProcessRunner
@@ -48,7 +48,7 @@ describe("CodexAgentProvider", () => {
     ]);
     const provider = new CodexAgentProvider({ runner, codexPath: "codex-test" });
 
-    const events = await collectAgentEvents(
+    const events = await AgentsSDK.collect(
       provider.run({
         runId: "run-stateless",
         prompt: "hello",
@@ -117,7 +117,7 @@ describe("CodexAgentProvider", () => {
     ]);
     const provider = new CodexAgentProvider({ runner, codexPath: "codex-test" });
 
-    const events = await collectAgentEvents(
+    const events = await AgentsSDK.collect(
       provider.run({
         runId: "run-resume",
         prompt: "continue",
@@ -218,7 +218,7 @@ describe("CodexAgentProvider", () => {
     ]);
     const provider = new CodexAgentProvider({ runner, codexPath: "codex-test" });
 
-    const events = await collectAgentEvents(
+    const events = await AgentsSDK.collect(
       provider.run({
         runId: "run-failed",
         prompt: "hello",

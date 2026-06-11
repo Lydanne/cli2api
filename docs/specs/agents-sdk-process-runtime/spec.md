@@ -62,8 +62,7 @@
   including static `create`, `mockProvider`, `processRunner`, `authRunner`,
   `collect`, `toResult`, `runWith`, and `runTextWith` helpers.
 - [ ] `AgentsSDK` instances support `use`, `useAuth`, `getProvider`,
-  `listModels`, `run`, `runText`, and auth operations without callers
-  constructing `AdapterRegistry` directly.
+  `listProviderTypes`, `listModels`, `run`, `runText`, and auth operations.
 - [ ] The normalized event stream includes `conversation.updated` and
   `status.updated` while preserving existing run/output/usage/failure events.
 - [ ] Unit tests cover JSONL chunks, stderr capture, timeout/kill behavior,

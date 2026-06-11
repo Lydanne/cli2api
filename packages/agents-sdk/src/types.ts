@@ -27,7 +27,7 @@ export interface AgentRunInput {
   runId: string;
   /** User prompt after route-specific normalization. */
   prompt: string;
-  /** Operator-managed adapter profile. */
+  /** Operator-managed model profile. */
   profile: AdapterProfile;
   /** cli2api runtime mode. This slice supports only read-only model serving. */
   mode: AgentRunMode;
@@ -45,23 +45,20 @@ export interface AgentModelDefinition {
   id: string;
   /** Human-readable model display name. */
   name: string;
-  /** Adapter implementation type that can run this model. */
+  /** Provider implementation type that can run this model. */
   type: AdapterProfile["type"];
-  /** Catalog source, usually the provider or adapter family. */
+  /** Catalog source, usually the provider family. */
   source: string;
-  /** Adapter config stored on imported profiles. */
+  /** Provider config stored on imported profiles. */
   config: Record<string, unknown>;
 }
 
 /** Provider implementation contract used by core. */
 export interface AgentProvider {
-  /** Provider type string stored on adapter profiles and upstream instances. */
+  /** Provider type string stored on model profiles and upstream instances. */
   readonly type: string;
   /** Runs a prompt and yields normalized events. */
   run(input: AgentRunInput): AsyncIterable<AgentEvent>;
   /** Lists models that can be imported as profiles. */
   listModels?(): Promise<AgentModelDefinition[]> | AgentModelDefinition[];
 }
-
-/** Backward-compatible alias for the provider contract. */
-export type AgentAdapter = AgentProvider;

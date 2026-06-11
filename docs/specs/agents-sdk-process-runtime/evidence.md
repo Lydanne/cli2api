@@ -85,3 +85,22 @@
 - 2026-06-11: Facade `pnpm check:file-size` passed; all checked source files
   are at or below 1300 lines.
 - 2026-06-11: Facade `git diff --check` passed with no whitespace errors.
+- 2026-06-11: Compatibility-removal RED check
+  `pnpm vitest run packages/agents-sdk/src/index.spec.ts` failed as expected
+  because `AdapterRegistry` was still exported from the package entrypoint.
+- 2026-06-11: Compatibility-removal targeted GREEN check
+  `pnpm vitest run packages/agents-sdk/src/index.spec.ts
+  packages/agent-codex/src/codex-provider.spec.ts` passed: 2 files, 13 tests.
+- 2026-06-11: Compatibility-removal `pnpm build` passed for shared,
+  agents-sdk, agent-codex, core, and dash.
+- 2026-06-11: Compatibility-removal `pnpm test` passed: 15 test files,
+  87 tests.
+- 2026-06-11: Compatibility-removal `pnpm test:coverage` passed: statements
+  83.34%, branches 67.82%, functions 89.39%, lines 84.15%.
+- 2026-06-11: Compatibility-removal `pnpm test:e2e` passed: 2 Playwright
+  tests. The web server printed the existing `NO_COLOR`/`FORCE_COLOR` warning
+  only.
+- 2026-06-11: Compatibility-removal `pnpm lint` passed with
+  `eslint . --max-warnings 0`.
+- 2026-06-11: Compatibility-removal `pnpm check:file-size` passed; all checked
+  source files are at or below 1300 lines.

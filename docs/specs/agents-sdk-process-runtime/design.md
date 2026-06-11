@@ -63,8 +63,9 @@ explicit provider type, conversation, attachments, and output schema. It maps to
 `AgentRunInput` internally. `AgentRunResult` collects final `output`, `usage`,
 all events, and the latest provider conversation mapping.
 
-`AdapterRegistry` remains as a compatibility export in this slice, but core
-code should use `AgentsSDK` directly.
+`@cli2api/agents-sdk` does not export legacy adapter compatibility helpers.
+Callers use `AgentsSDK`, `AgentProvider`, `MockAgentProvider`, and the static
+collection helpers directly.
 
 Provider-specific raw JSONL records stay inside provider packages. Core and
 dashboard only consume normalized events and DTOs from `@cli2api/shared`.
@@ -136,6 +137,6 @@ slice avoids a dashboard redesign.
 ## Rollback Notes
 
 The old profile, run, and upstream instance tables remain. The new provider
-session columns are nullable, so rollback can ignore them. A compatibility
-`CodexAdapter` export may remain temporarily while core switches to provider
-registration.
+session columns are nullable, so rollback can ignore them. Runtime rollback
+should switch service wiring between `AgentsSDK` provider registrations rather
+than restoring legacy adapter exports.

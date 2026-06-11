@@ -1,18 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { ErrorCode } from "@cli2api/shared";
+import * as publicSdk from "./index.js";
 import {
-  AdapterRegistry,
   AgentsSDK,
-  MockAgentAdapter,
-  collectAgentEvents,
-  normalizeAdapterError
+  normalizeProviderError
 } from "./index.js";
 
 describe("@cli2api/agents-sdk", () => {
   it("collects events from the mock provider", async () => {
-    const adapter = new MockAgentAdapter();
-    const events = await collectAgentEvents(
-      adapter.run({
+    const provider = AgentsSDK.mockProvider();
+    const events = await AgentsSDK.collect(
+      provider.run({
         runId: "run_1",
         prompt: "hello world",
         mode: "model",
@@ -30,25 +28,41 @@ describe("@cli2api/agents-sdk", () => {
     ]);
   });
 
-  it("registers and resolves adapters by type", () => {
-    const registry = new AdapterRegistry();
-    const adapter = new MockAgentAdapter();
-    registry.register(adapter);
+  it("registers and resolves providers by type", () => {
+    const sdk = AgentsSDK.create();
+    const provider = AgentsSDK.mockProvider();
+    sdk.use(provider);
 
-    expect(registry.get("mock")).toBe(adapter);
-    expect(() => registry.get("missing")).toThrow(/No adapter registered/);
+    expect(sdk.getProvider("mock")).toBe(provider);
+    expect(() => sdk.getProvider("missing")).toThrow(/No provider registered/);
   });
 
-  it("normalizes adapter failures", () => {
-    const error = normalizeAdapterError(new Error("bad upstream"));
+  it("normalizes provider failures", () => {
+    const error = normalizeProviderError(new Error("bad upstream"));
 
     expect(error.code).toBe(ErrorCode.RUN_FAILED);
     expect(error.message).toBe("bad upstream");
   });
 
+  it("does not expose legacy compatibility symbols from the package entrypoint", () => {
+    expect(publicSdk).not.toHaveProperty("AdapterRegistry");
+    expect(publicSdk).not.toHaveProperty("MockAgentAdapter");
+    expect(publicSdk).not.toHaveProperty("collectAgentEvents");
+    expect(publicSdk).not.toHaveProperty("AgentAdapter");
+    expect(publicSdk).not.toHaveProperty("normalizeAdapterError");
+  });
+
+  it("does not expose legacy provider registry aliases on AgentsSDK instances", () => {
+    const sdk = AgentsSDK.create();
+
+    expect(sdk).not.toHaveProperty("register");
+    expect(sdk).not.toHaveProperty("get");
+    expect(sdk).not.toHaveProperty("listTypes");
+  });
+
   it("lists models through registered providers", async () => {
-    const registry = new AdapterRegistry();
-    registry.register({
+    const sdk = AgentsSDK.create();
+    sdk.use({
       type: "custom",
       run: async function* () {
         yield { type: "run.started", runId: "unused" };
@@ -64,7 +78,7 @@ describe("@cli2api/agents-sdk", () => {
       ]
     });
 
-    await expect(registry.listModels()).resolves.toEqual([
+    await expect(sdk.listModels()).resolves.toEqual([
       {
         id: "custom-model",
         name: "Custom Model",

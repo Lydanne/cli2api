@@ -12,7 +12,7 @@ export type AgentAuthState =
   | "expired"
   | "canceled";
 
-/** Runtime account context used for auth and later adapter execution. */
+/** Runtime account context used for auth and later provider execution. */
 export interface RuntimeAuthInput {
   /** Upstream account id owned by core. */
   accountId: string;
@@ -95,7 +95,7 @@ export interface AgentAuthCommandRunner {
   runUntilOutput?(command: AgentAuthCommand, isReady: (output: string) => boolean): Promise<AgentAuthCommandResult>;
 }
 
-/** Provider-neutral auth provider contract implemented by adapter integrations. */
+/** Provider-neutral auth contract implemented by CLI provider packages. */
 export interface AgentAuthProvider {
   /** Provider type handled by this auth provider. */
   readonly type: string;

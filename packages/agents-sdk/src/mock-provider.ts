@@ -3,7 +3,7 @@ import type { AgentProvider, AgentRunInput } from "./types.js";
 
 /** Deterministic provider used by tests, E2E flows, and local demos. */
 export class MockAgentProvider implements AgentProvider {
-  /** Adapter type stored on mock adapter profiles. */
+  /** Provider type stored on mock profiles. */
   public readonly type = "mock";
 
   /** Runs a prompt through a deterministic mock event stream. */
@@ -30,6 +30,3 @@ export class MockAgentProvider implements AgentProvider {
     yield { type: "run.completed", runId: input.runId, output, usage, timestamp: Date.now() };
   }
 }
-
-/** Backward-compatible mock adapter class name. */
-export class MockAgentAdapter extends MockAgentProvider {}

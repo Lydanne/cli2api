@@ -96,7 +96,7 @@ const provider = agents.getProvider("codex");
 const authProvider = agents.getAuthProvider("codex");
 ```
 
-`use` 和 `useAuth` 会按 provider `type` 替换旧实现。这样可以在测试中注入 fake provider，也可以在生产服务里装配 Codex、Claude Code、OpenCode 等 provider。
+`use` 和 `useAuth` 会按 provider `type` 替换已有实现。这样可以在测试中注入 fake provider，也可以在生产服务里装配 Codex、Claude Code、OpenCode 等 provider。
 
 ## 模型发现
 
@@ -151,12 +151,11 @@ provider 必须输出归一化 `AgentEvent`：
 
 `AgentsSDK.toResult` 会按事件聚合文本、usage 和最新 conversation。若 provider 先发 `usage.updated`，最后 `run.completed` 未携带 usage，已有 usage 会保留。
 
-## 兼容层
+## 公共边界
 
-当前仍导出：
+包入口不导出旧 adapter 兼容符号。调用方应使用：
 
-- `AdapterRegistry`
-- `MockAgentAdapter`
-- `collectAgentEvents`
-
-新代码优先使用 `AgentsSDK`、`AgentsSDK.mockProvider()` 和 `AgentsSDK.collect()`。
+- `AgentsSDK.create()` 管理 provider 注册。
+- `AgentsSDK.mockProvider()` 创建测试 provider。
+- `AgentsSDK.collect()` 收集事件流。
+- `AgentProvider` 实现 provider 契约。
